@@ -1,11 +1,22 @@
+body:has(#chat-view) {
+  overflow: hidden;
+}
+
 #app:has(#chat-view) {
   padding: 0;
 }
 
 #chat-view {
-  max-width: 720px; margin: 0 auto; padding: 0 1rem;
-  display: flex; flex-direction: column;
-  height: calc(100dvh - 48px);
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-messages {
