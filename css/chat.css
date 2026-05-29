@@ -1,26 +1,17 @@
-body:has(#chat-view) {
-  overflow: hidden;
-}
-
 #app:has(#chat-view) {
   padding: 0;
 }
 
 #chat-view {
-  position: fixed;
-  top: 48px;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  display: flex; flex-direction: column;
+  min-height: calc(100vh - 48px);
   max-width: 720px;
   margin: 0 auto;
   padding: 0 1rem;
-  display: flex;
-  flex-direction: column;
 }
 
 .chat-messages {
-  flex: 1; overflow-y: auto; padding: 1rem 0;
+  flex: 1; padding: 1rem 0;
   display: flex; flex-direction: column; gap: 0.8rem;
 }
 
@@ -117,6 +108,6 @@ body:has(#chat-view) {
 }
 
 .typing::after {
-  content: "▊"; animation: blink 1s steps(1) infinite;
+  content: "\258A"; animation: blink 1s steps(1) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
