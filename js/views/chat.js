@@ -101,7 +101,8 @@ async function sendMessage() {
   // 前端追加 user 消息
   messages.push({ role: "user", content: text });
   addMessage("user", text);
-  currentAssistantMsg = addMessage("assistant", "");
+  currentAssistantMsg = addMessage("assistant", "思考中...");
+  currentAssistantMsg.classList.add("typing");
 
   streaming = true;
   sendBtn.disabled = true;
@@ -140,7 +141,8 @@ async function sendMessage() {
       } catch {}
     }
 
-    let content = deltas.join("");
+    currentAssistantMsg.classList.remove("typing");
+    let content = deltas.join("") || "（无响应）";
     currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
@@ -152,8 +154,8 @@ async function sendMessage() {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
   } catch (e) {
-    const body = currentAssistantMsg.querySelector(".msg-body");
-    body.textContent = body.textContent || "请求失败: " + e.message;
+    currentAssistantMsg.classList.remove("typing");
+    currentAssistantMsg.querySelector(".msg-body").textContent = "请求失败: " + e.message;
   } finally {
     streaming = false;
     sendBtn.disabled = false;
