@@ -3,7 +3,6 @@ const API_BASE = window.__API_BASE__ || "";
 let marked_parser;
 
 function fixImages(content, dynamic_id) {
-  if (!content) return "";
   return content.replace(/!\[img:(\d+)\]/g, (_, idx) => `![图片](${API_BASE}/api/img/${dynamic_id}_${idx})`);
 }
 
