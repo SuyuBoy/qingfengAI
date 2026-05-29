@@ -2,7 +2,7 @@ import { api, getToken } from "../api.js";
 
 const API_BASE = window.__API_BASE__ || "";
 
-let msgContainer, sidebar, textarea, sendBtn;
+let msgContainer, chatView, sidebar, textarea, sendBtn;
 const CHAT_KEY = "chat_messages";
 let streaming = false;
 let currentAssistantMsg = null;
@@ -196,13 +196,17 @@ export async function init(container) {
         </div>
       </div>
       <aside class="tool-sidebar" id="tool-sidebar">
-        <div class="tool-sidebar-title">工具调用</div>
+        <div class="tool-sidebar-title">
+          <span>工具调用</span>
+          <button class="tool-sidebar-toggle" id="sidebar-toggle" title="收起侧边栏">&larr;</button>
+        </div>
         <div class="tool-sidebar-empty">等待工具调用...</div>
       </aside>
     </div>
+    <button class="sidebar-expand-btn" id="sidebar-expand" title="展开侧边栏">工具调用 &rarr;</button>
   `;
 
-  msgContainer = container.querySelector(".chat-messages");
+  chatView = container.querySelector("#chat-view");
   sidebar = container.querySelector("#tool-sidebar");
   textarea = container.querySelector("#chat-input");
   sendBtn = container.querySelector("#chat-send-btn");
@@ -223,6 +227,12 @@ export async function init(container) {
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
     clearSidebar();
   });
+
+  // 侧边栏收起/展开
+  const toggleBtn = container.querySelector("#sidebar-toggle");
+  const expandBtn = container.querySelector("#sidebar-expand");
+  if (toggleBtn) toggleBtn.addEventListener("click", () => collapseSidebar(chatView));
+  if (expandBtn) expandBtn.addEventListener("click", () => expandSidebar(chatView));
 
   // 渲染历史对话
   if (saved) {
@@ -247,6 +257,16 @@ function addMessage(role, content) {
 
 // ---- 侧边栏 ----
 
+function collapseSidebar(chatView) {
+  if (!chatView) return;
+  chatView.classList.add("collapsed");
+}
+
+function expandSidebar(chatView) {
+  if (!chatView) return;
+  chatView.classList.remove("collapsed");
+}
+
 function clearSidebar() {
   currentCard = null;
   if (!sidebar) return;
@@ -262,6 +282,7 @@ function clearSidebar() {
 
 function addToolCard(toolName, searchQuery) {
   if (!sidebar) return;
+  expandSidebar(chatView);
   const empty = sidebar.querySelector(".tool-sidebar-empty");
   if (empty) empty.remove();
 

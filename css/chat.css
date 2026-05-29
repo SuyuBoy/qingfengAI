@@ -121,11 +121,14 @@
   padding: 0 1rem;
 }
 
+#chat-view.collapsed { justify-content: center; }
+
 .chat-main {
   width: 720px;
   flex-shrink: 0;
   display: flex; flex-direction: column;
   min-height: calc(100vh - 48px);
+  transition: margin 0.3s ease;
 }
 
 .tool-sidebar {
@@ -136,6 +139,14 @@
   max-height: calc(100vh - 48px);
   overflow-y: auto;
   position: sticky; top: 0;
+  transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+
+#chat-view.collapsed .tool-sidebar {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 1rem 0;
 }
 
 .tool-sidebar-title {
@@ -143,6 +154,28 @@
   color: var(--muted); text-transform: uppercase;
   letter-spacing: 0.05em; padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  white-space: nowrap;
+}
+
+.tool-sidebar-toggle {
+  font-size: 0.85rem; color: var(--muted); cursor: pointer;
+  background: none; border: 1px solid var(--border);
+  border-radius: 4px; padding: 0 5px; line-height: 1.4;
+}
+
+/* 收起后的浮起展开按钮 */
+.sidebar-expand-btn {
+  display: none;
+  position: fixed; right: 1rem; top: 60px;
+  z-index: 100;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+  font-size: 0.75rem; color: var(--muted); cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#chat-view.collapsed ~ .sidebar-expand-btn { display: block; }
 }
 
 .tool-sidebar-empty {
