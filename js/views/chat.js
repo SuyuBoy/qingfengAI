@@ -120,44 +120,37 @@ async function sendMessage() {
     if (res.status === 403) { throw new Error("未付费"); }
     if (!res.ok) throw new Error(res.statusText);
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let content = "";
+    const text = await res.text();
+    const deltas = [];
+    const newMsgs = [];
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const dataStr = line.slice(6);
-        if (dataStr === "[DONE]") continue;
-        try {
-          const obj = JSON.parse(dataStr);
-          if (obj.error) {
-            content += `\n\n❌ ${obj.error}`;
-          } else if (obj.delta) {
-            content += obj.delta;
-            currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
-            msgContainer.scrollTop = msgContainer.scrollHeight;
-          } else if (obj.done) {
-            // 后端返回新消息，前端追加到历史
-            if (obj.messages) {
-              for (const m of obj.messages) {
-                messages.push(m);
-                if (m.role === "tool") {
-                  addMessage("tool", `🔍 ${JSON.parse(m.content.match(/「(.+?)」/)?.[1] || '""')}\n— 检索完成`);
-                }
-              }
-            }
+    for (const line of text.split("\n")) {
+      if (!line.startsWith("data: ")) continue;
+      const dataStr = line.slice(6);
+      if (dataStr === "[DONE]") continue;
+      try {
+        const obj = JSON.parse(dataStr);
+        if (obj.delta) {
+          deltas.push(obj.delta);
+        } else if (obj.done && obj.messages) {
+          for (const m of obj.messages) {
+            newMsgs.push(m);
           }
-        } catch {}
-      }
+        }
+      } catch {}
+    }
+
+    // 模拟流式打印
+    let content = "";
+    for (let i = 0; i < deltas.length; i++) {
+      content += deltas[i];
+      currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+      if (deltas.length > 20) await new Promise(r => setTimeout(r, 10));
+    }
+
+    for (const m of newMsgs) {
+      messages.push(m);
     }
 
     if (!content.trim()) {
