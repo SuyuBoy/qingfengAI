@@ -26,11 +26,6 @@
 .cal-group {
   display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
 }
-.cal-btn {
-  padding: 4px 10px; border: 1px solid var(--border);
-  border-radius: 20px; background: var(--card-bg); cursor: pointer;
-  font-size: 0.95rem; line-height: 1;
-}
 .cal-label {
   font-size: 0.8rem; color: var(--muted);
 }

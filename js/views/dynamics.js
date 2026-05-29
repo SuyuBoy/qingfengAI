@@ -18,7 +18,7 @@ export async function init(container) {
         <button id="search-btn">搜索</button>
         <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
       </div>
-      <button id="cal-btn" class="cal-btn" title="按日期筛选">📅</button>
+      <button id="cal-btn" class="clear-btn" title="按日期筛选">📅</button>
       <span id="cal-label" class="cal-label"></span>
       <button id="cal-reset" class="clear-btn" style="display:none">重置</button>
       <input type="date" id="date-pick" style="display:none">
