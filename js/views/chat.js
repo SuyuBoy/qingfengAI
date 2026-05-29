@@ -179,8 +179,12 @@ export async function init(container) {
               <option value="deepseek-v4-flash">v4 Flash</option>
               <option value="deepseek-v4-pro">v4 Pro</option>
             </select>
+            <select id="chat-effort">
+              <option value="high">高思考</option>
+              <option value="max">最强思考</option>
+            </select>
             <label class="think-toggle"><input type="checkbox" id="chat-debug"> 调试</label>
-            <label class="think-toggle"><input type="checkbox" id="chat-raw" checked> 原文</label>
+            <button class="model-btn" id="chat-clear">新对话</button>
           </div>
           <div class="chat-send-row">
             <textarea id="chat-input" rows="1" placeholder="输入问题..."></textarea>
@@ -200,7 +204,8 @@ export async function init(container) {
   textarea.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
-  container.querySelector("#chat-clear").addEventListener("click", () => {
+  const clearBtn = container.querySelector("#chat-clear");
+  if (clearBtn) clearBtn.addEventListener("click", () => {
     if (streaming) return;
     newSession();
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
