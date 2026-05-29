@@ -2,7 +2,7 @@ import { api, getToken } from "../api.js";
 
 const API_BASE = window.__API_BASE__ || "";
 
-let msgContainer, textarea, sendBtn, thinkToggle;
+let msgContainer, textarea, sendBtn;
 let streaming = false;
 let currentAssistantMsg = null;
 
@@ -48,9 +48,10 @@ export async function init(container) {
             <option value="deepseek-v4-pro">v4 Pro</option>
             <option value="deepseek-v4-flash">v4 Flash</option>
           </select>
-          <label class="think-toggle">
-            <input type="checkbox" id="chat-thinking"> 思考模式
-          </label>
+          <select id="chat-effort">
+            <option value="high">高思考</option>
+            <option value="max">最强思考</option>
+          </select>
           <button class="model-btn" id="chat-clear">新对话</button>
         </div>
         <div class="chat-send-row">
@@ -64,7 +65,6 @@ export async function init(container) {
   msgContainer = container.querySelector(".chat-messages");
   textarea = container.querySelector("#chat-input");
   sendBtn = container.querySelector("#chat-send");
-  thinkToggle = container.querySelector("#chat-thinking");
 
   sendBtn.addEventListener("click", sendMessage);
   textarea.addEventListener("keydown", (e) => {
@@ -94,7 +94,7 @@ async function sendMessage() {
   if (!text) return;
 
   const model = document.getElementById("chat-model").value;
-  const thinking = thinkToggle.checked ? "enabled" : "disabled";
+  const effort = document.getElementById("chat-effort").value;
 
   textarea.value = "";
 
@@ -113,7 +113,7 @@ async function sendMessage() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + getToken(),
       },
-      body: JSON.stringify({ messages, model, thinking }),
+      body: JSON.stringify({ messages, model, effort }),
     });
 
     if (res.status === 401) { throw new Error("未登录"); }
