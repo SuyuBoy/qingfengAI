@@ -140,14 +140,9 @@ async function sendMessage() {
       } catch {}
     }
 
-    // 模拟流式打印
-    let content = "";
-    for (let i = 0; i < deltas.length; i++) {
-      content += deltas[i];
-      currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
-      msgContainer.scrollTop = msgContainer.scrollHeight;
-      if (deltas.length > 20) await new Promise(r => setTimeout(r, 10));
-    }
+    let content = deltas.join("");
+    currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
+    msgContainer.scrollTop = msgContainer.scrollHeight;
 
     for (const m of newMsgs) {
       messages.push(m);
