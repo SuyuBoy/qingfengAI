@@ -48,7 +48,7 @@ function simpleMarkdown(text) {
     const line = lines[i].trim();
     if (line.startsWith("|") && line.endsWith("|")) {
       if (!inTable) { inTable = true; tableRows = []; }
-      if (line.match(/^\|[\s\-:]+\|$/)) continue; // 分隔行跳过
+      if (/^\|[\s\-:]+\|$/.test(line) && !line.match(/[^|\s\-:]/)) continue; // 分隔行跳过
       tableRows.push(line);
     } else {
       if (inTable) { out.push(_renderTable(tableRows)); tableRows = []; inTable = false; }
@@ -106,6 +106,7 @@ export async function init(container) {
             <option value="high">高思考</option>
             <option value="max">最强思考</option>
           </select>
+          <label class="think-toggle"><input type="checkbox" id="chat-debug"> 调试</label>
           <button class="model-btn" id="chat-clear">新对话</button>
         </div>
         <div class="chat-send-row">
@@ -226,6 +227,11 @@ async function sendMessage() {
     saveMessages();
     if (!content) {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
+    }
+    // 调试模式：显示完整请求上下文
+    if (document.getElementById("chat-debug")?.checked) {
+      const allMsgs = JSON.stringify(messages, null, 2);
+      addMessage("assistant", `<details><summary>🔧 调试：请求上下文 (${messages.length} 条消息)</summary><pre style="font-size:0.75em;max-height:400px;overflow:auto;">${allMsgs.replace(/</g,"&lt;")}</pre></details>`);
     }
 
     for (const m of newMsgs) {
