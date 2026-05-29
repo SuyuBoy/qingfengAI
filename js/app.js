@@ -58,6 +58,12 @@ async function showDynamics() {
   await mod.init(app);
 }
 
+async function showChat() {
+  const app = document.getElementById("app");
+  const mod = await import("./views/chat.js");
+  await mod.init(app);
+}
+
 function showLock() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -71,7 +77,8 @@ function showLock() {
   `;
 }
 
-async function start() {
+async function route() {
+  const hash = window.location.hash.replace(/^#/, "");
   const user = await checkAuth();
   renderNav();
 
@@ -79,9 +86,12 @@ async function start() {
     await showLogin();
   } else if (user.role === "unpaid") {
     showLock();
+  } else if (hash === "/chat") {
+    await showChat();
   } else {
     await showDynamics();
   }
 }
 
-window.addEventListener("load", start);
+window.addEventListener("load", route);
+window.addEventListener("hashchange", route);
