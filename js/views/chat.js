@@ -19,7 +19,24 @@ function newSession() {
 
 function simpleMarkdown(text) {
   if (!text) return "";
-  let h = text
+  // 先处理表格
+  let lines = text.split("\n");
+  let out = [];
+  let inTable = false;
+  let tableRows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith("|") && line.endsWith("|")) {
+      if (!inTable) { inTable = true; tableRows = []; }
+      if (line.match(/^\|[\s\-:]+\|$/)) continue; // 分隔行跳过
+      tableRows.push(line);
+    } else {
+      if (inTable) { out.push(_renderTable(tableRows)); tableRows = []; inTable = false; }
+      out.push(line);
+    }
+  }
+  if (inTable) out.push(_renderTable(tableRows));
+  let h = out.join("\n")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
@@ -32,6 +49,18 @@ function simpleMarkdown(text) {
     .replace(/\n(?!<)/g, "<br>")
     .replace(/(<li>.*?<\/li>(<br>)?)+/g, "<ul>$&</ul>")
   return h;
+}
+
+function _renderTable(rows) {
+  if (!rows.length) return "";
+  let html = "<table>";
+  for (let i = 0; i < rows.length; i++) {
+    const cells = rows[i].split("|").filter(c => c.trim()).map(c => c.trim());
+    const tag = i === 0 ? "th" : "td";
+    html += "<tr>" + cells.map(c => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
+  }
+  html += "</table>";
+  return html;
 }
 
 export async function init(container) {
