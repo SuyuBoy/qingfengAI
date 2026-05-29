@@ -13,6 +13,14 @@ export async function init(container) {
   }
   container.innerHTML = `
     <button id="refresh-btn" class="refresh-btn">刷新</button>
+    <div class="search-bar">
+      <input type="text" id="search-kw" placeholder="搜索标题关键词...">
+      <input type="date" id="search-from" title="开始日期">
+      <span class="date-sep">—</span>
+      <input type="date" id="search-to" title="结束日期">
+      <button id="search-btn">搜索</button>
+      <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
+    </div>
     <div class="filter-bar">
       <button class="on" data-type="">全部</button>
       <button data-type="DYNAMIC_TYPE_ARTICLE">文章</button>
@@ -30,11 +38,17 @@ export async function init(container) {
   const moreBtn = document.getElementById("more-btn");
   const refreshBtn = document.getElementById("refresh-btn");
   const tagBar = document.getElementById("tag-bar");
+  const searchKw = document.getElementById("search-kw");
+  const searchFrom = document.getElementById("search-from");
+  const searchTo = document.getElementById("search-to");
+  const searchBtn = document.getElementById("search-btn");
+  const searchClear = document.getElementById("search-clear-btn");
   let currentFilter = "";
   let currentTag = "";
   let cursor = "";
   let hasMore = false;
   let allItems = [];
+  let searchMode = false;
 
   const typeLabel = {
     DYNAMIC_TYPE_ARTICLE: "文章",
@@ -63,6 +77,41 @@ export async function init(container) {
     tagBar.innerHTML = html;
     if (tags.size === 0) tagBar.style.display = "none";
     else tagBar.style.display = "";
+  }
+
+  function render() {
+    const items = filtered();
+    if (!items.length) { listEl.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+
+    const groups = {};
+    for (const item of items) {
+      const month = item.date.slice(0, 7);
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(item);
+    }
+    let html = "";
+    for (const [month, mItems] of Object.entries(groups).sort().reverse()) {
+      html += `<div class="month-group"><div class="month-label">${month}</div>`;
+      for (const item of mItems) {
+        const label = typeLabel[item.type] || item.type.replace("DYNAMIC_TYPE_", "");
+        const cls = item.type === "DYNAMIC_TYPE_ARTICLE" ? "article" : item.type === "DYNAMIC_TYPE_DRAW" ? "draw" : "word";
+        const date = new Date(item.date).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+        const preview = item.content.length > 300 ? item.content.slice(0, 300) : "";
+        const isLong = item.content.length > 300;
+        const tagHtml = (item.tags || "").split(",").filter(Boolean).map(t => `<span class="tag-label">${t}</span>`).join("");
+        const score = item.score != null ? ` (相关度: ${item.score.toFixed(2)})` : "";
+        html += `<div class="card" data-id="${item.dynamic_id}">
+          <div class="meta"><span>${date}${score}</span><span class="tag ${cls}">${label}</span>${tagHtml}</div>
+          <div class="content${isLong ? " preview" : ""}">${marked_parser.parse(fixImages(isLong ? preview : item.content, item.dynamic_id))}</div>
+          ${isLong ? '<button class="expand-btn">展开全文</button>' : ""}
+        </div>`;
+      }
+      html += "</div>";
+    }
+    listEl.innerHTML = html;
+    moreBtn.style.display = hasMore ? "block" : "none";
+    moreBtn.textContent = "加载更多";
+    moreBtn.disabled = false;
   }
 
   async function loadMore() {
@@ -98,38 +147,35 @@ export async function init(container) {
     render();
   }
 
-  function render() {
-    const items = filtered();
-    if (!items.length) { listEl.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+  async function doSearch() {
+    const keyword = searchKw.value.trim();
+    if (!keyword) return;
+    searchMode = true;
+    allItems = [];
+    cursor = "";
+    hasMore = false;
+    searchClear.style.display = "";
+    listEl.innerHTML = '<div class="loading">搜索中...</div>';
+    try {
+      const params = { keyword, limit: 50 };
+      if (searchFrom.value) params.date_from = searchFrom.value;
+      if (searchTo.value) params.date_to = searchTo.value;
+      const data = await api.get("/api/search", params);
+      allItems = data.items;
+      updateTags();
+      render();
+    } catch (e) {
+      listEl.innerHTML = `<div class="error">搜索失败：${e.message}</div>`;
+    }
+  }
 
-    const groups = {};
-    for (const item of items) {
-      const month = item.date.slice(0, 7);
-      if (!groups[month]) groups[month] = [];
-      groups[month].push(item);
-    }
-    let html = "";
-    for (const [month, mItems] of Object.entries(groups).sort().reverse()) {
-      html += `<div class="month-group"><div class="month-label">${month}</div>`;
-      for (const item of mItems) {
-        const label = typeLabel[item.type] || item.type.replace("DYNAMIC_TYPE_", "");
-        const cls = item.type === "DYNAMIC_TYPE_ARTICLE" ? "article" : item.type === "DYNAMIC_TYPE_DRAW" ? "draw" : "word";
-        const date = new Date(item.date).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-        const preview = item.content.length > 300 ? item.content.slice(0, 300) : "";
-        const isLong = item.content.length > 300;
-        const tagHtml = (item.tags || "").split(",").filter(Boolean).map(t => `<span class="tag-label">${t}</span>`).join("");
-        html += `<div class="card" data-id="${item.dynamic_id}">
-          <div class="meta"><span>${date}</span><span class="tag ${cls}">${label}</span>${tagHtml}</div>
-          <div class="content${isLong ? " preview" : ""}">${marked_parser.parse(fixImages(isLong ? preview : item.content, item.dynamic_id))}</div>
-          ${isLong ? '<button class="expand-btn">展开全文</button>' : ""}
-        </div>`;
-      }
-      html += "</div>";
-    }
-    listEl.innerHTML = html;
-    moreBtn.style.display = hasMore ? "block" : "none";
-    moreBtn.textContent = "加载更多";
-    moreBtn.disabled = false;
+  function clearSearch() {
+    searchMode = false;
+    searchKw.value = "";
+    searchFrom.value = "";
+    searchTo.value = "";
+    searchClear.style.display = "none";
+    initialLoad();
   }
 
   container.addEventListener("click", (e) => {
@@ -160,8 +206,11 @@ export async function init(container) {
     }
   });
 
-  moreBtn.addEventListener("click", loadMore);
-  refreshBtn.addEventListener("click", initialLoad);
+  searchBtn.addEventListener("click", doSearch);
+  searchKw.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+  searchClear.addEventListener("click", clearSearch);
+  moreBtn.addEventListener("click", searchMode ? null : loadMore);
+  refreshBtn.addEventListener("click", searchMode ? clearSearch : initialLoad);
 
   initialLoad();
 }
