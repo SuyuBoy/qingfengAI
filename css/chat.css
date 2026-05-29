@@ -1,6 +1,8 @@
 #chat-view {
-  max-width: 720px; margin: 2rem auto; padding: 0 1rem;
-  display: flex; flex-direction: column; height: calc(100vh - 64px);
+  max-width: 720px; margin: 0 auto; padding: 0 1rem;
+  display: flex; flex-direction: column;
+  height: 100dvh;
+  padding-top: 56px;
 }
 
 .chat-messages {
