@@ -200,8 +200,8 @@ export async function init(container) {
   textarea = container.querySelector("#chat-input");
   sendBtn = container.querySelector("#chat-send-btn");
 
-  sendBtn.addEventListener("click", sendMessage);
-  textarea.addEventListener("keydown", (e) => {
+  if (sendBtn) sendBtn.addEventListener("click", sendMessage);
+  if (textarea) textarea.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
   const clearBtn = container.querySelector("#chat-clear");
