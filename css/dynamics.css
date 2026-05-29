@@ -1,0 +1,77 @@
+.refresh-btn {
+  float: right; padding: 4px 14px; border: 1px solid var(--border);
+  border-radius: 20px; background: var(--card-bg); cursor: pointer;
+  font: inherit; font-size: 0.8rem; color: var(--muted);
+}
+.filter-bar {
+  display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap;
+}
+.filter-bar button {
+  padding: 4px 14px; border: 1px solid var(--border);
+  border-radius: 20px; background: var(--card-bg); cursor: pointer;
+  font: inherit; font-size: 0.8rem; color: var(--muted);
+  transition: all 0.2s;
+}
+.filter-bar button:hover { border-color: var(--text); color: var(--text); }
+.filter-bar button.on, .tag-bar button.on { background: var(--text); color: #fff; border-color: var(--text); }
+
+.tag-bar {
+  display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.tag-bar button {
+  padding: 3px 12px; border: 1px solid var(--border);
+  border-radius: 20px; background: var(--card-bg); cursor: pointer;
+  font: inherit; font-size: 0.78rem; color: var(--muted);
+}
+.tag-label {
+  font-size: 0.65rem; padding: 1px 6px; border-radius: 3px;
+  background: var(--article); color: #fff; margin-left: 0.3rem;
+}
+
+.month-group { margin-bottom: 2rem; }
+.month-label {
+  font-size: 0.8rem; color: var(--muted); letter-spacing: 0.05em;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem 1.8rem;
+  margin-bottom: 1rem;
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+
+.card .meta {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.78rem; color: var(--muted); margin-bottom: 0.8rem;
+}
+.card .tag {
+  font-size: 0.68rem; padding: 1px 7px; border-radius: 3px;
+  background: var(--tag-bg); color: var(--muted);
+}
+.card .tag.article { background: var(--article); color: #fff; }
+.card .tag.draw { background: var(--draw); color: #fff; }
+.card .tag.word { background: var(--word); color: #fff; }
+
+.card .content { font-size: 0.93rem; }
+.card .content h1 { font-size: 1.05rem; margin-bottom: 0.6rem; font-weight: 600; }
+.card .content img { max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0; }
+.card .content.preview::after { content: "..."; color: var(--muted); }
+
+.card .expand-btn, .card .ai-btn {
+  display: inline-block; margin-top: 0.6rem;
+  background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 0.78rem; color: var(--muted);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.card .expand-btn:hover, .card .ai-btn:hover { color: var(--text); }
+
+#more-btn {
+  display: block; width: 100%; padding: 12px; margin: 1rem 0 2rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--card-bg); cursor: pointer;
+  font: inherit; color: var(--muted); font-size: 0.9rem;
+}
+#more-btn:hover { background: var(--bg); }

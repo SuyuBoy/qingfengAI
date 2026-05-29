@@ -1,0 +1,14 @@
+.login-box {
+  max-width: 360px; margin: 6rem auto; padding: 2.5rem 2rem;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); text-align: center;
+}
+.login-box h1 { font-size: 1.2rem; margin-bottom: 0.3rem; }
+.login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+.login-box .error-msg {
+  color: var(--danger); font-size: 0.8rem; margin-bottom: 1rem; display: none;
+}
+.login-box .error-msg.show { display: block; }
+
+#g_id_signin { display: inline-block; }
