@@ -13,14 +13,14 @@ export async function init(container) {
     marked_parser = marked;
   }
   container.innerHTML = `
-    <button id="refresh-btn" class="refresh-btn">刷新</button>
     <div class="search-bar">
       <input type="text" id="search-kw" placeholder="搜索标题关键词...">
-      <input type="date" id="search-from" title="开始日期">
-      <span class="date-sep">—</span>
-      <input type="date" id="search-to" title="结束日期">
       <button id="search-btn">搜索</button>
       <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
+    </div>
+    <div class="search-bar">
+      <input type="date" id="date-pick" title="选择日期">
+      <button id="date-clear-btn" class="clear-btn" style="display:none">清除日期</button>
     </div>
     <div class="filter-bar">
       <button class="on" data-type="">全部</button>
@@ -40,16 +40,17 @@ export async function init(container) {
   const refreshBtn = document.getElementById("refresh-btn");
   const tagBar = document.getElementById("tag-bar");
   const searchKw = document.getElementById("search-kw");
-  const searchFrom = document.getElementById("search-from");
-  const searchTo = document.getElementById("search-to");
   const searchBtn = document.getElementById("search-btn");
   const searchClear = document.getElementById("search-clear-btn");
+  const datePick = document.getElementById("date-pick");
+  const dateClear = document.getElementById("date-clear-btn");
   let currentFilter = "";
   let currentTag = "";
   let cursor = "";
   let hasMore = false;
   let allItems = [];
   let searchMode = false;
+  let currentDate = "";
 
   const typeLabel = {
     DYNAMIC_TYPE_ARTICLE: "文章",
@@ -59,6 +60,7 @@ export async function init(container) {
 
   function filtered() {
     let items = allItems;
+    if (currentDate) items = items.filter(it => it.date.slice(0, 10) === currentDate);
     if (currentFilter) items = items.filter(it => it.type === currentFilter);
     if (currentTag) items = items.filter(it => (it.tags || "").split(",").includes(currentTag));
     return items;
@@ -86,23 +88,23 @@ export async function init(container) {
 
     const groups = {};
     for (const item of items) {
-      const month = item.date.slice(0, 7);
-      if (!groups[month]) groups[month] = [];
-      groups[month].push(item);
+      const d = item.date.slice(0, 10);
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(item);
     }
     let html = "";
-    for (const [month, mItems] of Object.entries(groups).sort().reverse()) {
-      html += `<div class="month-group"><div class="month-label">${month}</div>`;
-      for (const item of mItems) {
+    for (const [d, dItems] of Object.entries(groups).sort().reverse()) {
+      html += `<div class="month-group"><div class="month-label">${d}</div>`;
+      for (const item of dItems) {
         const label = typeLabel[item.type] || item.type.replace("DYNAMIC_TYPE_", "");
         const cls = item.type === "DYNAMIC_TYPE_ARTICLE" ? "article" : item.type === "DYNAMIC_TYPE_DRAW" ? "draw" : "word";
-        const date = new Date(item.date).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+        const dateStr = new Date(item.date).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
         const preview = item.content.length > 300 ? item.content.slice(0, 300) : "";
         const isLong = item.content.length > 300;
         const tagHtml = (item.tags || "").split(",").filter(Boolean).map(t => `<span class="tag-label">${t}</span>`).join("");
         const score = item.score != null ? ` (相关度: ${item.score.toFixed(2)})` : "";
         html += `<div class="card" data-id="${item.dynamic_id}">
-          <div class="meta"><span>${date}${score}</span><span class="tag ${cls}">${label}</span>${tagHtml}</div>
+          <div class="meta"><span>${dateStr}${score}</span><span class="tag ${cls}">${label}</span>${tagHtml}</div>
           <div class="content${isLong ? " preview" : ""}">${marked_parser.parse(fixImages(isLong ? preview : item.content, item.dynamic_id))}</div>
           ${isLong ? '<button class="expand-btn">展开全文</button>' : ""}
         </div>`;
@@ -158,10 +160,7 @@ export async function init(container) {
     searchClear.style.display = "";
     listEl.innerHTML = '<div class="loading">搜索中...</div>';
     try {
-      const params = { keyword, limit: 50 };
-      if (searchFrom.value) params.date_from = searchFrom.value;
-      if (searchTo.value) params.date_to = searchTo.value;
-      const data = await api.get("/api/search", params);
+      const data = await api.get("/api/search", { keyword, limit: 50 });
       allItems = data.items;
       updateTags();
       render();
@@ -173,10 +172,14 @@ export async function init(container) {
   function clearSearch() {
     searchMode = false;
     searchKw.value = "";
-    searchFrom.value = "";
-    searchTo.value = "";
     searchClear.style.display = "none";
     initialLoad();
+  }
+
+  function setDate(d) {
+    currentDate = d;
+    dateClear.style.display = d ? "" : "none";
+    render();
   }
 
   container.addEventListener("click", (e) => {
@@ -210,6 +213,8 @@ export async function init(container) {
   searchBtn.addEventListener("click", doSearch);
   searchKw.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
   searchClear.addEventListener("click", clearSearch);
+  datePick.addEventListener("change", () => setDate(datePick.value));
+  dateClear.addEventListener("click", () => { datePick.value = ""; setDate(""); });
   moreBtn.addEventListener("click", searchMode ? null : loadMore);
   refreshBtn.addEventListener("click", searchMode ? clearSearch : initialLoad);
 
