@@ -19,7 +19,24 @@ function newSession() {
 
 function simpleMarkdown(text) {
   if (!text) return "";
-  let h = text
+  // 先处理表格
+  let lines = text.split("\n");
+  let out = [];
+  let inTable = false;
+  let tableRows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith("|") && line.endsWith("|")) {
+      if (!inTable) { inTable = true; tableRows = []; }
+      if (line.match(/^\|[\s\-:]+\|$/)) continue; // 分隔行跳过
+      tableRows.push(line);
+    } else {
+      if (inTable) { out.push(_renderTable(tableRows)); tableRows = []; inTable = false; }
+      out.push(line);
+    }
+  }
+  if (inTable) out.push(_renderTable(tableRows));
+  let h = out.join("\n")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
@@ -32,6 +49,18 @@ function simpleMarkdown(text) {
     .replace(/\n(?!<)/g, "<br>")
     .replace(/(<li>.*?<\/li>(<br>)?)+/g, "<ul>$&</ul>")
   return h;
+}
+
+function _renderTable(rows) {
+  if (!rows.length) return "";
+  let html = "<table>";
+  for (let i = 0; i < rows.length; i++) {
+    const cells = rows[i].split("|").filter(c => c.trim()).map(c => c.trim());
+    const tag = i === 0 ? "th" : "td";
+    html += "<tr>" + cells.map(c => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
+  }
+  html += "</table>";
+  return html;
 }
 
 export async function init(container) {
@@ -122,7 +151,8 @@ async function sendMessage() {
     if (!res.ok) throw new Error(res.statusText);
 
     const text = await res.text();
-    const deltas = [];
+    let reasoning = "";
+    let content = "";
     const newMsgs = [];
 
     for (const line of text.split("\n")) {
@@ -131,8 +161,10 @@ async function sendMessage() {
       if (dataStr === "[DONE]") continue;
       try {
         const obj = JSON.parse(dataStr);
-        if (obj.delta) {
-          deltas.push(obj.delta);
+        if (obj.reasoning) {
+          reasoning += obj.reasoning;
+        } else if (obj.delta) {
+          content += obj.delta;
         } else if (obj.done && obj.messages) {
           for (const m of obj.messages) {
             newMsgs.push(m);
@@ -142,8 +174,12 @@ async function sendMessage() {
     }
 
     currentAssistantMsg.classList.remove("typing");
-    let content = deltas.join("") || "（无响应）";
-    currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
+    let html = "";
+    if (reasoning) {
+      html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+    }
+    html += simpleMarkdown(content || "（无响应）");
+    currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
     for (const m of newMsgs) {
