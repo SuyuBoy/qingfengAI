@@ -12,14 +12,18 @@ export async function init(container) {
     marked_parser = marked;
   }
   container.innerHTML = `
-    <div class="search-bar">
-      <input type="text" id="search-kw" placeholder="搜索标题关键词...">
-      <button id="search-btn">搜索</button>
-      <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
-    </div>
-    <div class="search-bar">
-      <input type="date" id="date-pick" title="选择日期">
-      <button id="date-clear-btn" class="clear-btn" style="display:none">清除日期</button>
+    <div class="top-row">
+      <div class="search-bar">
+        <input type="text" id="search-kw" placeholder="搜索标题关键词...">
+        <button id="search-btn">搜索</button>
+        <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
+      </div>
+      <div class="cal-group">
+        <button id="cal-btn" class="cal-btn" title="按日期筛选">📅</button>
+        <span id="cal-label" class="cal-label"></span>
+        <button id="cal-reset" class="clear-btn" style="display:none">重置</button>
+        <input type="date" id="date-pick" style="display:none">
+      </div>
     </div>
     <div class="filter-bar">
       <button class="on" data-type="">全部</button>
@@ -41,8 +45,10 @@ export async function init(container) {
   const searchKw = document.getElementById("search-kw");
   const searchBtn = document.getElementById("search-btn");
   const searchClear = document.getElementById("search-clear-btn");
+  const calBtn = document.getElementById("cal-btn");
+  const calLabel = document.getElementById("cal-label");
+  const calReset = document.getElementById("cal-reset");
   const datePick = document.getElementById("date-pick");
-  const dateClear = document.getElementById("date-clear-btn");
   let currentFilter = "";
   let currentTag = "";
   let cursor = "";
@@ -177,7 +183,13 @@ export async function init(container) {
 
   function setDate(d) {
     currentDate = d;
-    dateClear.style.display = d ? "" : "none";
+    if (d) {
+      calLabel.textContent = d;
+      calReset.style.display = "";
+    } else {
+      calLabel.textContent = "";
+      calReset.style.display = "none";
+    }
     render();
   }
 
@@ -212,8 +224,9 @@ export async function init(container) {
   searchBtn.addEventListener("click", doSearch);
   searchKw.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
   searchClear.addEventListener("click", clearSearch);
+  calBtn.addEventListener("click", () => datePick.showPicker ? datePick.showPicker() : datePick.click());
   datePick.addEventListener("change", () => setDate(datePick.value));
-  dateClear.addEventListener("click", () => { datePick.value = ""; setDate(""); });
+  calReset.addEventListener("click", () => { datePick.value = ""; setDate(""); });
   moreBtn.addEventListener("click", searchMode ? null : loadMore);
   refreshBtn.addEventListener("click", searchMode ? clearSearch : initialLoad);
 

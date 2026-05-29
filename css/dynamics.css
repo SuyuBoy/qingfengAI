@@ -3,6 +3,21 @@
   border-radius: 20px; background: var(--card-bg); cursor: pointer;
   font: inherit; font-size: 0.8rem; color: var(--muted);
 }
+.top-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;
+}
+.cal-group {
+  display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+}
+.cal-btn {
+  padding: 4px 10px; border: 1px solid var(--border);
+  border-radius: 20px; background: var(--card-bg); cursor: pointer;
+  font-size: 0.95rem; line-height: 1;
+}
+.cal-label {
+  font-size: 0.8rem; color: var(--muted);
+}
 .search-bar {
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap;
 }
