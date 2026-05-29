@@ -28,7 +28,6 @@
 @media (max-width: 1024px) {
   .article-sidebar { display: none !important; }
 }
-}
 
 .chat-messages {
   flex: 1; padding: 1rem 0;
@@ -123,8 +122,8 @@
 .chat-send-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .chat-empty {
-  text-align: center; color: var(--muted); padding: 4rem 0;
-  font-size: 0.9rem;
+  text-align: center; color: var(--muted); padding: 6rem 2rem;
+  font-size: 0.95rem; line-height: 1.8;
 }
 
 .typing::after {
