@@ -45,8 +45,7 @@ export async function init(container) {
   let currentDate = "";
 
   function filtered() {
-    if (!currentDate) return allItems;
-    return allItems.filter(it => it.date.slice(0, 10) === currentDate);
+    return allItems;
   }
 
   function render() {
@@ -136,16 +135,25 @@ export async function init(container) {
     initialLoad();
   }
 
-  function setDate(d) {
+  async function setDate(d) {
     currentDate = d;
     if (d) {
       calLabel.textContent = d;
       calReset.style.display = "";
+      listEl.innerHTML = '<div class="loading">加载中...</div>';
+      try {
+        const data = await api.get("/api/search", { date_from: d, date_to: d, limit: 50 });
+        allItems = data.items;
+        hasMore = false;
+        render();
+      } catch (e) {
+        listEl.innerHTML = `<div class="error">加载失败：${e.message}</div>`;
+      }
     } else {
       calLabel.textContent = "";
       calReset.style.display = "none";
+      initialLoad();
     }
-    render();
   }
 
   container.addEventListener("click", (e) => {
