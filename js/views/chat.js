@@ -281,7 +281,9 @@ async function sendMessage() {
         if (dataStr === "[DONE]") continue;
         try {
           const obj = JSON.parse(dataStr);
-          if (obj.reasoning) {
+          if (obj.tool) {
+            addMessage("tool", "🔧 " + obj.tool);
+          } else if (obj.reasoning) {
             reasoning += obj.reasoning;
             currentAssistantMsg.querySelector(".msg-body").innerHTML =
               `<details open><summary>💭 思考中...</summary><p style="color:var(--muted);font-size:0.85em;">${reasoning.replace(/</g,"&lt;")}</p></details>` + simpleMarkdown(content);
