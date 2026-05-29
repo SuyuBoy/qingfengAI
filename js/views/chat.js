@@ -150,37 +150,47 @@ async function sendMessage() {
     if (res.status === 403) { throw new Error("未付费"); }
     if (!res.ok) throw new Error(res.statusText);
 
-    const text = await res.text();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
     let reasoning = "";
     let content = "";
     const newMsgs = [];
 
-    for (const line of text.split("\n")) {
-      if (!line.startsWith("data: ")) continue;
-      const dataStr = line.slice(6);
-      if (dataStr === "[DONE]") continue;
-      try {
-        const obj = JSON.parse(dataStr);
-        if (obj.reasoning) {
-          reasoning += obj.reasoning;
-        } else if (obj.delta) {
-          content += obj.delta;
-        } else if (obj.done && obj.messages) {
-          for (const m of obj.messages) {
-            newMsgs.push(m);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const dataStr = line.slice(6);
+        if (dataStr === "[DONE]") continue;
+        try {
+          const obj = JSON.parse(dataStr);
+          if (obj.reasoning) {
+            reasoning += obj.reasoning;
+            currentAssistantMsg.querySelector(".msg-body").innerHTML =
+              `<details open><summary>💭 思考中...</summary><p style="color:var(--muted);font-size:0.85em;">${reasoning.replace(/</g,"&lt;")}</p></details>` + simpleMarkdown(content);
+          } else if (obj.delta) {
+            content += obj.delta;
+            let html = "";
+            if (reasoning) html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+            html += simpleMarkdown(content);
+            currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
+          } else if (obj.done && obj.messages) {
+            for (const m of obj.messages) messages.push(m);
           }
-        }
-      } catch {}
+        } catch {}
+      }
+      msgContainer.scrollTop = msgContainer.scrollHeight;
     }
 
     currentAssistantMsg.classList.remove("typing");
-    let html = "";
-    if (reasoning) {
-      html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+    if (!content) {
+      currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
-    html += simpleMarkdown(content || "（无响应）");
-    currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
-    msgContainer.scrollTop = msgContainer.scrollHeight;
 
     for (const m of newMsgs) {
       messages.push(m);
@@ -192,6 +202,7 @@ async function sendMessage() {
   } catch (e) {
     currentAssistantMsg.classList.remove("typing");
     currentAssistantMsg.querySelector(".msg-body").textContent = "请求失败: " + e.message;
+    messages.pop();
   } finally {
     streaming = false;
     sendBtn.disabled = false;
