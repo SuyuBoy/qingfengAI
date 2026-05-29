@@ -317,12 +317,16 @@ function populateCard(cardEl, articles) {
   container.innerHTML = articles.map(a => renderArticleItem(a)).join("");
 }
 
+function cleanSnippet(s) {
+  return (s || "").replace(/!\[img:\d+\]/g, "[图]");
+}
+
 function renderArticleItem(a) {
   return `
     <div class="article-item">
       <div class="article-item-date">${escapeHtml(a.date)}</div>
       <div class="article-item-title">${escapeHtml(a.title || "(无标题)")}</div>
-      ${a.snippet ? `<div class="article-item-snippet">${escapeHtml(a.snippet)}</div>` : ""}
+      ${a.snippet ? `<div class="article-item-snippet">${escapeHtml(cleanSnippet(a.snippet))}</div>` : ""}
       <div class="article-item-more" data-id="${escapeHtml(a.id)}" onclick="window.__showArticleModal('${escapeHtml(a.id)}')">阅读全文 →</div>
     </div>`;
 }

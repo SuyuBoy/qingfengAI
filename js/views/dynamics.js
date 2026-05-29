@@ -159,6 +159,7 @@ export async function init(container) {
   container.addEventListener("click", (e) => {
     if (e.target.closest(".expand-btn")) {
       const card = e.target.closest(".card");
+      if (!card) return;
       const id = card.dataset.id;
       const item = allItems.find(it => it.dynamic_id === id);
       if (item) {
