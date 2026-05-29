@@ -233,7 +233,7 @@ function addMessage(role, content) {
   const label = role === "user" ? "你" : role === "tool" ? "工具" : "AI";
   el.innerHTML = `<div class="role-label">${label}</div><div class="msg-body">${simpleMarkdown(content || "")}</div>`;
   msgContainer.appendChild(el);
-  window.scrollTo(0, document.body.scrollHeight);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
   return el;
 }
 
@@ -333,7 +333,7 @@ async function sendMessage() {
           }
         } catch {}
       }
-      window.scrollTo(0, document.body.scrollHeight);
+      msgContainer.scrollTop = msgContainer.scrollHeight;
     }
 
     currentAssistantMsg.classList.remove("typing");
