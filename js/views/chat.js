@@ -283,6 +283,8 @@ async function sendMessage() {
           const obj = JSON.parse(dataStr);
           if (obj.tool) {
             addMessage("tool", "🔧 " + obj.tool);
+          } else if (obj.cached) {
+            addMessage("tool", "📋 缓存命中: " + obj.cached);
           } else if (obj.reasoning) {
             reasoning += obj.reasoning;
             currentAssistantMsg.querySelector(".msg-body").innerHTML =
@@ -308,8 +310,14 @@ async function sendMessage() {
     }
     // 调试模式：显示完整请求上下文
     if (document.getElementById("chat-debug")?.checked) {
-      const allMsgs = JSON.stringify(messages, null, 2);
-      addMessage("assistant", `<details><summary>🔧 调试：请求上下文 (${messages.length} 条消息)</summary><pre style="font-size:0.75em;max-height:400px;overflow:auto;">${allMsgs.replace(/</g,"&lt;")}</pre></details>`);
+      const ctx = messages.map((m, i) => {
+        const label = m.role === "tool" ? "🔧" : m.role === "assistant" && m.tool_calls ? "🤖+" : m.role === "assistant" ? "🤖" : m.role === "system" ? "⚙️" : "👤";
+        let body = m.content || "";
+        if (m.tool_calls) body += "\n[调用: " + m.tool_calls.map(t => t.function.name + "(" + t.function.arguments + ")").join(", ") + "]";
+        if (body.length > 300) body = body.slice(0, 300) + "...";
+        return `[${i}] ${label} ${m.role}\n${body}`;
+      }).join("\n\n");
+      addMessage("assistant", `<details open><summary>🔧 调试：上下文 (${messages.length}条)</summary><pre style="font-size:0.72em;max-height:400px;overflow:auto;white-space:pre-wrap;">${ctx.replace(/</g,"&lt;")}</pre></details>`);
     }
 
     for (const m of newMsgs) {
