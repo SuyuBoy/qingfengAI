@@ -278,6 +278,7 @@
 
 .modal-body p { margin: 0.4em 0; }
 .modal-body h1,.modal-body h2,.modal-body h3 { font-size: 0.95rem; }
+.modal-body img { max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0; }
 
 /* 响应式 */
 @media (max-width: 1024px) {

@@ -76,6 +76,7 @@ function simpleMarkdown(text) {
   if (inTable) out.push(stashHtml(_renderMarkdownTable(tableRows)));
   let h = out.join("\n")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%">')
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
@@ -356,6 +357,10 @@ async function showArticleModal(articleId) {
 }
 
 function renderModal(overlay, a) {
+  const content = (a.content || "").replace(
+    /!\[img:(\d+)\]/g,
+    (_, idx) => `![图片](${API_BASE}/api/img/${a.dynamic_id}_${idx})`
+  );
   overlay.querySelector(".modal-box").innerHTML = `
     <div class="modal-header">
       <div>
@@ -365,7 +370,7 @@ function renderModal(overlay, a) {
       </div>
       <button class="modal-close" onclick="window.__closeArticleModal()">&times;</button>
     </div>
-    <div class="modal-body">${simpleMarkdown(a.content || "")}</div>
+    <div class="modal-body">${simpleMarkdown(content)}</div>
   `;
 }
 
