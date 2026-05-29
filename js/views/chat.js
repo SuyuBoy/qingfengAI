@@ -122,7 +122,8 @@ async function sendMessage() {
     if (!res.ok) throw new Error(res.statusText);
 
     const text = await res.text();
-    const deltas = [];
+    let reasoning = "";
+    let content = "";
     const newMsgs = [];
 
     for (const line of text.split("\n")) {
@@ -131,8 +132,10 @@ async function sendMessage() {
       if (dataStr === "[DONE]") continue;
       try {
         const obj = JSON.parse(dataStr);
-        if (obj.delta) {
-          deltas.push(obj.delta);
+        if (obj.reasoning) {
+          reasoning += obj.reasoning;
+        } else if (obj.delta) {
+          content += obj.delta;
         } else if (obj.done && obj.messages) {
           for (const m of obj.messages) {
             newMsgs.push(m);
@@ -142,8 +145,12 @@ async function sendMessage() {
     }
 
     currentAssistantMsg.classList.remove("typing");
-    let content = deltas.join("") || "（无响应）";
-    currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
+    let html = "";
+    if (reasoning) {
+      html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+    }
+    html += simpleMarkdown(content || "（无响应）");
+    currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
     for (const m of newMsgs) {
