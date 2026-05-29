@@ -201,9 +201,14 @@ export async function init(container) {
   sendBtn = container.querySelector("#chat-send-btn");
 
   if (sendBtn) sendBtn.addEventListener("click", sendMessage);
-  if (textarea) textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
+  if (textarea) {
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    textarea.addEventListener("input", () => {
+      if (sendBtn) sendBtn.disabled = !textarea.value.trim();
+    });
+  }
   const clearBtn = container.querySelector("#chat-clear");
   if (clearBtn) clearBtn.addEventListener("click", () => {
     if (streaming) return;
