@@ -25,6 +25,7 @@
   background: var(--card-bg); border: 1px solid var(--border);
   border-bottom-left-radius: 2px;
 }
+.chat-msg.assistant .msg-body { overflow-x: auto; }
 .chat-msg.assistant p { margin: 0.5em 0; }
 .chat-msg.assistant p:first-child { margin-top: 0; }
 .chat-msg.assistant p:last-child { margin-bottom: 0; }
@@ -38,6 +39,10 @@
 }
 .chat-msg.assistant pre { overflow-x: auto; }
 .chat-msg.assistant strong { font-weight: 600; }
+.chat-msg.assistant hr {
+  border: 0; border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
 .chat-msg.assistant table {
   width: 100%; border-collapse: collapse; margin: 0.5em 0;
   font-size: 0.85em;
