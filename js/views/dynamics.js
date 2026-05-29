@@ -12,19 +12,17 @@ export async function init(container) {
     marked_parser = marked;
   }
   container.innerHTML = `
-    <button id="refresh-btn" class="refresh-btn">刷新</button>
     <div class="top-row">
       <div class="search-bar">
         <input type="text" id="search-kw" placeholder="搜索标题关键词...">
         <button id="search-btn">搜索</button>
         <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
       </div>
-      <div class="cal-group">
-        <button id="cal-btn" class="cal-btn" title="按日期筛选">📅</button>
-        <span id="cal-label" class="cal-label"></span>
-        <button id="cal-reset" class="clear-btn" style="display:none">重置</button>
-        <input type="date" id="date-pick" style="display:none">
-      </div>
+      <button id="cal-btn" class="cal-btn" title="按日期筛选">📅</button>
+      <span id="cal-label" class="cal-label"></span>
+      <button id="cal-reset" class="clear-btn" style="display:none">重置</button>
+      <input type="date" id="date-pick" style="display:none">
+      <button id="refresh-btn" class="clear-btn">刷新</button>
     </div>
     <div id="card-list"></div>
     <button id="more-btn" style="display:none">加载更多</button>
