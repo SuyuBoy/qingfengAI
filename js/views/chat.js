@@ -6,6 +6,17 @@ let msgContainer, textarea, sendBtn, thinkToggle;
 let streaming = false;
 let currentAssistantMsg = null;
 
+// 前端维护的完整消息历史（含 system prompt）
+let messages = [];
+
+function newSession() {
+  const now = new Date().toISOString();
+  messages = [{
+    role: "system",
+    content: `你是清风研习社的AI助手，基于清风录制的复盘文章回答用户问题。优先使用 search_articles 工具检索相关文章，再基于文章内容给出有根据的回答。回答时注明引用来源（日期+标题）。如果找不到相关文章，如实告知。当前时间：${now}`
+  }];
+}
+
 function simpleMarkdown(text) {
   if (!text) return "";
   let h = text
@@ -20,11 +31,12 @@ function simpleMarkdown(text) {
     .replace(/\n{2,}/g, "\n\n")
     .replace(/\n(?!<)/g, "<br>")
     .replace(/(<li>.*?<\/li>(<br>)?)+/g, "<ul>$&</ul>")
-    .replace(/<\/ul><br><li>/g, "</ul><ul><li>")
   return h;
 }
 
 export async function init(container) {
+  newSession();
+
   container.innerHTML = `
     <div id="chat-view">
       <div class="chat-messages">
@@ -39,6 +51,7 @@ export async function init(container) {
           <label class="think-toggle">
             <input type="checkbox" id="chat-thinking"> 思考模式
           </label>
+          <button class="model-btn" id="chat-clear">新对话</button>
         </div>
         <div class="chat-send-row">
           <textarea id="chat-input" rows="1" placeholder="输入问题..."></textarea>
@@ -57,6 +70,10 @@ export async function init(container) {
   textarea.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+  container.querySelector("#chat-clear").addEventListener("click", () => {
+    newSession();
+    msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
+  });
 }
 
 function addMessage(role, content) {
@@ -64,7 +81,8 @@ function addMessage(role, content) {
   if (empty) empty.remove();
   const el = document.createElement("div");
   el.className = `chat-msg ${role}`;
-  el.innerHTML = `<div class="role-label">${role === "user" ? "你" : "AI"}</div><div class="msg-body">${simpleMarkdown(content)}</div>`;
+  const label = role === "user" ? "你" : role === "tool" ? "工具" : "AI";
+  el.innerHTML = `<div class="role-label">${label}</div><div class="msg-body">${simpleMarkdown(content || "")}</div>`;
   msgContainer.appendChild(el);
   msgContainer.scrollTop = msgContainer.scrollHeight;
   return el;
@@ -79,6 +97,9 @@ async function sendMessage() {
   const thinking = thinkToggle.checked ? "enabled" : "disabled";
 
   textarea.value = "";
+
+  // 前端追加 user 消息
+  messages.push({ role: "user", content: text });
   addMessage("user", text);
   currentAssistantMsg = addMessage("assistant", "");
 
@@ -92,7 +113,7 @@ async function sendMessage() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + getToken(),
       },
-      body: JSON.stringify({ text, model, thinking }),
+      body: JSON.stringify({ messages, model, thinking }),
     });
 
     if (res.status === 401) { throw new Error("未登录"); }
@@ -114,16 +135,26 @@ async function sendMessage() {
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6);
-        if (data === "[DONE]") continue;
+        const dataStr = line.slice(6);
+        if (dataStr === "[DONE]") continue;
         try {
-          const obj = JSON.parse(data);
+          const obj = JSON.parse(dataStr);
           if (obj.error) {
             content += `\n\n❌ ${obj.error}`;
           } else if (obj.delta) {
             content += obj.delta;
             currentAssistantMsg.querySelector(".msg-body").innerHTML = simpleMarkdown(content);
             msgContainer.scrollTop = msgContainer.scrollHeight;
+          } else if (obj.done) {
+            // 后端返回新消息，前端追加到历史
+            if (obj.messages) {
+              for (const m of obj.messages) {
+                messages.push(m);
+                if (m.role === "tool") {
+                  addMessage("tool", `🔍 ${JSON.parse(m.content.match(/「(.+?)」/)?.[1] || '""')}\n— 检索完成`);
+                }
+              }
+            }
           }
         } catch {}
       }
@@ -138,7 +169,6 @@ async function sendMessage() {
   } finally {
     streaming = false;
     sendBtn.disabled = false;
-    currentAssistantMsg.classList.remove("typing");
     textarea.focus();
   }
 }
