@@ -2,10 +2,11 @@ import { api, getToken } from "../api.js";
 
 const API_BASE = window.__API_BASE__ || "";
 
-let msgContainer, textarea, sendBtn;
+let msgContainer, sidebar, textarea, sendBtn;
 const CHAT_KEY = "chat_messages";
 let streaming = false;
 let currentAssistantMsg = null;
+let currentCard = null;
 
 let messages = [];
 
@@ -159,6 +160,8 @@ function _escapeHtml(text) {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+const escapeHtml = _escapeHtml;
+
 export async function init(container) {
   const saved = loadMessages();
   if (saved) {
@@ -192,11 +195,15 @@ export async function init(container) {
           </div>
         </div>
       </div>
-      <aside class="article-sidebar" id="article-sidebar"></aside>
+      <aside class="tool-sidebar" id="tool-sidebar">
+        <div class="tool-sidebar-title">工具调用</div>
+        <div class="tool-sidebar-empty">等待工具调用...</div>
+      </aside>
     </div>
   `;
 
   msgContainer = container.querySelector(".chat-messages");
+  sidebar = container.querySelector("#tool-sidebar");
   textarea = container.querySelector("#chat-input");
   sendBtn = container.querySelector("#chat-send-btn");
 
@@ -214,6 +221,7 @@ export async function init(container) {
     if (streaming) return;
     newSession();
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
+    clearSidebar();
   });
 
   // 渲染历史对话
@@ -235,6 +243,128 @@ function addMessage(role, content) {
   msgContainer.appendChild(el);
   window.scrollTo(0, document.body.scrollHeight);
   return el;
+}
+
+// ---- 侧边栏 ----
+
+function clearSidebar() {
+  currentCard = null;
+  if (!sidebar) return;
+  sidebar.querySelectorAll(".tool-card").forEach(c => c.remove());
+  let empty = sidebar.querySelector(".tool-sidebar-empty");
+  if (!empty) {
+    empty = document.createElement("div");
+    empty.className = "tool-sidebar-empty";
+    empty.textContent = "等待工具调用...";
+    sidebar.appendChild(empty);
+  }
+}
+
+function addToolCard(toolName, searchQuery) {
+  if (!sidebar) return;
+  const empty = sidebar.querySelector(".tool-sidebar-empty");
+  if (empty) empty.remove();
+
+  const card = document.createElement("div");
+  card.className = "tool-card";
+  card.innerHTML = `
+    <div class="tool-card-head">
+      <span class="tool-card-name">${escapeHtml(toolName)}</span>
+    </div>
+    <div class="tool-card-query">搜索："${escapeHtml(searchQuery)}"</div>
+    <div class="tool-card-articles"></div>
+  `;
+  sidebar.insertBefore(card, sidebar.firstChild);
+  currentCard = card;
+  return card;
+}
+
+function promoteCardIfEmpty(cardEl) {
+  if (!cardEl) return;
+  const articles = cardEl.querySelector(".tool-card-articles");
+  if (articles && !articles.children.length) {
+    articles.innerHTML = '<div style="font-size:0.65rem;color:var(--muted)">缓存命中</div>';
+  }
+}
+
+function populateCard(cardEl, articles) {
+  if (!cardEl) return;
+  const container = cardEl.querySelector(".tool-card-articles");
+  if (!container) return;
+  container.innerHTML = articles.map(a => renderArticleItem(a)).join("");
+}
+
+function renderArticleItem(a) {
+  return `
+    <div class="article-item">
+      <div class="article-item-date">${escapeHtml(a.date)}</div>
+      <div class="article-item-title">${escapeHtml(a.title || "(无标题)")}</div>
+      ${a.snippet ? `<div class="article-item-snippet">${escapeHtml(a.snippet)}</div>` : ""}
+      <div class="article-item-more" data-id="${escapeHtml(a.id)}" onclick="window.__showArticleModal('${escapeHtml(a.id)}')">阅读全文 →</div>
+    </div>`;
+}
+
+// ---- 模态窗口 ----
+
+async function showArticleModal(articleId) {
+  const existing = document.querySelector(".modal-overlay");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = '<div class="modal-box"><div class="modal-body">加载中...</div></div>';
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeModal();
+  });
+  document.body.appendChild(overlay);
+
+  try {
+    const res = await fetch(API_BASE + "/api/dynamics/" + encodeURIComponent(articleId), {
+      headers: { "Authorization": "Bearer " + getToken() },
+    });
+    if (!res.ok) {
+      overlay.querySelector(".modal-body").textContent = "文章加载失败";
+      return;
+    }
+    const article = await res.json();
+    renderModal(overlay, article);
+  } catch {
+    overlay.querySelector(".modal-body").textContent = "文章加载失败";
+  }
+}
+
+function renderModal(overlay, a) {
+  overlay.querySelector(".modal-box").innerHTML = `
+    <div class="modal-header">
+      <div>
+        <h3>${escapeHtml(a.title || "(无标题)")}</h3>
+        <div class="modal-meta">${escapeHtml(a.date)} · ${escapeHtml(a.type)}</div>
+        ${a.tags ? `<div class="modal-tags">标签：${escapeHtml(a.tags)}</div>` : ""}
+      </div>
+      <button class="modal-close" onclick="window.__closeArticleModal()">&times;</button>
+    </div>
+    <div class="modal-body">${simpleMarkdown(a.content || "")}</div>
+  `;
+}
+
+function closeModal() {
+  const overlay = document.querySelector(".modal-overlay");
+  if (overlay) overlay.remove();
+}
+
+window.__showArticleModal = showArticleModal;
+window.__closeArticleModal = closeModal;
+
+function renderReasoning(reasoning, collapsed = false) {
+  const tag = collapsed ? "details" : "details open";
+  const label = collapsed ? "💭 思考过程" : "💭 思考中...";
+  return `<${tag}><summary>${label}</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${(reasoning || "").replace(/</g, "&lt;")}</p></${tag}>`;
+}
+
+function parseToolKey(raw) {
+  const idx = raw.indexOf(":");
+  if (idx === -1) return { name: raw, query: raw };
+  return { name: raw.slice(0, idx), query: raw.slice(idx + 1) };
 }
 
 async function sendMessage() {
@@ -291,40 +421,33 @@ async function sendMessage() {
         try {
           const obj = JSON.parse(dataStr);
           if (obj.tool || obj.cached) {
-            const label = obj.tool ? "🔧 " + obj.tool : "📋 缓存: " + obj.cached;
-            addMessage("tool", label);
+            const raw = obj.tool || obj.cached;
+            const { name, query } = parseToolKey(raw);
+            addMessage("tool", (obj.tool ? "🔧 " : "📋 缓存: ") + raw);
             if (currentAssistantMsg) {
               currentAssistantMsg.classList.remove("typing");
               if (reasoning && !content) {
-                currentAssistantMsg.querySelector(".msg-body").innerHTML =
-                  `<details open><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+                currentAssistantMsg.querySelector(".msg-body").innerHTML = renderReasoning(reasoning, true);
               }
             }
             currentAssistantMsg = addMessage("assistant", "思考中...");
             currentAssistantMsg.classList.add("typing");
             reasoning = "";
             content = "";
+            const card = addToolCard(name, query);
+            if (obj.cached) promoteCardIfEmpty(card);
           } else if (obj.articles) {
-            const sidebar = document.getElementById("article-sidebar");
-            if (sidebar) {
-              sidebar.innerHTML = obj.articles.map(a =>
-                `<a class="art-link" href="/#/dynamics" data-id="${a.id}">
-                  <span class="art-date">${a.date}</span>
-                  <span class="art-title">${a.title || "(无标题)"}</span>
-                </a>`
-              ).join("");
-            }
+            populateCard(currentCard, obj.articles || []);
           } else if (obj.reasoning) {
             reasoning += obj.reasoning;
             if (currentAssistantMsg) {
               currentAssistantMsg.querySelector(".msg-body").innerHTML =
-                `<details open><summary>💭 思考中...</summary><p style="color:var(--muted);font-size:0.85em;">${reasoning.replace(/</g,"&lt;")}</p></details>` + simpleMarkdown(content);
+                renderReasoning(reasoning, false) + simpleMarkdown(content);
             }
           } else if (obj.delta) {
             content += obj.delta;
             if (currentAssistantMsg) {
-              let html = "";
-              if (reasoning) html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+              let html = reasoning ? renderReasoning(reasoning, true) : "";
               html += simpleMarkdown(content);
               currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
             }
