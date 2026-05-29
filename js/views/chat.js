@@ -175,8 +175,8 @@ export async function init(container) {
       <div class="chat-input-wrap">
         <div class="chat-controls">
           <select id="chat-model">
-            <option value="deepseek-v4-pro">v4 Pro</option>
             <option value="deepseek-v4-flash">v4 Flash</option>
+            <option value="deepseek-v4-pro">v4 Pro</option>
           </select>
           <select id="chat-effort">
             <option value="high">高思考</option>
