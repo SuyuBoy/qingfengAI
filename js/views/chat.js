@@ -169,33 +169,32 @@ export async function init(container) {
 
   container.innerHTML = `
     <div id="chat-view">
-      <div class="chat-messages">
-        <div class="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
-      </div>
-      <div class="chat-input-wrap">
-        <div class="chat-controls">
-          <select id="chat-model">
-            <option value="deepseek-v4-flash">v4 Flash</option>
-            <option value="deepseek-v4-pro">v4 Pro</option>
-          </select>
-          <select id="chat-effort">
-            <option value="high">高思考</option>
-            <option value="max">最强思考</option>
-          </select>
-          <label class="think-toggle"><input type="checkbox" id="chat-debug"> 调试</label>
-          <button class="model-btn" id="chat-clear">新对话</button>
+      <div class="chat-main">
+        <div class="chat-messages">
+          <div class="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
         </div>
-        <div class="chat-send-row">
-          <textarea id="chat-input" rows="1" placeholder="输入问题..."></textarea>
-          <button id="chat-send">发送</button>
+        <div class="chat-input-wrap">
+          <div class="chat-controls">
+            <select id="chat-model">
+              <option value="deepseek-v4-flash">v4 Flash</option>
+              <option value="deepseek-v4-pro">v4 Pro</option>
+            </select>
+            <label class="think-toggle"><input type="checkbox" id="chat-debug"> 调试</label>
+            <label class="think-toggle"><input type="checkbox" id="chat-raw" checked> 原文</label>
+          </div>
+          <div class="chat-send-row">
+            <textarea id="chat-input" rows="1" placeholder="输入问题..."></textarea>
+            <button id="chat-send-btn" disabled>发送</button>
+          </div>
         </div>
       </div>
+      <aside class="article-sidebar" id="article-sidebar"></aside>
     </div>
   `;
 
   msgContainer = container.querySelector(".chat-messages");
   textarea = container.querySelector("#chat-input");
-  sendBtn = container.querySelector("#chat-send");
+  sendBtn = container.querySelector("#chat-send-btn");
 
   sendBtn.addEventListener("click", sendMessage);
   textarea.addEventListener("keydown", (e) => {
@@ -281,20 +280,44 @@ async function sendMessage() {
         if (dataStr === "[DONE]") continue;
         try {
           const obj = JSON.parse(dataStr);
-          if (obj.tool) {
-            addMessage("tool", "🔧 " + obj.tool);
-          } else if (obj.cached) {
-            addMessage("tool", "📋 缓存命中: " + obj.cached);
+          if (obj.tool || obj.cached) {
+            const label = obj.tool ? "🔧 " + obj.tool : "📋 缓存: " + obj.cached;
+            addMessage("tool", label);
+            if (currentAssistantMsg) {
+              currentAssistantMsg.classList.remove("typing");
+              if (reasoning && !content) {
+                currentAssistantMsg.querySelector(".msg-body").innerHTML =
+                  `<details open><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+              }
+            }
+            currentAssistantMsg = addMessage("assistant", "思考中...");
+            currentAssistantMsg.classList.add("typing");
+            reasoning = "";
+            content = "";
+          } else if (obj.articles) {
+            const sidebar = document.getElementById("article-sidebar");
+            if (sidebar) {
+              sidebar.innerHTML = obj.articles.map(a =>
+                `<a class="art-link" href="/#/dynamics" data-id="${a.id}">
+                  <span class="art-date">${a.date}</span>
+                  <span class="art-title">${a.title || "(无标题)"}</span>
+                </a>`
+              ).join("");
+            }
           } else if (obj.reasoning) {
             reasoning += obj.reasoning;
-            currentAssistantMsg.querySelector(".msg-body").innerHTML =
-              `<details open><summary>💭 思考中...</summary><p style="color:var(--muted);font-size:0.85em;">${reasoning.replace(/</g,"&lt;")}</p></details>` + simpleMarkdown(content);
+            if (currentAssistantMsg) {
+              currentAssistantMsg.querySelector(".msg-body").innerHTML =
+                `<details open><summary>💭 思考中...</summary><p style="color:var(--muted);font-size:0.85em;">${reasoning.replace(/</g,"&lt;")}</p></details>` + simpleMarkdown(content);
+            }
           } else if (obj.delta) {
             content += obj.delta;
-            let html = "";
-            if (reasoning) html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
-            html += simpleMarkdown(content);
-            currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
+            if (currentAssistantMsg) {
+              let html = "";
+              if (reasoning) html += `<details><summary>💭 思考过程</summary><p style="color:var(--muted);font-size:0.85em;white-space:pre-wrap;">${reasoning.replace(/</g,"&lt;")}</p></details>`;
+              html += simpleMarkdown(content);
+              currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
+            }
           } else if (obj.done && obj.messages) {
             for (const m of obj.messages) messages.push(m);
           }
