@@ -3,11 +3,30 @@ import { api, getToken } from "../api.js";
 const API_BASE = window.__API_BASE__ || "";
 
 let msgContainer, textarea, sendBtn;
+const CHAT_KEY = "chat_messages";
 let streaming = false;
 let currentAssistantMsg = null;
 
-// 前端维护的完整消息历史（含 system prompt）
 let messages = [];
+
+function loadMessages() {
+  try {
+    const raw = localStorage.getItem(CHAT_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length > 0 && saved[0].role === "system") {
+        return saved;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function saveMessages() {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify(messages));
+  } catch {}
+}
 
 function newSession() {
   const now = new Date().toISOString();
@@ -15,6 +34,7 @@ function newSession() {
     role: "system",
     content: `你是清风研习社的AI助手，基于清风录制的复盘文章回答用户问题。优先使用 search_articles 工具检索相关文章，再基于文章内容给出有根据的回答。回答时注明引用来源（日期+标题）。如果找不到相关文章，如实告知。当前时间：${now}`
   }];
+  saveMessages();
 }
 
 function simpleMarkdown(text) {
@@ -64,7 +84,12 @@ function _renderTable(rows) {
 }
 
 export async function init(container) {
-  newSession();
+  const saved = loadMessages();
+  if (saved) {
+    messages = saved;
+  } else {
+    newSession();
+  }
 
   container.innerHTML = `
     <div id="chat-view">
@@ -100,9 +125,18 @@ export async function init(container) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
   container.querySelector("#chat-clear").addEventListener("click", () => {
+    if (streaming) return;
     newSession();
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
   });
+
+  // 渲染历史对话
+  if (saved) {
+    for (const m of messages) {
+      if (m.role === "user") addMessage("user", m.content);
+      else if (m.role === "assistant" && m.content) addMessage("assistant", m.content);
+    }
+  }
 }
 
 function addMessage(role, content) {
@@ -129,6 +163,7 @@ async function sendMessage() {
 
   // 前端追加 user 消息
   messages.push({ role: "user", content: text });
+  saveMessages();
   addMessage("user", text);
   currentAssistantMsg = addMessage("assistant", "思考中...");
   currentAssistantMsg.classList.add("typing");
@@ -188,6 +223,7 @@ async function sendMessage() {
     }
 
     currentAssistantMsg.classList.remove("typing");
+    saveMessages();
     if (!content) {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
