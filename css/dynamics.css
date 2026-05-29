@@ -15,12 +15,12 @@
   background: var(--card-bg); font: inherit; font-size: 0.82rem; color: var(--text);
   color-scheme: dark;
 }
-.search-bar button {
+.top-row button {
   padding: 6px 16px; border: 1px solid var(--border);
   border-radius: 20px; background: var(--text); color: #fff; cursor: pointer;
   font: inherit; font-size: 0.82rem;
 }
-.search-bar .clear-btn {
+.top-row .clear-btn {
   background: var(--card-bg); color: var(--muted);
 }
 .cal-group {

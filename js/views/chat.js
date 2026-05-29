@@ -207,6 +207,7 @@ export async function init(container) {
   `;
 
   chatView = container.querySelector("#chat-view");
+  msgContainer = container.querySelector(".chat-messages");
   sidebar = container.querySelector("#tool-sidebar");
   textarea = container.querySelector("#chat-input");
   sendBtn = container.querySelector("#chat-send-btn");
