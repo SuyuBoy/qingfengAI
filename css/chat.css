@@ -2,14 +2,6 @@
   padding: 0;
 }
 
-#chat-view {
-  display: flex; flex-direction: column;
-  min-height: calc(100vh - 48px);
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
 .chat-messages {
   flex: 1; padding: 1rem 0;
   display: flex; flex-direction: column; gap: 0.8rem;
@@ -174,39 +166,34 @@
 /* ---- 工具调用侧边栏 ---- */
 
 #chat-view {
-  display: flex; flex-direction: row;
-  justify-content: center;
-  gap: 1.2rem;
+  display: flex; flex-direction: column;
+  min-height: calc(100vh - 48px);
+  max-width: 720px;
+  margin: 0 auto;
   padding: 0 1rem;
 }
 
-#chat-view.collapsed { justify-content: center; }
-
 .chat-main {
-  flex: 1 1 auto;
-  max-width: 720px;
-  min-width: 0;
+  flex: 1;
   display: flex; flex-direction: column;
-  min-height: calc(100vh - 48px);
-  transition: margin 0.3s ease;
 }
 
 .tool-sidebar {
-  width: 280px;
-  flex-shrink: 0;
-  padding: 1rem 0;
+  position: fixed; right: 0; top: 48px;
+  width: 320px; max-width: 90vw;
+  height: calc(100vh - 48px);
+  padding: 1rem 1.2rem;
   display: flex; flex-direction: column; gap: 0.8rem;
-  max-height: calc(100vh - 48px);
   overflow-y: auto;
-  position: sticky; top: 0;
-  transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+  z-index: 50;
+  transition: transform 0.3s ease;
 }
 
 #chat-view.collapsed .tool-sidebar {
-  width: 0;
-  opacity: 0;
-  overflow: hidden;
-  padding: 1rem 0;
+  transform: translateX(100%);
 }
 
 .tool-sidebar-title {
@@ -216,8 +203,6 @@
   border-bottom: 1px solid var(--border);
   display: flex; justify-content: space-between; align-items: center;
   white-space: nowrap;
-  position: sticky; top: 0; z-index: 1;
-  background: var(--bg);
 }
 
 .tool-sidebar-toggle {
@@ -237,7 +222,8 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-#chat-view.collapsed ~ .sidebar-expand-btn { display: block; }
+#chat-view.collapsed ~ .sidebar-expand-btn {
+  display: block;
 }
 
 .tool-sidebar-empty {
