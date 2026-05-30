@@ -34,9 +34,10 @@
 .chat-msg.assistant p { margin: 0.5em 0; }
 .chat-msg.assistant p:first-child { margin-top: 0; }
 .chat-msg.assistant p:last-child { margin-bottom: 0; }
-.chat-msg.assistant h1,.chat-msg.assistant h2,.chat-msg.assistant h3 {
+.chat-msg.assistant h1,.chat-msg.assistant h2,.chat-msg.assistant h3,.chat-msg.assistant h4 {
   font-size: 1rem; margin: 0.8em 0 0.3em;
 }
+.chat-msg.assistant h4 { font-size: 0.92rem; }
 .chat-msg.assistant ul,.chat-msg.assistant ol { margin: 0.3em 0; padding-left: 1.5em; }
 .chat-msg.assistant code {
   background: var(--tag-bg); padding: 1px 5px; border-radius: 3px;
