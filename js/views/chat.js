@@ -361,7 +361,12 @@ function addToolCard(toolName, searchQuery) {
     <div class="tool-card-query">搜索："${escapeHtml(searchQuery)}"</div>
     <div class="tool-card-articles"></div>
   `;
-  sidebar.insertBefore(card, sidebar.firstChild);
+  const after = sidebar.querySelector(".tool-sidebar-title");
+  if (after) {
+    sidebar.insertBefore(card, after.nextSibling);
+  } else {
+    sidebar.insertBefore(card, sidebar.firstChild);
+  }
   currentCard = card;
   updateExpandBadge();
   return card;
