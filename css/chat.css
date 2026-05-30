@@ -297,6 +297,37 @@
   font-size: 0.85rem; line-height: 1.8;
 }
 
+/* 调试弹窗 */
+.debug-modal { max-width: 720px; }
+.debug-msg {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+.debug-msg:last-child { border-bottom: none; }
+.debug-msg-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.debug-idx {
+  font-size: 0.65rem; color: var(--muted);
+  min-width: 2rem;
+}
+.debug-role {
+  font-size: 0.65rem; padding: 1px 6px; border-radius: 3px;
+  font-weight: 600;
+}
+.debug-role-system { background: #e8e8e8; color: #555; }
+.debug-role-user { background: #d4edda; color: #155724; }
+.debug-role-assistant { background: #cce5ff; color: #004085; }
+.debug-role-tool { background: #fff3cd; color: #856404; }
+.debug-msg-body {
+  font-size: 0.7rem; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 200px; overflow-y: auto;
+  margin: 0; padding: 0.3rem 0.5rem;
+  background: var(--card-bg); border-radius: 4px;
+}
+
 .modal-body p { margin: 0.4em 0; }
 .modal-body h1,.modal-body h2,.modal-body h3 { font-size: 0.95rem; }
 .modal-body img { max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0; }

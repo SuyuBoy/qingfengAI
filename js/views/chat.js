@@ -188,7 +188,7 @@ export async function init(container) {
               <option value="high">高思考</option>
               <option value="max">最强思考</option>
             </select>
-            <label class="think-toggle"><input type="checkbox" id="chat-debug"> 调试</label>
+            <button class="model-btn" id="chat-debug-btn">调试</button>
             <button class="model-btn" id="chat-clear">新对话</button>
           </div>
           <div class="chat-send-row">
@@ -238,6 +238,10 @@ export async function init(container) {
   const expandBtn = container.querySelector("#sidebar-expand");
   if (toggleBtn) toggleBtn.addEventListener("click", () => collapseSidebar(chatView));
   if (expandBtn) expandBtn.addEventListener("click", () => expandSidebar(chatView));
+
+  // 调试按钮
+  const debugBtn = container.querySelector("#chat-debug-btn");
+  if (debugBtn) debugBtn.addEventListener("click", showDebugModal);
 
   // 渲染历史对话
   if (saved) {
@@ -431,6 +435,57 @@ function closeModal() {
   if (overlay) overlay.remove();
 }
 
+function showDebugModal() {
+  const msgs = window.__debugMessages || messages;
+  const rows = msgs.map((m, i) => {
+    let roleIcon = "";
+    let roleClass = "";
+    switch (m.role) {
+      case "system": roleIcon = "system"; roleClass = "debug-role-system"; break;
+      case "user": roleIcon = "user"; roleClass = "debug-role-user"; break;
+      case "assistant":
+        roleIcon = m.tool_calls ? "assistant+tool" : "assistant";
+        roleClass = "debug-role-assistant";
+        break;
+      case "tool": roleIcon = "tool"; roleClass = "debug-role-tool"; break;
+    }
+    let body = "";
+    if (m.content) {
+      body += escapeHtml(m.content);
+    }
+    if (m.tool_calls) {
+      body += "\n\n" + m.tool_calls.map(t =>
+        `[调用: ${t.function.name}(${t.function.arguments})]`
+      ).join("\n");
+    }
+    if (m.reasoning_content) {
+      body += `\n\n[思考: ${escapeHtml(m.reasoning_content.slice(0, 500))}${m.reasoning_content.length > 500 ? "..." : ""}]`;
+    }
+    return `<div class="debug-msg">
+      <div class="debug-msg-head">
+        <span class="debug-idx">#${i}</span>
+        <span class="debug-role ${roleClass}">${roleIcon}</span>
+      </div>
+      <pre class="debug-msg-body">${body}</pre>
+    </div>`;
+  }).join("");
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-box debug-modal">
+      <div class="modal-header">
+        <h3>调试：上下文 (${msgs.length} 条消息)</h3>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+      </div>
+      <div class="modal-body">${rows}</div>
+    </div>`;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  document.body.appendChild(overlay);
+}
+
 window.__showArticleModal = showArticleModal;
 window.__closeArticleModal = closeModal;
 
@@ -545,17 +600,8 @@ async function sendMessage() {
     if (!content) {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
-    // 调试模式：显示完整请求上下文
-    if (document.getElementById("chat-debug")?.checked) {
-      const ctx = messages.map((m, i) => {
-        const label = m.role === "tool" ? "🔧" : m.role === "assistant" && m.tool_calls ? "🤖+" : m.role === "assistant" ? "🤖" : m.role === "system" ? "⚙️" : "👤";
-        let body = m.content || "";
-        if (m.tool_calls) body += "\n[调用: " + m.tool_calls.map(t => t.function.name + "(" + t.function.arguments + ")").join(", ") + "]";
-        if (body.length > 300) body = body.slice(0, 300) + "...";
-        return `[${i}] ${label} ${m.role}\n${body}`;
-      }).join("\n\n");
-      addMessage("assistant", `<details open><summary>🔧 调试：上下文 (${messages.length}条)</summary><pre style="font-size:0.72em;max-height:400px;overflow:auto;white-space:pre-wrap;">${ctx.replace(/</g,"&lt;")}</pre></details>`);
-    }
+    // 调试模式：始终收集上下文（弹窗使用）
+    window.__debugMessages = [...messages];
 
     for (const m of newMsgs) {
       messages.push(m);
