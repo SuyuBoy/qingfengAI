@@ -45,6 +45,10 @@
 }
 .chat-msg.assistant pre { overflow-x: auto; }
 .chat-msg.assistant strong { font-weight: 600; }
+.chat-msg.assistant blockquote {
+  border-left: 3px solid var(--border); padding: 0.3em 0.8em;
+  margin: 0.5em 0; color: var(--muted);
+}
 .chat-msg.assistant hr {
   border: 0; border-top: 1px solid var(--border);
   margin: 1rem 0;
