@@ -193,8 +193,9 @@ export async function init(container) {
               <option value="high">高思考</option>
               <option value="max">最强思考</option>
             </select>
-            <input type="number" id="chat-max-rounds" value="10" min="1" max="50"
-              style="width:50px;text-align:center" title="最大工具调用轮数">
+            <label class="rounds-label">轮数
+              <input type="number" id="chat-max-rounds" value="10" min="1" max="50">
+            </label>
             <button class="model-btn" id="chat-debug-btn">调试</button>
             <button class="model-btn" id="chat-clear">新对话</button>
           </div>

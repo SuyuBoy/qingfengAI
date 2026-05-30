@@ -81,6 +81,17 @@
   background: var(--card-bg); padding: 4px 10px; cursor: pointer;
 }
 
+.rounds-label {
+  font-size: 0.78rem; color: var(--muted);
+  display: flex; align-items: center; gap: 4px;
+}
+.rounds-label input {
+  width: 42px; padding: 4px 4px; text-align: center;
+  font: inherit; font-size: 0.78rem; color: var(--muted);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--card-bg);
+}
+
 .think-toggle {
   font-size: 0.78rem; color: var(--muted);
   display: flex; align-items: center; gap: 4px; cursor: pointer;
