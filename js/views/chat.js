@@ -332,11 +332,18 @@ function clearSidebar() {
     empty.textContent = "等待工具调用...";
     sidebar.appendChild(empty);
   }
+  updateExpandBadge();
+}
+
+function updateExpandBadge() {
+  const btn = document.getElementById("sidebar-expand");
+  if (!btn) return;
+  const count = sidebar ? sidebar.querySelectorAll(".tool-card").length : 0;
+  btn.textContent = count ? `工具调用 (${count}) →` : "工具调用 →";
 }
 
 function addToolCard(toolName, searchQuery) {
   if (!sidebar) return;
-  expandSidebar(chatView);
   const empty = sidebar.querySelector(".tool-sidebar-empty");
   if (empty) empty.remove();
 
@@ -351,6 +358,7 @@ function addToolCard(toolName, searchQuery) {
   `;
   sidebar.insertBefore(card, sidebar.firstChild);
   currentCard = card;
+  updateExpandBadge();
   return card;
 }
 
