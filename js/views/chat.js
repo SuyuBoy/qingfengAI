@@ -556,24 +556,33 @@ async function sendMessage() {
     let buffer = "";
     let reasoning = "";
     let content = "";
-    let toolBadges = [];
-    let thinkingBlocks = [];
+    let steps = [];  // [{type:"think"|"tool", text:...}，按时间顺序]
     const newMsgs = [];
+
+    function flushReasoning() {
+      if (reasoning) {
+        steps.push({ type: "think", text: reasoning.replace(/</g, "&lt;") });
+        reasoning = "";
+      }
+    }
 
     function renderAssistantBlock() {
       if (!currentAssistantMsg) return;
       let html = "";
-      // tool badges
-      if (toolBadges.length) {
-        html += `<div class="msg-tools">${toolBadges.join("")}</div>`;
+      if (steps.length || reasoning) {
+        html += '<details class="msg-think" open><summary>思考过程</summary><div class="think-steps">';
+        for (const s of steps) {
+          if (s.type === "tool") {
+            html += `<div class="think-tool">${s.text}</div>`;
+          } else {
+            html += `<div class="think-step">${s.text}</div>`;
+          }
+        }
+        if (reasoning) {
+          html += `<div class="think-step">${reasoning.replace(/</g, "&lt;")}</div>`;
+        }
+        html += '</div></details>';
       }
-      // thinking blocks
-      if (thinkingBlocks.length) {
-        html += thinkingBlocks.map((r, i) =>
-          `<details class="msg-think"><summary>思考 ${i + 1}</summary><pre>${r}</pre></details>`
-        ).join("");
-      }
-      // content
       html += simpleMarkdown(content);
       currentAssistantMsg.querySelector(".msg-body").innerHTML = html || "思考中...";
       currentAssistantMsg.classList.toggle("typing", !content);
@@ -592,16 +601,10 @@ async function sendMessage() {
         try {
           const obj = JSON.parse(dataStr);
           if (obj.tool || obj.cached) {
+            flushReasoning();
             const raw = obj.tool || obj.cached;
             const { name, query } = parseToolKey(raw);
-            // finish current thinking block
-            if (reasoning) {
-              thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
-              reasoning = "";
-            }
-            toolBadges.push(
-              `<span class="tool-badge">${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}</span>`
-            );
+            steps.push({ type: "tool", text: `${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}` });
             const card = addToolCard(name, query);
             if (obj.cached) promoteCardIfEmpty(card);
           } else if (obj.articles) {
@@ -609,10 +612,7 @@ async function sendMessage() {
           } else if (obj.reasoning) {
             reasoning += obj.reasoning;
           } else if (obj.delta) {
-            if (reasoning) {
-              thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
-              reasoning = "";
-            }
+            flushReasoning();
             content += obj.delta;
           } else if (obj.done && obj.messages) {
             for (const m of obj.messages) messages.push(m);
@@ -624,9 +624,7 @@ async function sendMessage() {
     }
 
     // finalize
-    if (reasoning) {
-      thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
-    }
+    flushReasoning();
     renderAssistantBlock();
     currentAssistantMsg.classList.remove("typing");
     saveMessages();
