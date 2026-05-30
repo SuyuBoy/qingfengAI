@@ -102,6 +102,27 @@
 }
 .chat-send-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* 粘贴图片预览 */
+.chat-paste-preview {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  padding-bottom: 0.4rem;
+}
+.paste-thumb-wrap {
+  position: relative; width: 56px; height: 56px;
+  border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden;
+}
+.paste-thumb {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.paste-remove {
+  position: absolute; top: 0; right: 0;
+  background: rgba(0,0,0,0.5); color: #fff;
+  border: none; border-radius: 0 6px 0 6px;
+  font-size: 0.7rem; cursor: pointer; line-height: 1;
+  padding: 0 3px 1px 4px;
+}
+
 .chat-empty {
   text-align: center; color: var(--muted); padding: 4rem 0;
   font-size: 0.9rem;

@@ -7,6 +7,7 @@ const CHAT_KEY = "chat_messages";
 let streaming = false;
 let currentAssistantMsg = null;
 let currentCard = null;
+let pastedImages = [];
 
 let messages = [];
 
@@ -191,9 +192,10 @@ export async function init(container) {
             <button class="model-btn" id="chat-clear">新对话</button>
           </div>
           <div class="chat-send-row">
-            <textarea id="chat-input" rows="1" placeholder="输入问题..."></textarea>
+            <textarea id="chat-input" rows="1" placeholder="输入问题...（可直接粘贴图片）"></textarea>
             <button id="chat-send-btn" disabled>发送</button>
           </div>
+          <div class="chat-paste-preview" id="paste-preview"></div>
         </div>
       </div>
       <aside class="tool-sidebar" id="tool-sidebar">
@@ -219,8 +221,9 @@ export async function init(container) {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
     textarea.addEventListener("input", () => {
-      if (sendBtn) sendBtn.disabled = !textarea.value.trim();
+      if (sendBtn) sendBtn.disabled = !textarea.value.trim() && !pastedImages.length;
     });
+    textarea.addEventListener("paste", onPaste);
   }
   const clearBtn = container.querySelector("#chat-clear");
   if (clearBtn) clearBtn.addEventListener("click", () => {
@@ -243,6 +246,51 @@ export async function init(container) {
       else if (m.role === "assistant" && m.content) addMessage("assistant", m.content);
     }
   }
+}
+
+function onPaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (!item.type.startsWith("image/")) continue;
+    e.preventDefault();
+    const blob = item.getAsFile();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result.split(",")[1];
+      pastedImages.push(b64);
+      if (sendBtn) sendBtn.disabled = false;
+      renderPastePreview();
+    };
+    reader.readAsDataURL(blob);
+    break;
+  }
+}
+
+function renderPastePreview() {
+  const preview = document.getElementById("paste-preview");
+  if (!preview) return;
+  preview.innerHTML = pastedImages.map((b64, i) =>
+    `<div class="paste-thumb-wrap">
+      <img src="data:image/png;base64,${b64}" class="paste-thumb">
+      <button class="paste-remove" data-idx="${i}">&times;</button>
+    </div>`
+  ).join("");
+  preview.querySelectorAll(".paste-remove").forEach(btn => {
+    btn.addEventListener("click", () => {
+      pastedImages.splice(Number(btn.dataset.idx), 1);
+      if (!pastedImages.length && !textarea.value.trim()) {
+        if (sendBtn) sendBtn.disabled = true;
+      }
+      renderPastePreview();
+    });
+  });
+}
+
+function clearPastedImages() {
+  pastedImages = [];
+  const preview = document.getElementById("paste-preview");
+  if (preview) preview.innerHTML = "";
 }
 
 function addMessage(role, content) {
@@ -405,8 +453,10 @@ async function sendMessage() {
 
   const model = document.getElementById("chat-model").value;
   const effort = document.getElementById("chat-effort").value;
+  const images = pastedImages.length ? [...pastedImages] : null;
 
   textarea.value = "";
+  clearPastedImages();
 
   // 前端追加 user 消息
   messages.push({ role: "user", content: text });
@@ -425,7 +475,7 @@ async function sendMessage() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + getToken(),
       },
-      body: JSON.stringify({ messages, model, effort }),
+      body: JSON.stringify({ messages, model, effort, images }),
     });
 
     if (res.status === 401) { throw new Error("未登录"); }
