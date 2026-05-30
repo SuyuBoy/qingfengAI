@@ -66,7 +66,7 @@ export async function init(container) {
         const preview = item.content.length > 300 ? item.content.slice(0, 300) : "";
         const isLong = item.content.length > 300;
         html += `<div class="card" data-id="${item.dynamic_id}">
-          <div class="meta"><span>${dateStr}</span></div>
+          <div class="meta"><span>${dateStr}</span><span class="card-id">${item.dynamic_id}</span></div>
           <div class="content${isLong ? " preview" : ""}">${marked_parser.parse(fixImages(isLong ? preview : item.content, item.dynamic_id))}</div>
           ${isLong ? '<button class="expand-btn">展开全文</button>' : ""}
         </div>`;

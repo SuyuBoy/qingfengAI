@@ -51,8 +51,12 @@
 .card:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 
 .card .meta {
-  display: flex; align-items: center; gap: 0.6rem;
+  display: flex; align-items: center; justify-content: space-between;
   font-size: 0.78rem; color: var(--muted); margin-bottom: 0.8rem;
+}
+.card .card-id {
+  font-size: 0.7rem; color: var(--muted);
+  user-select: all; cursor: text;
 }
 
 .card .content { font-size: 0.93rem; }
