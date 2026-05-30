@@ -556,7 +556,28 @@ async function sendMessage() {
     let buffer = "";
     let reasoning = "";
     let content = "";
+    let toolBadges = [];
+    let thinkingBlocks = [];
     const newMsgs = [];
+
+    function renderAssistantBlock() {
+      if (!currentAssistantMsg) return;
+      let html = "";
+      // tool badges
+      if (toolBadges.length) {
+        html += `<div class="msg-tools">${toolBadges.join("")}</div>`;
+      }
+      // thinking blocks
+      if (thinkingBlocks.length) {
+        html += thinkingBlocks.map((r, i) =>
+          `<details class="msg-think"><summary>思考 ${i + 1}</summary><pre>${r}</pre></details>`
+        ).join("");
+      }
+      // content
+      html += simpleMarkdown(content);
+      currentAssistantMsg.querySelector(".msg-body").innerHTML = html || "思考中...";
+      currentAssistantMsg.classList.toggle("typing", !content);
+    }
 
     while (true) {
       const { done, value } = await reader.read();
@@ -573,56 +594,49 @@ async function sendMessage() {
           if (obj.tool || obj.cached) {
             const raw = obj.tool || obj.cached;
             const { name, query } = parseToolKey(raw);
-            addMessage("tool", (obj.tool ? "🔧 " : "📋 缓存: ") + raw);
-            if (currentAssistantMsg) {
-              currentAssistantMsg.classList.remove("typing");
-              if (reasoning && !content) {
-                currentAssistantMsg.querySelector(".msg-body").innerHTML = renderReasoning(reasoning, true);
-              }
+            // finish current thinking block
+            if (reasoning) {
+              thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
+              reasoning = "";
             }
-            currentAssistantMsg = addMessage("assistant", "思考中...");
-            currentAssistantMsg.classList.add("typing");
-            reasoning = "";
-            content = "";
+            toolBadges.push(
+              `<span class="tool-badge">${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}</span>`
+            );
             const card = addToolCard(name, query);
             if (obj.cached) promoteCardIfEmpty(card);
           } else if (obj.articles) {
             populateCard(currentCard, obj.articles || []);
           } else if (obj.reasoning) {
             reasoning += obj.reasoning;
-            if (currentAssistantMsg) {
-              currentAssistantMsg.querySelector(".msg-body").innerHTML =
-                renderReasoning(reasoning, false) + simpleMarkdown(content);
-            }
           } else if (obj.delta) {
-            content += obj.delta;
-            if (currentAssistantMsg) {
-              let html = reasoning ? renderReasoning(reasoning, true) : "";
-              html += simpleMarkdown(content);
-              currentAssistantMsg.querySelector(".msg-body").innerHTML = html;
+            if (reasoning) {
+              thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
+              reasoning = "";
             }
+            content += obj.delta;
           } else if (obj.done && obj.messages) {
             for (const m of obj.messages) messages.push(m);
           }
+          renderAssistantBlock();
         } catch {}
       }
       window.scrollTo(0, document.body.scrollHeight);
     }
 
+    // finalize
+    if (reasoning) {
+      thinkingBlocks.push(reasoning.replace(/</g, "&lt;"));
+    }
+    renderAssistantBlock();
     currentAssistantMsg.classList.remove("typing");
     saveMessages();
     if (!content) {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
-    // 调试模式：始终收集上下文（弹窗使用）
     window.__debugMessages = [...messages];
 
     for (const m of newMsgs) {
       messages.push(m);
-    }
-
-    if (!content.trim()) {
-      currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
   } catch (e) {
     currentAssistantMsg.classList.remove("typing");

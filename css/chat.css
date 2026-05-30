@@ -128,6 +128,31 @@
   font-size: 0.9rem;
 }
 
+/* tool badges & thinking 紧凑块 */
+.msg-tools {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.tool-badge {
+  font-size: 0.68rem; padding: 2px 8px;
+  background: var(--tag-bg); border-radius: 10px;
+  color: var(--muted); white-space: nowrap;
+}
+.msg-think {
+  font-size: 0.72rem; color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.msg-think summary {
+  cursor: pointer; user-select: none;
+  padding: 2px 0;
+}
+.msg-think pre {
+  font-size: 0.68rem; white-space: pre-wrap;
+  margin: 0.3rem 0; padding: 0.3rem 0.5rem;
+  background: var(--bg); border-radius: 4px;
+  max-height: 160px; overflow-y: auto;
+}
+
 .typing::after {
   content: "\258A"; animation: blink 1s steps(1) infinite;
 }
