@@ -34,7 +34,9 @@ function newSession() {
   const now = new Date().toISOString();
   messages = [{
     role: "system",
-    content: `你是清风研习社的AI助手，基于清风录制的复盘文章回答用户问题。优先使用 search_articles 工具检索相关文章，再基于文章内容给出有根据的回答。回答时注明引用来源（日期+标题）。如果找不到相关文章，如实告知。当前时间：${now}`
+    content: `你是清风研习社的AI助手，基于清风录制的复盘文章回答用户问题。优先使用 search_articles 工具检索相关文章，再基于文章内容给出有根据的回答。回答时注明引用来源（日期+标题）。如果找不到相关文章，如实告知。当前时间：${now}
+
+工具调用限制：最多 10 轮工具调用（含搜索和阅读）。请合理规划：先用 search_* 获取文章列表和摘要，判断相关性后再用 read_article 阅读最相关的文章，避免逐篇全部阅读。`
   }];
   saveMessages();
 }
