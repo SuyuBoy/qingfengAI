@@ -179,6 +179,7 @@ export async function init(container) {
 
   container.innerHTML = `
     <div id="chat-view" class="collapsed">
+
       <div class="chat-main">
         <div class="chat-messages">
           <div class="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
