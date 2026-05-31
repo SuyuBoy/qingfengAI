@@ -19,7 +19,7 @@ function loadMessages() {
     const raw = localStorage.getItem(CHAT_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      if (Array.isArray(saved) && saved.length > 0 && saved[0].role === "system") {
+      if (Array.isArray(saved) && saved.length > 0) {
         return saved;
       }
     }
@@ -34,14 +34,7 @@ function saveMessages() {
 }
 
 function newSession() {
-  const now = new Date().toISOString();
-  const maxRounds = document.getElementById("chat-max-rounds")?.value || "10";
-  messages = [{
-    role: "system",
-    content: `你是清风研习社的AI助手，基于清风录制的复盘文章回答用户问题。回答时注明引用来源（日期+标题）。找不到相关文章就如实告知，不要编造。
-
-策略：用 search_articles 语义搜索或 search_by_date 按日期查。看完元信息后，选最相关的 2-3 篇用 read_article 一次性批量读取，不要逐篇单独读。最多 ${maxRounds} 轮调用（含搜索），快速判断直接回答。当前时间：${now}`
-  }];
+  messages = [];
   saveMessages();
 }
 
@@ -73,7 +66,10 @@ export async function init(container) {
             <label class="rounds-label">工具调用轮数
               <input type="number" id="chat-max-rounds" value="10" min="1" max="50">
             </label>
-            <button class="model-btn" id="chat-debug-btn" style="display:none">调试</button>
+            <label class="rounds-label" id="chat-debug-label" style="display:none">
+              <input type="checkbox" id="chat-debug-toggle"> 调试
+            </label>
+            <button class="model-btn" id="chat-debug-view" style="display:none">查看调试</button>
             <button class="model-btn" id="chat-clear">新对话</button>
           </div>
           <div class="chat-send-row">
@@ -124,11 +120,13 @@ export async function init(container) {
   if (toggleBtn) toggleBtn.addEventListener("click", () => collapseSidebar(chatView));
   if (expandBtn) expandBtn.addEventListener("click", () => expandSidebar(chatView));
 
-  // 调试按钮 — 仅管理员可见
-  const debugBtn = container.querySelector("#chat-debug-btn");
-  if (debugBtn && getUser()?.is_admin) {
-    debugBtn.style.display = "";
-    debugBtn.addEventListener("click", showDebugModal);
+  // 调试开关 — 仅管理员可见
+  const debugLabel = container.querySelector("#chat-debug-label");
+  const debugViewBtn = container.querySelector("#chat-debug-view");
+  if (debugLabel && debugViewBtn && getUser()?.is_admin) {
+    debugLabel.style.display = "";
+    debugViewBtn.style.display = "";
+    debugViewBtn.addEventListener("click", showDebugModal);
   }
 
   // 渲染历史对话
@@ -423,6 +421,7 @@ async function sendMessage() {
   const model = document.getElementById("chat-model").value;
   const effort = document.getElementById("chat-effort").value;
   const maxRounds = parseInt(document.getElementById("chat-max-rounds").value) || 10;
+  const debug = document.getElementById("chat-debug-toggle")?.checked || false;
   const images = pastedImages.length ? [...pastedImages] : null;
 
   textarea.value = "";
@@ -445,7 +444,7 @@ async function sendMessage() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + getToken(),
       },
-      body: JSON.stringify({ messages, model, effort, max_rounds: maxRounds, images }),
+      body: JSON.stringify({ messages, model, effort, max_rounds: maxRounds, images, debug }),
     });
 
     if (res.status === 401) { throw new Error("未登录"); }
