@@ -169,6 +169,53 @@
 }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* ---- 历史对话侧边栏 ---- */
+
+.history-sidebar {
+  position: fixed; left: 0; top: 48px;
+  width: 240px; max-width: 85vw;
+  height: calc(100vh - 48px);
+  padding: 1rem 1rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  z-index: 50;
+}
+
+.history-card {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s;
+}
+.history-card:hover { border-color: var(--muted); }
+.history-card.active { border-color: var(--text); }
+
+.history-card-title {
+  font-size: 0.75rem; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-right: 20px;
+}
+.history-card-meta {
+  font-size: 0.63rem; color: var(--muted); margin-top: 0.2rem;
+}
+.history-card-del {
+  position: absolute; top: 4px; right: 6px;
+  background: none; border: none;
+  font-size: 0.9rem; color: var(--muted); cursor: pointer;
+  line-height: 1;
+}
+.history-card-del:hover { color: var(--danger); }
+
+/* 响应式隐藏 */
+@media (max-width: 1200px) {
+  .history-sidebar { display: none; }
+}
+
 /* ---- 工具调用侧边栏 ---- */
 
 #chat-view {

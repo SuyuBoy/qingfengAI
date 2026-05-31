@@ -6,7 +6,8 @@ const API_BASE = window.__API_BASE__ || "";
 window.__debugLog = [];
 
 let msgContainer, chatView, sidebar, textarea, sendBtn;
-const CHAT_KEY = "chat_messages";
+const SESSIONS_KEY = "chat_sessions";
+const ACTIVE_KEY = "chat_active_session";
 let streaming = false;
 let currentAssistantMsg = null;
 let currentCard = null;
@@ -14,41 +15,82 @@ let pastedImages = [];
 let dsCacheStats = { hit: 0, miss: 0 };
 
 let messages = [];
+let activeSessionId = null;
 
-function loadMessages() {
+function loadSessions() {
   try {
-    const raw = localStorage.getItem(CHAT_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved) && saved.length > 0) {
-        return saved;
-      }
-    }
-  } catch {}
-  return null;
+    return JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
+  } catch { return []; }
 }
 
-function saveMessages() {
+function saveSessions(sessions) {
   try {
-    localStorage.setItem(CHAT_KEY, JSON.stringify(messages));
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
   } catch {}
+}
+
+function getActiveId() {
+  return localStorage.getItem(ACTIVE_KEY);
+}
+
+function setActiveId(id) {
+  activeSessionId = id;
+  if (id) localStorage.setItem(ACTIVE_KEY, id);
+  else localStorage.removeItem(ACTIVE_KEY);
+}
+
+function loadActiveSession() {
+  const id = getActiveId();
+  if (!id) return null;
+  const sessions = loadSessions();
+  return sessions.find(s => s.id === id) || null;
+}
+
+function saveCurrentSession() {
+  if (!activeSessionId || !messages.length) return;
+  const sessions = loadSessions();
+  const idx = sessions.findIndex(s => s.id === activeSessionId);
+  const title = messages.find(m => m.role === "user")?.content?.slice(0, 30) || "新对话";
+  const entry = {
+    id: activeSessionId,
+    title: title.length >= 30 ? title + "…" : title,
+    messages: messages,
+    updatedAt: Date.now(),
+    createdAt: idx >= 0 ? sessions[idx].createdAt : Date.now(),
+  };
+  if (idx >= 0) sessions[idx] = entry;
+  else sessions.unshift(entry);
+  saveSessions(sessions);
 }
 
 function newSession() {
+  saveCurrentSession();
   messages = [];
-  saveMessages();
+  activeSessionId = null;
+  setActiveId(null);
+  renderHistorySidebar();
 }
 
 export async function init(container) {
-  const saved = loadMessages();
-  if (saved) {
-    messages = saved;
+  const activeSession = loadActiveSession();
+  if (activeSession) {
+    messages = activeSession.messages;
+    activeSessionId = activeSession.id;
   } else {
-    newSession();
+    messages = [];
+    activeSessionId = null;
   }
 
   container.innerHTML = `
     <div id="chat-view" class="collapsed">
+      <aside class="history-sidebar" id="history-sidebar">
+        <div class="tool-sidebar-title">
+          <span>历史对话</span>
+          <button class="model-btn" id="history-new" style="font-size:0.7rem;padding:2px 8px;">新对话</button>
+        </div>
+        <div class="tool-sidebar-empty" id="history-empty">暂无历史对话</div>
+        <div id="history-list"></div>
+      </aside>
 
       <div class="chat-main">
         <div class="chat-messages">
@@ -108,6 +150,18 @@ export async function init(container) {
     });
     textarea.addEventListener("paste", onPaste);
   }
+  // 历史侧边栏
+  renderHistorySidebar();
+  const historyNewBtn = container.querySelector("#history-new");
+  if (historyNewBtn) historyNewBtn.addEventListener("click", () => {
+    if (streaming) return;
+    newSession();
+    dsCacheStats = { hit: 0, miss: 0 };
+    updateCacheDisplay();
+    msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
+    clearSidebar();
+  });
+
   const clearBtn = container.querySelector("#chat-clear");
   if (clearBtn) clearBtn.addEventListener("click", () => {
     if (streaming) return;
@@ -134,11 +188,9 @@ export async function init(container) {
   }
 
   // 渲染历史对话
-  if (saved) {
-    for (const m of messages) {
-      if (m.role === "user") addMessage("user", m.content);
-      else if (m.role === "assistant" && m.content) addMessage("assistant", m.content);
-    }
+  for (const m of messages) {
+    if (m.role === "user") addMessage("user", m.content);
+    else if (m.role === "assistant" && m.content) addMessage("assistant", m.content);
   }
 }
 
@@ -197,6 +249,77 @@ function addMessage(role, content) {
   msgContainer.appendChild(el);
   window.scrollTo(0, document.body.scrollHeight);
   return el;
+}
+
+// ---- 历史对话 ----
+
+function renderHistorySidebar() {
+  const list = document.getElementById("history-list");
+  const empty = document.getElementById("history-empty");
+  if (!list || !empty) return;
+  const sessions = loadSessions();
+  if (!sessions.length) {
+    empty.style.display = "";
+    list.innerHTML = "";
+    return;
+  }
+  empty.style.display = "none";
+  list.innerHTML = sessions.map(s => {
+    const isActive = s.id === activeSessionId;
+    const date = new Date(s.updatedAt).toLocaleDateString("zh-CN");
+    const count = s.messages.filter(m => m.role === "user").length;
+    return `<div class="history-card${isActive ? " active" : ""}" data-id="${s.id}">
+      <div class="history-card-title">${escapeHtml(s.title)}</div>
+      <div class="history-card-meta">${date} · ${count} 轮</div>
+      <button class="history-card-del" data-id="${s.id}" title="删除">×</button>
+    </div>`;
+  }).join("");
+
+  list.querySelectorAll(".history-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      if (e.target.classList.contains("history-card-del")) return;
+      const id = card.dataset.id;
+      if (id === activeSessionId) return;
+      if (streaming) return;
+      saveCurrentSession();
+      loadSession(id);
+    });
+  });
+  list.querySelectorAll(".history-card-del").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteSession(btn.dataset.id);
+    });
+  });
+}
+
+function loadSession(id) {
+  const sessions = loadSessions();
+  const session = sessions.find(s => s.id === id);
+  if (!session) return;
+  messages = session.messages;
+  activeSessionId = id;
+  setActiveId(id);
+  msgContainer.innerHTML = '<div class="chat-empty"></div>';
+  for (const m of messages) {
+    if (m.role === "user") addMessage("user", m.content);
+    else if (m.role === "assistant" && m.content) addMessage("assistant", m.content);
+  }
+  clearSidebar();
+  renderHistorySidebar();
+}
+
+function deleteSession(id) {
+  let sessions = loadSessions();
+  sessions = sessions.filter(s => s.id !== id);
+  saveSessions(sessions);
+  if (id === activeSessionId) {
+    messages = [];
+    activeSessionId = null;
+    setActiveId(null);
+    msgContainer.innerHTML = '<div class="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>';
+  }
+  renderHistorySidebar();
 }
 
 // ---- 侧边栏 ----
@@ -444,7 +567,12 @@ async function sendMessage() {
 
   // 前端追加 user 消息
   messages.push({ role: "user", content: text });
-  saveMessages();
+  if (!activeSessionId) {
+    activeSessionId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    setActiveId(activeSessionId);
+    renderHistorySidebar();
+  }
+  saveCurrentSession();
   addMessage("user", text);
   currentAssistantMsg = addMessage("assistant", "思考中...");
   currentAssistantMsg.classList.add("typing");
@@ -554,7 +682,8 @@ async function sendMessage() {
     flushReasoning();
     renderAssistantBlock();
     currentAssistantMsg.classList.remove("typing");
-    saveMessages();
+    saveCurrentSession();
+    renderHistorySidebar();
     if (!content) {
       currentAssistantMsg.querySelector(".msg-body").textContent = "（无响应）";
     }
