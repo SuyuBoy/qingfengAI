@@ -86,12 +86,14 @@ export async function init(container) {
       <aside class="history-sidebar" id="history-sidebar">
         <div class="tool-sidebar-title">
           <span>历史对话</span>
-          <button class="model-btn" id="history-new" style="font-size:0.7rem;padding:2px 8px;">新对话</button>
+          <div>
+            <button class="model-btn" id="history-new" style="font-size:0.7rem;padding:2px 8px;">新对话</button>
+            <button class="tool-sidebar-toggle" id="history-toggle" title="收起侧边栏">&rarr;</button>
+          </div>
         </div>
         <div class="tool-sidebar-empty" id="history-empty">暂无历史对话</div>
         <div id="history-list"></div>
       </aside>
-
       <div class="chat-main">
         <div class="chat-messages">
           <div class="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
@@ -131,6 +133,7 @@ export async function init(container) {
         <div class="tool-sidebar-empty">等待工具调用...</div>
       </aside>
     </div>
+    <button class="history-expand-btn" id="history-expand" title="展开历史">&larr; 历史</button>
     <button class="sidebar-expand-btn" id="sidebar-expand" title="展开侧边栏">工具调用 &rarr;</button>
   `;
 
@@ -172,11 +175,17 @@ export async function init(container) {
     clearSidebar();
   });
 
-  // 侧边栏收起/展开
+  // 工具侧边栏收起/展开
   const toggleBtn = container.querySelector("#sidebar-toggle");
   const expandBtn = container.querySelector("#sidebar-expand");
   if (toggleBtn) toggleBtn.addEventListener("click", () => collapseSidebar(chatView));
   if (expandBtn) expandBtn.addEventListener("click", () => expandSidebar(chatView));
+
+  // 历史侧边栏收起/展开
+  const histToggleBtn = container.querySelector("#history-toggle");
+  const histExpandBtn = container.querySelector("#history-expand");
+  if (histToggleBtn) histToggleBtn.addEventListener("click", () => collapseHistory(chatView));
+  if (histExpandBtn) histExpandBtn.addEventListener("click", () => expandHistory(chatView));
 
   // 调试开关 — 仅管理员可见
   const debugLabel = container.querySelector("#chat-debug-label");
@@ -332,6 +341,16 @@ function collapseSidebar(chatView) {
 function expandSidebar(chatView) {
   if (!chatView) return;
   chatView.classList.remove("collapsed");
+}
+
+function collapseHistory(chatView) {
+  if (!chatView) return;
+  chatView.classList.add("history-collapsed");
+}
+
+function expandHistory(chatView) {
+  if (!chatView) return;
+  chatView.classList.remove("history-collapsed");
 }
 
 function updateCacheDisplay() {

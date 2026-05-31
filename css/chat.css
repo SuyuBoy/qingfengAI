@@ -181,6 +181,7 @@
   background: var(--bg);
   border-right: 1px solid var(--border);
   z-index: 50;
+  transition: transform 0.3s ease;
 }
 
 .history-card {
@@ -211,9 +212,28 @@
 }
 .history-card-del:hover { color: var(--danger); }
 
+/* 历史侧边栏收起 */
+#chat-view.history-collapsed .history-sidebar {
+  transform: translateX(-100%);
+}
+
+.history-expand-btn {
+  display: none;
+  position: fixed; left: 1rem; top: 60px;
+  z-index: 100;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+  font-size: 0.75rem; color: var(--muted); cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#chat-view.history-collapsed ~ .history-expand-btn {
+  display: block;
+}
+
 /* 响应式隐藏 */
 @media (max-width: 1200px) {
-  .history-sidebar { display: none; }
+  .history-sidebar, .history-expand-btn { display: none; }
 }
 
 /* ---- 工具调用侧边栏 ---- */
