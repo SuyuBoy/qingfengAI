@@ -11,7 +11,7 @@ let streaming = false;
 let currentAssistantMsg = null;
 let currentCard = null;
 let pastedImages = [];
-let cacheStats = { hits: 0, total: 0 };
+let dsCacheStats = { hit: 0, miss: 0 };
 
 let messages = [];
 
@@ -112,7 +112,7 @@ export async function init(container) {
   if (clearBtn) clearBtn.addEventListener("click", () => {
     if (streaming) return;
     newSession();
-    cacheStats = { hits: 0, total: 0 };
+    dsCacheStats = { hit: 0, miss: 0 };
     updateCacheDisplay();
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
     clearSidebar();
@@ -213,10 +213,13 @@ function expandSidebar(chatView) {
 
 function updateCacheDisplay() {
   const el = document.getElementById("cache-stats");
-  if (!el || !cacheStats.total) { if (el) el.style.display = "none"; return; }
-  const rate = Math.round((cacheStats.hits / cacheStats.total) * 100);
+  if (!el) return;
+  const total = dsCacheStats.hit + dsCacheStats.miss;
+  if (!total) { el.style.display = "none"; return; }
+  const rate = Math.round((dsCacheStats.hit / total) * 100);
   el.style.display = "";
-  el.textContent = `缓存命中 ${cacheStats.hits}/${cacheStats.total} (${rate}%)`;
+  el.textContent = `DS缓存 ${rate}%`;
+  el.title = `命中 ${dsCacheStats.hit} / 未命中 ${dsCacheStats.miss} tokens`;
 }
 
 function clearSidebar() {
@@ -520,11 +523,12 @@ async function sendMessage() {
               const last = window.__debugLog[window.__debugLog.length - 1];
               last.response = obj.debug_response;
             }
+          } else if (obj.ds_usage) {
+            dsCacheStats.hit = obj.ds_usage.prompt_cache_hit_tokens || 0;
+            dsCacheStats.miss = obj.ds_usage.prompt_cache_miss_tokens || 0;
+            updateCacheDisplay();
           } else if (obj.tool || obj.cached) {
             flushReasoning();
-            cacheStats.total++;
-            if (obj.cached) cacheStats.hits++;
-            updateCacheDisplay();
             const raw = obj.tool || obj.cached;
             const { name, query } = parseToolKey(raw);
             steps.push({ type: "tool", text: `${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}` });
