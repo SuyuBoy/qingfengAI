@@ -1,6 +1,9 @@
 import { api, getToken } from "../api.js";
+import { getUser } from "../app.js";
+import { escapeHtml, renderMarkdown } from "../markdown.js";
 
 const API_BASE = window.__API_BASE__ || "";
+window.__debugLog = [];
 
 let msgContainer, chatView, sidebar, textarea, sendBtn;
 const CHAT_KEY = "chat_messages";
@@ -42,133 +45,6 @@ function newSession() {
   saveMessages();
 }
 
-function simpleMarkdown(text) {
-  if (!text) return "";
-  const htmlBlocks = [];
-  const stashHtml = (html) => {
-    const key = `@@CHAT_HTML_${htmlBlocks.length}@@`;
-    htmlBlocks.push(html);
-    return key;
-  };
-  const textWithTables = text.replace(/<table[\s\S]*?<\/table>/gi, (tableHtml) => {
-    return "\n" + stashHtml(_renderHtmlTable(tableHtml)) + "\n";
-  });
-
-  let lines = textWithTables.split("\n");
-  const out = [];
-  let inTable = false;
-  let tableRows = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith("@@CHAT_HTML_")) {
-      if (inTable) { out.push(stashHtml(_renderMarkdownTable(tableRows))); tableRows = []; inTable = false; }
-      out.push(line);
-      continue;
-    }
-    if (line.startsWith("|") && line.endsWith("|")) {
-      if (!inTable) { inTable = true; tableRows = []; }
-      tableRows.push(line);
-    } else {
-      if (inTable) { out.push(stashHtml(_renderMarkdownTable(tableRows))); tableRows = []; inTable = false; }
-      if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(line)) {
-        out.push(stashHtml("<hr>"));
-        continue;
-      }
-      out.push(line);
-    }
-  }
-  if (inTable) out.push(stashHtml(_renderMarkdownTable(tableRows)));
-  let h = out.join("\n")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%">')
-    .replace(/^#### (.+)$/gm, "<h4>$1</h4>")
-    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/\n{2,}/g, "\n\n")
-    .replace(/\n(?!<|@@CHAT_HTML_)/g, "<br>")
-    .replace(/(<li>.*?<\/li>(<br>)?)+/g, "<ul>$&</ul>")
-    .replace(/@@CHAT_HTML_(\d+)@@/g, (_, idx) => htmlBlocks[Number(idx)] || "")
-    .replace(/<br>(<(?:table|hr)\b)/g, "$1")
-    .replace(/(<\/table>|<hr>)<br>/g, "$1");
-  return h;
-}
-
-function _renderMarkdownTable(rows) {
-  if (!rows.length) return "";
-  const bodyRows = rows.filter(row => !_isMarkdownTableSeparator(row));
-  if (!bodyRows.length) return "";
-  let html = "<table>";
-  for (let i = 0; i < bodyRows.length; i++) {
-    const cells = _splitMarkdownTableRow(bodyRows[i]);
-    const tag = i === 0 ? "th" : "td";
-    html += "<tr>" + cells.map(c => `<${tag}>${_inlineMarkdown(c)}</${tag}>`).join("") + "</tr>";
-  }
-  html += "</table>";
-  return html;
-}
-
-function _renderHtmlTable(tableHtml) {
-  const rows = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  if (!rows.length) return "";
-  let html = "<table>";
-  for (const row of rows) {
-    const cells = [...row.matchAll(/<(th|td)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi)];
-    if (!cells.length) continue;
-    const normalizedCells = cells.map(([, tag, cell]) => ({
-      tag: tag.toLowerCase() === "th" ? "th" : "td",
-      text: _htmlToText(cell),
-    }));
-    if (_isTableSeparatorCells(normalizedCells.map(cell => cell.text))) continue;
-    html += "<tr>" + normalizedCells.map(cell => {
-      return `<${cell.tag}>${_inlineMarkdown(cell.text)}</${cell.tag}>`;
-    }).join("") + "</tr>";
-  }
-  html += "</table>";
-  return html === "<table></table>" ? "" : html;
-}
-
-function _splitMarkdownTableRow(row) {
-  return row.replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
-}
-
-function _isMarkdownTableSeparator(row) {
-  const cells = _splitMarkdownTableRow(row);
-  return _isTableSeparatorCells(cells);
-}
-
-function _isTableSeparatorCells(cells) {
-  return cells.length > 0 && cells.every(c => /^:?-{3,}:?$/.test(c.replace(/\s/g, "")));
-}
-
-function _inlineMarkdown(text) {
-  return _escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>");
-}
-
-function _htmlToText(html) {
-  const withoutTags = html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
-  if (typeof document !== "undefined") {
-    const textarea = document.createElement("textarea");
-    textarea.innerHTML = withoutTags;
-    return textarea.value.trim();
-  }
-  return withoutTags.trim();
-}
-
-function _escapeHtml(text) {
-  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-const escapeHtml = _escapeHtml;
-
 export async function init(container) {
   const saved = loadMessages();
   if (saved) {
@@ -197,7 +73,7 @@ export async function init(container) {
             <label class="rounds-label">工具调用轮数
               <input type="number" id="chat-max-rounds" value="10" min="1" max="50">
             </label>
-            <button class="model-btn" id="chat-debug-btn">调试</button>
+            <button class="model-btn" id="chat-debug-btn" style="display:none">调试</button>
             <button class="model-btn" id="chat-clear">新对话</button>
           </div>
           <div class="chat-send-row">
@@ -248,9 +124,12 @@ export async function init(container) {
   if (toggleBtn) toggleBtn.addEventListener("click", () => collapseSidebar(chatView));
   if (expandBtn) expandBtn.addEventListener("click", () => expandSidebar(chatView));
 
-  // 调试按钮
+  // 调试按钮 — 仅管理员可见
   const debugBtn = container.querySelector("#chat-debug-btn");
-  if (debugBtn) debugBtn.addEventListener("click", showDebugModal);
+  if (debugBtn && getUser()?.is_admin) {
+    debugBtn.style.display = "";
+    debugBtn.addEventListener("click", showDebugModal);
+  }
 
   // 渲染历史对话
   if (saved) {
@@ -312,7 +191,7 @@ function addMessage(role, content) {
   const el = document.createElement("div");
   el.className = `chat-msg ${role}`;
   const label = role === "user" ? "你" : role === "tool" ? "工具" : "AI";
-  el.innerHTML = `<div class="role-label">${label}</div><div class="msg-body">${simpleMarkdown(content || "")}</div>`;
+  el.innerHTML = `<div class="role-label">${label}</div><div class="msg-body">${renderMarkdown(content || "")}</div>`;
   msgContainer.appendChild(el);
   window.scrollTo(0, document.body.scrollHeight);
   return el;
@@ -448,7 +327,7 @@ function renderModal(overlay, a) {
       </div>
       <button class="modal-close" onclick="window.__closeArticleModal()">&times;</button>
     </div>
-    <div class="modal-body">${simpleMarkdown(content)}</div>
+    <div class="modal-body">${renderMarkdown(content)}</div>
   `;
 }
 
@@ -459,7 +338,8 @@ function closeModal() {
 
 function showDebugModal() {
   const msgs = window.__debugMessages || messages;
-  const rows = msgs.map((m, i) => {
+  const debugLog = window.__debugLog || [];
+  const msgRows = msgs.map((m, i) => {
     let roleIcon = "";
     let roleClass = "";
     switch (m.role) {
@@ -492,6 +372,18 @@ function showDebugModal() {
     </div>`;
   }).join("");
 
+  let debugHttpHtml = "";
+  if (debugLog.length) {
+    debugHttpHtml = `<h4 style="margin:1rem 0 0.5rem;font-size:0.8rem;">HTTP 请求/响应 (${debugLog.length} 轮)</h4>`;
+    for (const entry of debugLog) {
+      debugHttpHtml += `<details class="msg-think" style="margin-bottom:0.5rem;">
+        <summary>第 ${entry.round} 轮 — 请求</summary>
+        <pre class="debug-msg-body">${escapeHtml(JSON.stringify(entry.request, null, 2))}</pre>
+        ${entry.response ? `<div style="margin-top:0.5rem;font-size:0.65rem;color:var(--muted);">响应:</div><pre class="debug-msg-body">${escapeHtml(entry.response)}</pre>` : ""}
+      </details>`;
+    }
+  }
+
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
@@ -500,7 +392,7 @@ function showDebugModal() {
         <h3>调试：上下文 (${msgs.length} 条消息)</h3>
         <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
       </div>
-      <div class="modal-body">${rows}</div>
+      <div class="modal-body">${debugHttpHtml}${msgRows}</div>
     </div>`;
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) overlay.remove();
@@ -592,7 +484,7 @@ async function sendMessage() {
         }
         html += '</div></details>';
       }
-      html += simpleMarkdown(content);
+      html += renderMarkdown(content);
       currentAssistantMsg.querySelector(".msg-body").innerHTML = html || "思考中...";
       currentAssistantMsg.classList.toggle("typing", !content);
     }
@@ -609,7 +501,15 @@ async function sendMessage() {
         if (dataStr === "[DONE]") continue;
         try {
           const obj = JSON.parse(dataStr);
-          if (obj.tool || obj.cached) {
+          if (obj.debug) {
+            window.__debugLog = window.__debugLog || [];
+            window.__debugLog.push(obj.debug);
+          } else if (obj.debug_response) {
+            if (window.__debugLog?.length) {
+              const last = window.__debugLog[window.__debugLog.length - 1];
+              last.response = obj.debug_response;
+            }
+          } else if (obj.tool || obj.cached) {
             flushReasoning();
             const raw = obj.tool || obj.cached;
             const { name, query } = parseToolKey(raw);
