@@ -67,10 +67,16 @@
   display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;
 }
 
-.cache-stats {
-  font-size: 0.7rem; color: var(--muted);
+.cache-ring {
+  display: inline-flex; align-items: center; gap: 3px;
   padding: 2px 6px; border: 1px solid var(--border);
   border-radius: var(--radius); background: var(--card-bg);
+  cursor: default;
+}
+.cache-ring svg { flex-shrink: 0; }
+.cache-ring-label {
+  font-size: 0.7rem; color: var(--muted);
+  min-width: 1.4em; text-align: center;
 }
 
 .chat-controls select, .chat-controls button.model-btn,

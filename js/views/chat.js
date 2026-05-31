@@ -111,7 +111,14 @@ export async function init(container) {
             <label class="rounds-label">工具调用轮数
               <input type="number" id="chat-max-rounds" value="10" min="1" max="50">
             </label>
-            <span class="cache-stats" id="cache-stats" style="display:none"></span>
+            <div class="cache-ring" id="cache-ring" style="display:none" title="DS 缓存命中率">
+              <svg width="20" height="20" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border)" stroke-width="3"/>
+                <circle id="cache-hit-arc" cx="10" cy="10" r="8" fill="none" stroke="#5cb878" stroke-width="3"
+                  stroke-dasharray="0 100" stroke-linecap="butt" transform="rotate(-90 10 10)"/>
+              </svg>
+              <span class="cache-ring-label" id="cache-pct">-</span>
+            </div>
             <label class="rounds-label" id="chat-debug-label" style="display:none">
               <input type="checkbox" id="chat-debug-toggle"> 调试
             </label>
@@ -354,14 +361,19 @@ function expandHistory(chatView) {
 }
 
 function updateCacheDisplay() {
-  const el = document.getElementById("cache-stats");
-  if (!el) return;
+  const ring = document.getElementById("cache-ring");
+  const arc = document.getElementById("cache-hit-arc");
+  const pct = document.getElementById("cache-pct");
+  if (!ring || !arc || !pct) return;
   const total = dsCacheStats.hit + dsCacheStats.miss;
-  if (!total) { el.style.display = "none"; return; }
+  if (!total) { ring.style.display = "none"; return; }
   const rate = Math.round((dsCacheStats.hit / total) * 100);
-  el.style.display = "";
-  el.textContent = `DS缓存 ${rate}%`;
-  el.title = `命中 ${dsCacheStats.hit} / 未命中 ${dsCacheStats.miss} tokens`;
+  ring.style.display = "";
+  const circum = 2 * Math.PI * 8; // r=8
+  const dashLen = (rate / 100) * circum;
+  arc.setAttribute("stroke-dasharray", `${dashLen} ${circum}`);
+  pct.textContent = rate;
+  ring.title = `命中 ${dsCacheStats.hit} / 未命中 ${dsCacheStats.miss} tokens`;
 }
 
 function clearSidebar() {
