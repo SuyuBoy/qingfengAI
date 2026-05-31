@@ -13,6 +13,10 @@ export interface DynamicItem {
   title?: string;
   content: string;
   tags?: string;
+  stocks?: string;
+  sectors?: string;
+  sentiment?: string;
+  methods?: string;
 }
 
 export interface DynamicsResponse {
@@ -26,6 +30,10 @@ export interface ArticleSummary {
   date: string;
   title?: string;
   snippet?: string;
+  stocks?: string;
+  sectors?: string;
+  sentiment?: string;
+  methods?: string;
 }
 
 export interface ChatToolCall {

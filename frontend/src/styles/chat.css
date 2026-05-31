@@ -397,7 +397,16 @@ button.model-btn {
 
 .modal-tags {
   font-size: 0.63rem; color: var(--muted); margin-top: 0.1rem;
+  display: flex; flex-wrap: wrap; gap: 0.2rem;
 }
+.modal-tags .tag {
+  display: inline-block; padding: 0 0.3rem; border-radius: 3px;
+  white-space: nowrap;
+}
+.modal-tags .tag-stocks { background: #fef3c7; }
+.modal-tags .tag-sectors { background: #dbeafe; }
+.modal-tags .tag-sentiment { background: #fce7f3; }
+.modal-tags .tag-methods { background: #d1fae5; }
 
 .modal-close {
   font-size: 1.2rem; color: var(--muted); cursor: pointer;

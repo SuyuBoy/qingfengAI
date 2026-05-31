@@ -590,7 +590,12 @@ function ArticleModal({ articleId, onClose }: { articleId: string; onClose: () =
               <div>
                 <h3>{article.title || "(无标题)"}</h3>
                 <div className="modal-meta">{article.date} · {article.type}</div>
-                {article.tags && <div className="modal-tags">标签：{article.tags}</div>}
+                {(article.stocks || article.sectors || article.sentiment || article.methods) && <div className="modal-tags">
+                    {article.stocks && <span className="tag tag-stocks">{article.stocks}</span>}
+                    {article.sectors && <span className="tag tag-sectors">{article.sectors}</span>}
+                    {article.sentiment && <span className="tag tag-sentiment">{article.sentiment}</span>}
+                    {article.methods && <span className="tag tag-methods">{article.methods}</span>}
+                  </div>}
               </div>
               <button className="modal-close" onClick={onClose}>&times;</button>
             </div>
