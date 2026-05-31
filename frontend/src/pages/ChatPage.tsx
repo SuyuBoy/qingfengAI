@@ -500,9 +500,9 @@ function ToolSidebar({ cards, onCollapse, onReadArticle }: {
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
-  if (message.role !== "user" && message.role !== "assistant" && message.role !== "tool") return null;
+  if (message.role !== "user" && message.role !== "assistant") return null;
   if (message.role === "assistant" && !message.content) return null;
-  const label = message.role === "user" ? "你" : message.role === "tool" ? "工具" : "AI";
+  const label = message.role === "user" ? "你" : "AI";
   return (
     <div className={`chat-msg ${message.role}`}>
       <div className="role-label">{label}</div>
