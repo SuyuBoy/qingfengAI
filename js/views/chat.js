@@ -11,6 +11,7 @@ let streaming = false;
 let currentAssistantMsg = null;
 let currentCard = null;
 let pastedImages = [];
+let cacheStats = { hits: 0, total: 0 };
 
 let messages = [];
 
@@ -66,6 +67,7 @@ export async function init(container) {
             <label class="rounds-label">工具调用轮数
               <input type="number" id="chat-max-rounds" value="10" min="1" max="50">
             </label>
+            <span class="cache-stats" id="cache-stats" style="display:none"></span>
             <label class="rounds-label" id="chat-debug-label" style="display:none">
               <input type="checkbox" id="chat-debug-toggle"> 调试
             </label>
@@ -110,6 +112,8 @@ export async function init(container) {
   if (clearBtn) clearBtn.addEventListener("click", () => {
     if (streaming) return;
     newSession();
+    cacheStats = { hits: 0, total: 0 };
+    updateCacheDisplay();
     msgContainer.innerHTML = '<div class="chat-empty">新对话已开始</div>';
     clearSidebar();
   });
@@ -205,6 +209,14 @@ function collapseSidebar(chatView) {
 function expandSidebar(chatView) {
   if (!chatView) return;
   chatView.classList.remove("collapsed");
+}
+
+function updateCacheDisplay() {
+  const el = document.getElementById("cache-stats");
+  if (!el || !cacheStats.total) { if (el) el.style.display = "none"; return; }
+  const rate = Math.round((cacheStats.hits / cacheStats.total) * 100);
+  el.style.display = "";
+  el.textContent = `缓存命中 ${cacheStats.hits}/${cacheStats.total} (${rate}%)`;
 }
 
 function clearSidebar() {
@@ -510,6 +522,9 @@ async function sendMessage() {
             }
           } else if (obj.tool || obj.cached) {
             flushReasoning();
+            cacheStats.total++;
+            if (obj.cached) cacheStats.hits++;
+            updateCacheDisplay();
             const raw = obj.tool || obj.cached;
             const { name, query } = parseToolKey(raw);
             steps.push({ type: "tool", text: `${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}` });
