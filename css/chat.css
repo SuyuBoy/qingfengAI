@@ -73,7 +73,8 @@
   border-radius: var(--radius); background: var(--card-bg);
 }
 
-.chat-controls select, .chat-controls button.model-btn {
+.chat-controls select, .chat-controls button.model-btn,
+button.model-btn {
   font: inherit; font-size: 0.78rem; color: var(--muted);
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--card-bg); padding: 4px 10px; cursor: pointer;

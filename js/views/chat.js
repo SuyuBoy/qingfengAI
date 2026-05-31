@@ -87,7 +87,7 @@ export async function init(container) {
         <div class="tool-sidebar-title">
           <span>历史对话</span>
           <div>
-            <button class="model-btn" id="history-new" style="font-size:0.7rem;padding:2px 8px;">新对话</button>
+            <button class="model-btn" id="history-new">新对话</button>
             <button class="tool-sidebar-toggle" id="history-toggle" title="收起侧边栏">&rarr;</button>
           </div>
         </div>
