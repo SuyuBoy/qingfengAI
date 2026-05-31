@@ -178,17 +178,22 @@ button.model-btn {
 
 /* ---- 历史对话侧边栏 ---- */
 
-.history-sidebar {
-  position: fixed; left: 0; top: 48px;
-  width: 240px; max-width: 85vw;
+.chat-sidebar {
+  position: fixed; top: 48px;
+  width: var(--chat-sidebar-width); max-width: 90vw;
   height: calc(100vh - 48px);
-  padding: 1rem 1rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 1rem;
+  display: flex; flex-direction: column; gap: 0.8rem;
   overflow-y: auto;
   background: var(--bg);
-  border-right: 1px solid var(--border);
   z-index: 50;
   transition: transform 0.3s ease;
+}
+
+.history-sidebar {
+  left: 0;
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 20px rgba(0,0,0,0.06);
 }
 
 .history-card {
@@ -224,28 +229,37 @@ button.model-btn {
   transform: translateX(-100%);
 }
 
-.history-expand-btn {
+.chat-sidebar-expand {
   display: none;
-  position: fixed; left: 1rem; top: 60px;
+  position: fixed; top: 60px;
+  width: 136px;
   z-index: 100;
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 10px;
   font-size: 0.75rem; color: var(--muted); cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-expand-btn {
+  left: 1rem;
+}
+
+.sidebar-expand-btn {
+  right: 1rem;
 }
 
 #chat-view.history-collapsed ~ .history-expand-btn {
   display: block;
 }
 
-/* 响应式隐藏 */
-@media (max-width: 1200px) {
-  .history-sidebar, .history-expand-btn { display: none; }
-}
-
 /* ---- 工具调用侧边栏 ---- */
 
 #chat-view {
+  --chat-sidebar-width: 280px;
   display: flex; flex-direction: column;
   min-height: calc(100vh - 48px);
   max-width: 720px;
@@ -259,17 +273,9 @@ button.model-btn {
 }
 
 .tool-sidebar {
-  position: fixed; right: 0; top: 48px;
-  width: 320px; max-width: 90vw;
-  height: calc(100vh - 48px);
-  padding: 1rem 1.2rem;
-  display: flex; flex-direction: column; gap: 0.8rem;
-  overflow-y: auto;
-  background: var(--bg);
+  right: 0;
   border-left: 1px solid var(--border);
   box-shadow: -4px 0 20px rgba(0,0,0,0.06);
-  z-index: 50;
-  transition: transform 0.3s ease;
 }
 
 #chat-view.collapsed .tool-sidebar {
@@ -291,19 +297,19 @@ button.model-btn {
   border-radius: 4px; padding: 0 5px; line-height: 1.4;
 }
 
-/* 收起后的浮起展开按钮 */
-.sidebar-expand-btn {
-  display: none;
-  position: fixed; right: 1rem; top: 60px;
-  z-index: 100;
-  background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 10px;
-  font-size: 0.75rem; color: var(--muted); cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.chat-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 #chat-view.collapsed ~ .sidebar-expand-btn {
   display: block;
+}
+
+/* 响应式隐藏 */
+@media (max-width: 1200px) {
+  .chat-sidebar, .chat-sidebar-expand { display: none; }
 }
 
 .tool-sidebar-empty {
@@ -441,7 +447,6 @@ button.model-btn {
 
 /* 响应式 */
 @media (max-width: 1024px) {
-  .tool-sidebar, .sidebar-expand-btn { display: none; }
   .chat-msg { max-width: 92%; }
   #chat-view { padding: 0 0.5rem; }
 }

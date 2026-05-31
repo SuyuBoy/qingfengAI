@@ -403,9 +403,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
         </div>
         <ToolSidebar cards={cards} onCollapse={() => setSidebarCollapsed(true)} onReadArticle={setArticleId} />
       </div>
-      <button className="history-expand-btn" id="history-expand" title="展开历史" onClick={() => setHistoryCollapsed(false)}>&larr; 历史</button>
-      <button className="sidebar-expand-btn" id="sidebar-expand" title="展开侧边栏" onClick={() => setSidebarCollapsed(false)}>
-        {cards.length ? `工具调用 (${cards.length}) →` : "工具调用 →"}
+      <button className="chat-sidebar-expand history-expand-btn" id="history-expand" title="展开历史" onClick={() => setHistoryCollapsed(false)}>历史 →</button>
+      <button className="chat-sidebar-expand sidebar-expand-btn" id="sidebar-expand" title="展开工具调用" onClick={() => setSidebarCollapsed(false)}>
+        {cards.length ? `← 工具调用 (${cards.length})` : "← 工具调用"}
       </button>
       {articleId && <ArticleModal articleId={articleId} onClose={() => setArticleId(null)} />}
       {debugOpen && <DebugModal messages={window.__debugMessages || messages} debugLog={debugLog} onClose={() => setDebugOpen(false)} />}
@@ -422,10 +422,10 @@ function HistorySidebar({ sessions, activeSessionId, onNew, onLoad, onDelete, on
   onCollapse: () => void;
 }) {
   return (
-    <aside className="history-sidebar" id="history-sidebar">
+    <aside className="chat-sidebar history-sidebar" id="history-sidebar">
       <div className="tool-sidebar-title">
         <span>历史对话</span>
-        <div>
+        <div className="chat-sidebar-actions">
           <button className="model-btn" id="history-new" onClick={onNew}>新对话</button>
           <button className="tool-sidebar-toggle" id="history-toggle" title="收起侧边栏" onClick={onCollapse}>&rarr;</button>
         </div>
@@ -469,7 +469,7 @@ function ToolSidebar({ cards, onCollapse, onReadArticle }: {
   onReadArticle: (id: string) => void;
 }) {
   return (
-    <aside className="tool-sidebar" id="tool-sidebar">
+    <aside className="chat-sidebar tool-sidebar" id="tool-sidebar">
       <div className="tool-sidebar-title">
         <span>工具调用</span>
         <button className="tool-sidebar-toggle" id="sidebar-toggle" title="收起侧边栏" onClick={onCollapse}>&larr;</button>
