@@ -14,7 +14,7 @@ export async function init(container) {
   container.innerHTML = `
     <div class="top-row">
       <div class="search-bar">
-        <input type="text" id="search-kw" placeholder="搜索标题关键词...">
+        <input type="text" id="search-kw" placeholder="关键词 / 文章ID...">
         <button id="search-btn">搜索</button>
         <button id="search-clear-btn" class="clear-btn" style="display:none">清空</button>
       </div>
@@ -111,16 +111,30 @@ export async function init(container) {
   }
 
   async function doSearch() {
-    const keyword = searchKw.value.trim();
-    if (!keyword) return;
+    const q = searchKw.value.trim();
+    if (!q) return;
     searchMode = true;
     allItems = [];
     cursor = "";
     hasMore = false;
     searchClear.style.display = "";
     listEl.innerHTML = '<div class="loading">搜索中...</div>';
+
+    // 纯数字 → 按 ID 搜索
+    if (/^\d{15,}$/.test(q)) {
+      try {
+        const item = await api.get(`/api/dynamics/${q}`);
+        allItems = [item];
+        render();
+      } catch (e) {
+        allItems = [];
+        listEl.innerHTML = `<div class="error">未找到文章 ${q}</div>`;
+      }
+      return;
+    }
+
     try {
-      const data = await api.get("/api/search", { keyword, limit: 50 });
+      const data = await api.get("/api/search", { keyword: q, limit: 50 });
       allItems = data.items;
       render();
     } catch (e) {
