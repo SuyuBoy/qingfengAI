@@ -72,12 +72,26 @@ export default function DynamicsPage() {
     setCursor("");
     setHasMore(false);
     setExpanded(new Set());
+    setSearchMode(true);
+    setCurrentDate("");
+
+    if (/^\d{15,}$/.test(kw)) {
+      try {
+        const item = await api.get<DynamicItem>(`/api/dynamics/${kw}`);
+        if (!item) return;
+        setItems([item]);
+      } catch {
+        setError(`未找到文章 ${kw}`);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const data = await api.get<{ items: DynamicItem[] }>("/api/search", { keyword: kw, limit: 50 });
       if (!data) return;
       setItems(data.items);
-      setSearchMode(true);
-      setCurrentDate("");
     } catch (e) {
       setError(`搜索失败：${e instanceof Error ? e.message : "未知错误"}`);
     } finally {
@@ -119,7 +133,7 @@ export default function DynamicsPage() {
           <input
             type="text"
             id="search-kw"
-            placeholder="搜索标题关键词..."
+            placeholder="关键词 / 文章ID..."
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") doSearch(); }}
