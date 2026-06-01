@@ -44,6 +44,7 @@ export interface ChatToolCall {
 }
 
 export interface ChatMessage {
+  id?: string;
   role: "system" | "user" | "assistant" | "tool";
   content?: string;
   tool_calls?: ChatToolCall[];
