@@ -81,7 +81,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [streaming, setStreaming] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState<AssistantDraft | null>(null);
   const [cards, setCards] = useState<ToolCardData[]>([]);
-  const [historyCollapsed, setHistoryCollapsed] = useState(true);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pastedImages, setPastedImages] = useState<string[]>([]);
   const [model, setModel] = useState("deepseek-v4-flash");
