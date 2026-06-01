@@ -1,42 +1,19 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>清风研习社</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/login.css">
-<link rel="stylesheet" href="css/dynamics.css">
-<link rel="stylesheet" href="css/chat.css">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script>
-  window.__API_BASE__ = "https://qingfenapiflask-tanwdgitwa.cn-hangzhou.fcapp.run";
-</script>
-</head>
-<body>
-<nav id="nav" style="display:none">
-  <div class="inner">
-    <a href="#/dynamics">动态</a>
-	    <a href="#/chat">对话</a>
-    <div class="user">
-      <span class="user-email"></span>
-      <button class="crawl-btn" onclick="triggerCrawl()" style="display:none">刷新爬虫</button>
-      <button id="logout-btn">退出</button>
-    </div>
-  </div>
-</nav>
-<main class="container" id="app">
-  <div class="loading">加载中...</div>
-</main>
-
-<script type="module" src="js/app.js"></script>
-<script>
-  document.getElementById("logout-btn")?.addEventListener("click", () => {
-    localStorage.removeItem("bili_jwt");
-    window.location.hash = "#/login";
-    window.location.reload();
-  });
-</script>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清风研习社</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      window.__API_BASE__ = "https://qingfenapiflask-tanwdgitwa.cn-hangzhou.fcapp.run";
+    </script>
+    <script type="module" crossorigin src="./assets/index-Ck-WTvcw.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/marked-B5D8JARp.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-DNIA0Fc7.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
