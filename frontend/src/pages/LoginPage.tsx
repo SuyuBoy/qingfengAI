@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, setToken } from "../api";
 
 export default function LoginPage({ onLogin }: { onLogin: () => void }) {
@@ -16,6 +16,21 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     return () => window.clearInterval(timer);
   }, [hasGoogle]);
 
+  const handleGoogleCallback = useCallback(async (resp: { credential: string }) => {
+    try {
+      const data = await api.post<{ token?: string }>("/api/auth/login", { credential: resp.credential });
+      if (data?.token) {
+        setToken(data.token);
+        window.location.hash = "#/dynamics";
+        onLogin();
+      } else {
+        setError("登录失败：未授权");
+      }
+    } catch (e) {
+      setError(`登录失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
+  }, [onLogin]);
+
   useEffect(() => {
     if (!hasGoogle || !window.google?.accounts) return;
 
@@ -30,20 +45,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
       window.google.accounts.id.initialize({
         client_id: clientId,
-        callback: async (resp) => {
-          try {
-            const data = await api.post<{ token?: string }>("/api/auth/login", { credential: resp.credential });
-            if (data?.token) {
-              setToken(data.token);
-              window.location.hash = "#/dynamics";
-              onLogin();
-            } else {
-              setError("登录失败：未授权");
-            }
-          } catch (e) {
-            setError(`登录失败：${e instanceof Error ? e.message : "未知错误"}`);
-          }
-        },
+        callback: handleGoogleCallback,
         auto_select: true,
       });
 
@@ -62,7 +64,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
     initGoogle();
     return () => { mounted = false; };
-  }, [hasGoogle, onLogin]);
+  }, [hasGoogle, handleGoogleCallback]);
 
   return (
     <div className="login-box">

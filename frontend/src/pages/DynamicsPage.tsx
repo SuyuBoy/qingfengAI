@@ -1,5 +1,5 @@
 import { marked } from "marked";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { API_BASE, api } from "../api";
 import type { DynamicItem, DynamicsResponse } from "../types";
 
@@ -29,7 +29,7 @@ export default function DynamicsPage() {
     return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
   }, [items]);
 
-  async function initialLoad() {
+  const initialLoad = useCallback(async () => {
     setLoading(true);
     setError("");
     setItems([]);
@@ -48,9 +48,9 @@ export default function DynamicsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function loadMore() {
+  const loadMore = useCallback(async () => {
     setMoreLoading(true);
     try {
       const data = await api.get<DynamicsResponse>("/api/dynamics", { limit: 20, cursor, type: "" });
@@ -61,9 +61,9 @@ export default function DynamicsPage() {
     } finally {
       setMoreLoading(false);
     }
-  }
+  }, [cursor]);
 
-  async function doSearch() {
+  const doSearch = useCallback(async () => {
     const kw = keyword.trim();
     if (!kw) return;
     setLoading(true);
@@ -97,9 +97,9 @@ export default function DynamicsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [keyword]);
 
-  async function setDate(date: string) {
+  const setDate = useCallback(async (date: string) => {
     setCurrentDate(date);
     if (!date) {
       initialLoad();
@@ -120,11 +120,33 @@ export default function DynamicsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [initialLoad]);
+
+  const clearSearch = useCallback(() => {
+    setKeyword("");
+    initialLoad();
+  }, [initialLoad]);
+
+  const resetDate = useCallback(() => {
+    setDate("");
+  }, [setDate]);
+
+  const handleExpand = useCallback((id: string) => {
+    setExpanded(prev => new Set(prev).add(id));
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    if (searchMode) {
+      setKeyword("");
+      initialLoad();
+    } else {
+      initialLoad();
+    }
+  }, [searchMode, initialLoad]);
 
   useEffect(() => {
     initialLoad();
-  }, []);
+  }, [initialLoad]);
 
   return (
     <>
@@ -140,13 +162,13 @@ export default function DynamicsPage() {
           />
           <button id="search-btn" onClick={doSearch}>搜索</button>
           {searchMode && (
-            <button id="search-clear-btn" className="clear-btn" onClick={() => { setKeyword(""); initialLoad(); }}>清空</button>
+            <button id="search-clear-btn" className="clear-btn" onClick={clearSearch}>清空</button>
           )}
         </div>
         <button id="cal-btn" title="按日期筛选" onClick={() => document.getElementById("date-pick")?.click()}>📅</button>
         <span id="cal-label" className="cal-label">{currentDate}</span>
         {currentDate && (
-          <button id="cal-reset" className="clear-btn" onClick={() => setDate("")}>重置</button>
+          <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
         )}
         <input
           type="date"
@@ -155,7 +177,7 @@ export default function DynamicsPage() {
           value={currentDate}
           onChange={e => setDate(e.target.value)}
         />
-        <button id="refresh-btn" onClick={() => searchMode ? (setKeyword(""), initialLoad()) : initialLoad()}>刷新</button>
+        <button id="refresh-btn" onClick={handleRefresh}>刷新</button>
       </div>
 
       <div id="card-list">
@@ -170,7 +192,7 @@ export default function DynamicsPage() {
                 key={item.dynamic_id}
                 item={item}
                 expanded={expanded.has(item.dynamic_id)}
-                onExpand={() => setExpanded(prev => new Set(prev).add(item.dynamic_id))}
+                onExpand={handleExpand}
               />
             ))}
           </div>
@@ -186,27 +208,37 @@ export default function DynamicsPage() {
   );
 }
 
-function DynamicCard({ item, expanded, onExpand }: {
+const DynamicCard = memo(function DynamicCard({ item, expanded, onExpand }: {
   item: DynamicItem;
   expanded: boolean;
-  onExpand: () => void;
+  onExpand: (id: string) => void;
 }) {
   const isLong = item.content.length > 300;
   const content = isLong && !expanded ? item.content.slice(0, 300) : item.content;
-  const html = marked.parse(fixImages(content, item.dynamic_id)) as string;
-  const dateStr = new Date(item.date).toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+  const html = useMemo(
+    () => marked.parse(fixImages(content, item.dynamic_id)) as string,
+    [content, item.dynamic_id],
+  );
+
+  const dateStr = useMemo(
+    () => new Date(item.date).toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    [item.date],
+  );
+
+  const handleExpand = useCallback(() => onExpand(item.dynamic_id), [onExpand, item.dynamic_id]);
 
   return (
     <div className="card" data-id={item.dynamic_id}>
       <div className="meta"><span>{dateStr}</span><span className="card-id">{item.dynamic_id}</span></div>
       <div className={`content${isLong && !expanded ? " preview" : ""}`} dangerouslySetInnerHTML={{ __html: html }} />
-      {isLong && !expanded && <button className="expand-btn" onClick={onExpand}>展开全文</button>}
+      {isLong && !expanded && <button className="expand-btn" onClick={handleExpand}>展开全文</button>}
     </div>
   );
-}
+});

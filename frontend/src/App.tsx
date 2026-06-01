@@ -40,7 +40,7 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [checkAuth]);
 
-  async function triggerCrawl() {
+  const triggerCrawl = useCallback(async () => {
     const now = Date.now();
     if (now - crawlCooldown.current < 60000) {
       setCrawlText(`冷却 ${Math.ceil((60000 - (now - crawlCooldown.current)) / 1000)}s`);
@@ -60,13 +60,17 @@ export default function App() {
       setCrawlText("刷新爬虫");
       setCrawlDisabled(false);
     }, 3000);
-  }
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     clearToken();
     setUser(null);
     window.location.hash = "#/login";
-  }
+  }, []);
+
+  const onLogin = useCallback(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const showNav = user && user.role !== "unpaid";
 
@@ -93,7 +97,7 @@ export default function App() {
         {loading ? (
           <div className="loading">加载中...</div>
         ) : !user ? (
-          <LoginPage onLogin={checkAuth} />
+          <LoginPage onLogin={onLogin} />
         ) : user.role === "unpaid" ? (
           <LockPage user={user} onLogout={logout} />
         ) : route === "/chat" ? (

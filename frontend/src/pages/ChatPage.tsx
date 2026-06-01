@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE, api, getToken } from "../api";
 import { escapeHtml, renderMarkdown } from "../markdown";
 import type {
@@ -81,7 +81,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [streaming, setStreaming] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState<AssistantDraft | null>(null);
   const [cards, setCards] = useState<ToolCardData[]>([]);
-  const [historyCollapsed, setHistoryCollapsed] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pastedImages, setPastedImages] = useState<string[]>([]);
   const [model, setModel] = useState("deepseek-v4-flash");
@@ -94,6 +94,27 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [articleId, setArticleId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // --- streaming throttling: use refs to accumulate, rAF to flush at ~60fps ---
+  const draftAccRef = useRef<AssistantDraft | null>(null);
+  const rafRef = useRef<number>(0);
+  const localCardsRef = useRef<ToolCardData[]>([]);
+  const localDebugLogRef = useRef<DebugLogEntry[]>([]);
+
+  /** Flush accumulated streaming state to React state (called inside rAF). */
+  const flushStreamState = useCallback(() => {
+    if (draftAccRef.current) setAssistantDraft({ ...draftAccRef.current });
+    if (localCardsRef.current.length) setCards([...localCardsRef.current]);
+    if (localDebugLogRef.current.length) setDebugLog([...localDebugLogRef.current]);
+    rafRef.current = 0;
+  }, []);
+
+  /** Schedule a rAF-bound flush. Multiple calls in the same frame only enqueue once. */
+  const scheduleFlush = useCallback(() => {
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => flushStreamState());
+    }
+  }, [flushStreamState]);
+
   useEffect(() => {
     window.__debugMessages = messages;
   }, [messages]);
@@ -102,45 +123,58 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     window.__debugLog = debugLog;
   }, [debugLog]);
 
+  // --- scroll on new messages (but NOT on every streaming token) ---
+  const lastMessageCount = useRef(messages.length);
   useEffect(() => {
-    window.scrollTo(0, document.body.scrollHeight);
-  }, [messages, assistantDraft]);
+    // Only auto-scroll for user/assistant messages, not on streaming draft updates
+    if (messages.length !== lastMessageCount.current) {
+      lastMessageCount.current = messages.length;
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+  }, [messages]);
 
-  function persistSessions(nextSessions: ChatSession[]) {
+  // --- stable callbacks (useCallback so child memo works) ---
+  const persistSessions = useCallback((nextSessions: ChatSession[]) => {
     setSessions(nextSessions);
     saveSessions(nextSessions);
-  }
+  }, []);
 
-  function persistActiveSession(sessionId: string | null, nextMessages: ChatMessage[]) {
-    if (!sessionId || !nextMessages.length) return;
-    const idx = sessions.findIndex(s => s.id === sessionId);
-    const entry: ChatSession = {
-      id: sessionId,
-      title: titleFromMessages(nextMessages),
-      messages: nextMessages,
-      updatedAt: Date.now(),
-      createdAt: idx >= 0 ? sessions[idx].createdAt : Date.now(),
-    };
-    const nextSessions = idx >= 0
-      ? sessions.map((s, i) => i === idx ? entry : s)
-      : [entry, ...sessions];
-    persistSessions(nextSessions);
-  }
+  const persistActiveSession = useCallback(
+    (sessionId: string | null, nextMessages: ChatMessage[], currentSessions?: ChatSession[]) => {
+      if (!sessionId || !nextMessages.length) return;
+      const base = currentSessions || sessions;
+      const idx = base.findIndex(s => s.id === sessionId);
+      const entry: ChatSession = {
+        id: sessionId,
+        title: titleFromMessages(nextMessages),
+        messages: nextMessages,
+        updatedAt: Date.now(),
+        createdAt: idx >= 0 ? base[idx].createdAt : Date.now(),
+      };
+      const nextSessions = idx >= 0
+        ? base.map((s, i) => i === idx ? entry : s)
+        : [entry, ...base];
+      persistSessions(nextSessions);
+    },
+    [sessions, persistSessions],
+  );
 
-  function beginNewSession() {
+  const beginNewSession = useCallback(() => {
     if (streaming) return;
     setMessages([]);
     setActiveSessionId(null);
     setStoredActiveId(null);
     setAssistantDraft(null);
     setCards([]);
+    localCardsRef.current = [];
     setCacheStats({ hit: 0, miss: 0 });
     setDebugLog([]);
+    localDebugLogRef.current = [];
     setDraft("");
     setPastedImages([]);
-  }
+  }, [streaming]);
 
-  function loadSession(id: string) {
+  const loadSession = useCallback((id: string) => {
     if (streaming || id === activeSessionId) return;
     const session = sessions.find(s => s.id === id);
     if (!session) return;
@@ -149,9 +183,10 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setStoredActiveId(id);
     setAssistantDraft(null);
     setCards([]);
-  }
+    localCardsRef.current = [];
+  }, [streaming, activeSessionId, sessions]);
 
-  function deleteSession(id: string) {
+  const deleteSession = useCallback((id: string) => {
     const nextSessions = sessions.filter(s => s.id !== id);
     persistSessions(nextSessions);
     if (id === activeSessionId) {
@@ -160,14 +195,15 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       setStoredActiveId(null);
       setAssistantDraft(null);
       setCards([]);
+      localCardsRef.current = [];
     }
-  }
+  }, [sessions, activeSessionId, persistSessions]);
 
-  function removePastedImage(idx: number) {
+  const removePastedImage = useCallback((idx: number) => {
     setPastedImages(prev => prev.filter((_, i) => i !== idx));
-  }
+  }, []);
 
-  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+  const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
     for (const item of Array.from(items)) {
@@ -184,8 +220,18 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       reader.readAsDataURL(blob);
       break;
     }
-  }
+  }, []);
 
+  const collapseHistory = useCallback(() => setHistoryCollapsed(true), []);
+  const expandHistory = useCallback(() => setHistoryCollapsed(false), []);
+  const collapseSidebar = useCallback(() => setSidebarCollapsed(true), []);
+  const expandSidebar = useCallback(() => setSidebarCollapsed(false), []);
+  const openArticle = useCallback((id: string) => setArticleId(id), []);
+  const closeArticle = useCallback(() => setArticleId(null), []);
+  const openDebug = useCallback(() => setDebugOpen(true), []);
+  const closeDebug = useCallback(() => setDebugOpen(false), []);
+
+  // --- send message (with rAF-throttled streaming updates) ---
   async function sendMessage() {
     const text = draft.trim();
     if (streaming || !text) return;
@@ -202,7 +248,14 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setActiveSessionId(sessionId);
     setStoredActiveId(sessionId);
     persistActiveSession(sessionId, outboundMessages);
-    setAssistantDraft({ content: "", reasoning: "", steps: [], typing: true });
+
+    // Initialize streaming state
+    draftAccRef.current = { content: "", reasoning: "", steps: [], typing: true };
+    localCardsRef.current = [];
+    localDebugLogRef.current = [];
+    setCards([]);
+    setDebugLog([]);
+    setAssistantDraft(draftAccRef.current);
     setStreaming(true);
 
     let finalMessages = outboundMessages;
@@ -211,6 +264,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     let steps: AssistantDraft["steps"] = [];
     let currentCardId: string | null = null;
     let receivedDoneMessages = false;
+    const accumulatedCards: ToolCardData[] = [];
+    const accumulatedDebugLog: DebugLogEntry[] = [];
 
     const flushReasoning = () => {
       if (!reasoning) return;
@@ -218,8 +273,11 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       reasoning = "";
     };
 
-    const updateDraft = () => {
-      setAssistantDraft({ content, reasoning, steps, typing: !content });
+    const syncDraftAcc = () => {
+      draftAccRef.current = { content, reasoning, steps, typing: !content };
+      localCardsRef.current = accumulatedCards;
+      localDebugLogRef.current = accumulatedDebugLog;
+      scheduleFlush();
     };
 
     try {
@@ -254,9 +312,12 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           try {
             const obj = JSON.parse(dataStr);
             if (obj.debug) {
-              setDebugLog(prev => [...prev, obj.debug]);
+              accumulatedDebugLog.push(obj.debug);
             } else if (obj.debug_response) {
-              setDebugLog(prev => prev.map((entry, i) => i === prev.length - 1 ? { ...entry, response: obj.debug_response } : entry));
+              if (accumulatedDebugLog.length) {
+                const last = accumulatedDebugLog[accumulatedDebugLog.length - 1];
+                last.response = obj.debug_response;
+              }
             } else if (obj.ds_usage) {
               setCacheStats({
                 hit: obj.ds_usage.prompt_cache_hit_tokens || 0,
@@ -269,10 +330,13 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
               currentCardId = id;
               steps = [...steps, { type: "tool", text: `${obj.tool ? "🔧" : "📋"} ${escapeHtml(name)}: ${escapeHtml(query)}` }];
-              setCards(prev => [{ id, name, query, cached: Boolean(obj.cached), articles: [] }, ...prev]);
+              accumulatedCards.unshift({ id, name, query, cached: Boolean(obj.cached), articles: [] });
             } else if (obj.articles) {
               const articles = (obj.articles || []) as ArticleSummary[];
-              setCards(prev => prev.map(card => card.id === currentCardId ? { ...card, articles } : card));
+              const cardIdx = accumulatedCards.findIndex(c => c.id === currentCardId);
+              if (cardIdx >= 0) {
+                accumulatedCards[cardIdx] = { ...accumulatedCards[cardIdx], articles };
+              }
             } else if (obj.reasoning) {
               reasoning += obj.reasoning;
             } else if (obj.delta) {
@@ -282,26 +346,40 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               receivedDoneMessages = true;
               finalMessages = [...finalMessages, ...(obj.messages as ChatMessage[])];
             }
-            updateDraft();
+            // Throttled update via rAF — no setState per token!
+            syncDraftAcc();
           } catch {
             // Keep the stream alive when a single SSE line is malformed.
           }
         }
       }
 
+      // Final flush
       flushReasoning();
+      draftAccRef.current = { content, reasoning: "", steps, typing: false };
+      localCardsRef.current = accumulatedCards;
+      localDebugLogRef.current = accumulatedDebugLog;
+
+      // Cancel any pending rAF and flush synchronously for the final frame
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      flushStreamState();
+
       if (!receivedDoneMessages && content) {
         finalMessages = [...finalMessages, { role: "assistant", content }];
       }
       setMessages(finalMessages);
+      setCards(accumulatedCards);
+      setDebugLog(accumulatedDebugLog);
       persistActiveSession(sessionId, finalMessages);
-      setAssistantDraft(content || steps.length ? { content, reasoning: "", steps, typing: false } : {
-        content: "（无响应）",
-        reasoning: "",
-        steps: [],
-        typing: false,
-      });
-      window.setTimeout(() => setAssistantDraft(null), 0);
+
+      // Clear draft after a tick so the final content is visible briefly as a draft
+      window.setTimeout(() => {
+        setAssistantDraft(null);
+        draftAccRef.current = null;
+      }, 0);
     } catch (e) {
       setMessages(previousMessages);
       persistActiveSession(sessionId, previousMessages);
@@ -312,33 +390,38 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
         typing: false,
         error: "1",
       });
+      draftAccRef.current = null;
     } finally {
       setStreaming(false);
       window.setTimeout(() => textareaRef.current?.focus(), 0);
     }
   }
 
-  const chatViewClass = [
-    sidebarCollapsed ? "collapsed" : "",
-    historyCollapsed ? "history-collapsed" : "",
-  ].filter(Boolean).join(" ");
+  const chatViewClass = useMemo(() =>
+    [sidebarCollapsed ? "collapsed" : "", historyCollapsed ? "history-collapsed" : ""]
+      .filter(Boolean).join(" "),
+    [sidebarCollapsed, historyCollapsed]);
+
+  const sortedSessions = useMemo(() =>
+    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt),
+    [sessions]);
 
   return (
     <>
       <div id="chat-view" className={chatViewClass}>
         <HistorySidebar
-          sessions={sessions}
+          sessions={sortedSessions}
           activeSessionId={activeSessionId}
           onNew={beginNewSession}
           onLoad={loadSession}
           onDelete={deleteSession}
-          onCollapse={() => setHistoryCollapsed(true)}
+          onCollapse={collapseHistory}
         />
         <div className="chat-main">
           <div className="chat-messages">
             {!messages.length && !assistantDraft && <div className="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>}
             {messages.map((message, index) => (
-              <MessageBubble key={index} message={message} />
+              <MessageBubble key={`${message.role}-${index}`} message={message} />
             ))}
             {assistantDraft && <AssistantDraftBubble draft={assistantDraft} />}
           </div>
@@ -368,7 +451,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
                   <label className="rounds-label" id="chat-debug-label">
                     <input type="checkbox" id="chat-debug-toggle" checked={debug} onChange={e => setDebug(e.target.checked)} /> 调试
                   </label>
-                  <button className="model-btn" id="chat-debug-view" onClick={() => setDebugOpen(true)}>查看调试</button>
+                  <button className="model-btn" id="chat-debug-view" onClick={openDebug}>查看调试</button>
                 </>
               )}
               <button className="model-btn" id="chat-clear" onClick={beginNewSession}>新对话</button>
@@ -391,29 +474,39 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               />
               <button id="chat-send-btn" disabled={streaming || (!draft.trim() && !pastedImages.length)} onClick={sendMessage}>发送</button>
             </div>
-            <div className="chat-paste-preview" id="paste-preview">
-              {pastedImages.map((b64, i) => (
-                <div className="paste-thumb-wrap" key={`${i}-${b64.slice(0, 12)}`}>
-                  <img src={`data:image/png;base64,${b64}`} className="paste-thumb" alt="" />
-                  <button className="paste-remove" onClick={() => removePastedImage(i)}>&times;</button>
-                </div>
-              ))}
-            </div>
+            {pastedImages.length > 0 && (
+              <div className="chat-paste-preview" id="paste-preview">
+                {pastedImages.map((b64, i) => (
+                  <div className="paste-thumb-wrap" key={`${i}-${b64.slice(0, 12)}`}>
+                    <img src={`data:image/png;base64,${b64}`} className="paste-thumb" alt="" />
+                    <button className="paste-remove" onClick={() => removePastedImage(i)}>&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <ToolSidebar cards={cards} onCollapse={() => setSidebarCollapsed(true)} onReadArticle={setArticleId} />
+        <ToolSidebar cards={cards} onCollapse={collapseSidebar} onReadArticle={openArticle} />
       </div>
-      <button className="chat-sidebar-expand history-expand-btn" id="history-expand" title="展开历史" onClick={() => setHistoryCollapsed(false)}>历史 →</button>
-      <button className="chat-sidebar-expand sidebar-expand-btn" id="sidebar-expand" title="展开工具调用" onClick={() => setSidebarCollapsed(false)}>
-        {cards.length ? `← 工具调用 (${cards.length})` : "← 工具调用"}
-      </button>
-      {articleId && <ArticleModal articleId={articleId} onClose={() => setArticleId(null)} />}
-      {debugOpen && <DebugModal messages={window.__debugMessages || messages} debugLog={debugLog} onClose={() => setDebugOpen(false)} />}
+      {historyCollapsed && (
+        <button className="chat-sidebar-expand history-expand-btn" id="history-expand" title="展开历史" onClick={expandHistory}>历史 →</button>
+      )}
+      {sidebarCollapsed && (
+        <button className="chat-sidebar-expand sidebar-expand-btn" id="sidebar-expand" title="展开工具调用" onClick={expandSidebar}>
+          {cards.length ? `← 工具调用 (${cards.length})` : "← 工具调用"}
+        </button>
+      )}
+      {articleId && <ArticleModal articleId={articleId} onClose={closeArticle} />}
+      {debugOpen && <DebugModal messages={window.__debugMessages || messages} debugLog={debugLog} onClose={closeDebug} />}
     </>
   );
 }
 
-function HistorySidebar({ sessions, activeSessionId, onNew, onLoad, onDelete, onCollapse }: {
+// ============================================================
+// Memoized child components
+// ============================================================
+
+const HistorySidebar = memo(function HistorySidebar({ sessions, activeSessionId, onNew, onLoad, onDelete, onCollapse }: {
   sessions: ChatSession[];
   activeSessionId: string | null;
   onNew: () => void;
@@ -432,38 +525,53 @@ function HistorySidebar({ sessions, activeSessionId, onNew, onLoad, onDelete, on
       </div>
       {!sessions.length && <div className="tool-sidebar-empty" id="history-empty">暂无历史对话</div>}
       <div id="history-list">
-        {sessions.map(session => {
-          const date = new Date(session.updatedAt).toLocaleDateString("zh-CN");
-          const count = session.messages.filter(m => m.role === "user").length;
-          return (
-            <div
-              className={`history-card${session.id === activeSessionId ? " active" : ""}`}
-              data-id={session.id}
-              key={session.id}
-              onClick={() => onLoad(session.id)}
-            >
-              <div className="history-card-title">{session.title}</div>
-              <div className="history-card-meta">{date} · {count} 轮</div>
-              <button
-                className="history-card-del"
-                data-id={session.id}
-                title="删除"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(session.id);
-                }}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
+        {sessions.map(session => (
+          <HistoryCard
+            key={session.id}
+            session={session}
+            isActive={session.id === activeSessionId}
+            onLoad={onLoad}
+            onDelete={onDelete}
+          />
+        ))}
       </div>
     </aside>
   );
-}
+});
 
-function ToolSidebar({ cards, onCollapse, onReadArticle }: {
+const HistoryCard = memo(function HistoryCard({ session, isActive, onLoad, onDelete }: {
+  session: ChatSession;
+  isActive: boolean;
+  onLoad: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const date = useMemo(() => new Date(session.updatedAt).toLocaleDateString("zh-CN"), [session.updatedAt]);
+  const count = useMemo(() => session.messages.filter(m => m.role === "user").length, [session.messages]);
+
+  return (
+    <div
+      className={`history-card${isActive ? " active" : ""}`}
+      data-id={session.id}
+      onClick={() => onLoad(session.id)}
+    >
+      <div className="history-card-title">{session.title}</div>
+      <div className="history-card-meta">{date} · {count} 轮</div>
+      <button
+        className="history-card-del"
+        data-id={session.id}
+        title="删除"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(session.id);
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+});
+
+const ToolSidebar = memo(function ToolSidebar({ cards, onCollapse, onReadArticle }: {
   cards: ToolCardData[];
   onCollapse: () => void;
   onReadArticle: (id: string) => void;
@@ -480,7 +588,7 @@ function ToolSidebar({ cards, onCollapse, onReadArticle }: {
           <div className="tool-card-head">
             <span className="tool-card-name">{card.name}</span>
           </div>
-          <div className="tool-card-query">搜索：“{card.query}”</div>
+          <div className="tool-card-query">搜索："{card.query}"</div>
           <div className="tool-card-articles">
             {card.cached && !card.articles.length ? (
               <div style={{ fontSize: "0.65rem", color: "var(--muted)" }}>缓存命中</div>
@@ -497,33 +605,37 @@ function ToolSidebar({ cards, onCollapse, onReadArticle }: {
       ))}
     </aside>
   );
-}
+});
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMessage }) {
   if (message.role !== "user" && message.role !== "assistant") return null;
   if (message.role === "assistant" && !message.content) return null;
   const label = message.role === "user" ? "你" : "AI";
+  const html = useMemo(() => renderMarkdown(message.content || ""), [message.content]);
   return (
     <div className={`chat-msg ${message.role}`}>
       <div className="role-label">{label}</div>
-      <div className="msg-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content || "") }} />
+      <div className="msg-body" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
-}
+});
 
-function AssistantDraftBubble({ draft }: { draft: AssistantDraft }) {
-  let html = "";
-  if (draft.steps.length || draft.reasoning) {
-    html += '<details class="msg-think" open><summary>思考过程</summary><div class="think-steps">';
-    for (const step of draft.steps) {
-      html += step.type === "tool"
-        ? `<div class="think-tool">${step.text}</div>`
-        : `<div class="think-step">${step.text}</div>`;
+const AssistantDraftBubble = memo(function AssistantDraftBubble({ draft }: { draft: AssistantDraft }) {
+  const html = useMemo(() => {
+    let h = "";
+    if (draft.steps.length || draft.reasoning) {
+      h += '<details class="msg-think" open><summary>思考过程</summary><div class="think-steps">';
+      for (const step of draft.steps) {
+        h += step.type === "tool"
+          ? `<div class="think-tool">${step.text}</div>`
+          : `<div class="think-step">${step.text}</div>`;
+      }
+      if (draft.reasoning) h += `<div class="think-step">${draft.reasoning.replace(/</g, "&lt;")}</div>`;
+      h += "</div></details>";
     }
-    if (draft.reasoning) html += `<div class="think-step">${draft.reasoning.replace(/</g, "&lt;")}</div>`;
-    html += "</div></details>";
-  }
-  html += renderMarkdown(draft.content || (draft.typing ? "思考中..." : ""));
+    h += renderMarkdown(draft.content || (draft.typing ? "思考中..." : ""));
+    return h;
+  }, [draft.content, draft.reasoning, draft.steps, draft.typing]);
 
   return (
     <div className={`chat-msg assistant${draft.typing ? " typing" : ""}${draft.error ? " error" : ""}`}>
@@ -531,9 +643,9 @@ function AssistantDraftBubble({ draft }: { draft: AssistantDraft }) {
       <div className="msg-body" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
-}
+});
 
-function CacheRing({ stats }: { stats: DsCacheStats }) {
+const CacheRing = memo(function CacheRing({ stats }: { stats: DsCacheStats }) {
   const total = stats.hit + stats.miss;
   if (!total) return null;
   const rate = Math.round((stats.hit / total) * 100);
@@ -559,9 +671,9 @@ function CacheRing({ stats }: { stats: DsCacheStats }) {
       <span className="cache-ring-label" id="cache-pct">{rate}</span>
     </div>
   );
-}
+});
 
-function ArticleModal({ articleId, onClose }: { articleId: string; onClose: () => void }) {
+const ArticleModal = memo(function ArticleModal({ articleId, onClose }: { articleId: string; onClose: () => void }) {
   const [article, setArticle] = useState<DynamicItem | null>(null);
   const [error, setError] = useState("");
 
@@ -575,10 +687,14 @@ function ArticleModal({ articleId, onClose }: { articleId: string; onClose: () =
       .catch(() => setError("文章加载失败"));
   }, [articleId]);
 
-  const content = article?.content.replace(
-    /!\[img:(\d+)\]/g,
-    (_, idx) => `![图片](${API_BASE}/api/img/${article.dynamic_id}_${idx})`
-  ) || "";
+  const content = useMemo(() =>
+    article?.content.replace(
+      /!\[img:(\d+)\]/g,
+      (_, idx) => `![图片](${API_BASE}/api/img/${article.dynamic_id}_${idx})`
+    ) || "",
+    [article]);
+
+  const html = useMemo(() => renderMarkdown(content), [content]);
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -599,15 +715,15 @@ function ArticleModal({ articleId, onClose }: { articleId: string; onClose: () =
               </div>
               <button className="modal-close" onClick={onClose}>&times;</button>
             </div>
-            <div className="modal-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+            <div className="modal-body" dangerouslySetInnerHTML={{ __html: html }} />
           </>
         )}
       </div>
     </div>
   );
-}
+});
 
-function DebugModal({ messages, debugLog, onClose }: {
+const DebugModal = memo(function DebugModal({ messages, debugLog, onClose }: {
   messages: ChatMessage[];
   debugLog: DebugLogEntry[];
   onClose: () => void;
@@ -642,9 +758,9 @@ function DebugModal({ messages, debugLog, onClose }: {
       </div>
     </div>
   );
-}
+});
 
-function DebugMessage({ message, index }: { message: ChatMessage; index: number }) {
+const DebugMessage = memo(function DebugMessage({ message, index }: { message: ChatMessage; index: number }) {
   let roleIcon = "";
   let roleClass = "";
   switch (message.role) {
@@ -666,13 +782,16 @@ function DebugMessage({ message, index }: { message: ChatMessage; index: number 
       break;
   }
 
-  let body = message.content || "";
-  if (message.tool_calls) {
-    body += `\n\n${message.tool_calls.map(t => `[调用: ${t.function.name}(${t.function.arguments})]`).join("\n")}`;
-  }
-  if (message.reasoning_content) {
-    body += `\n\n[思考: ${message.reasoning_content.slice(0, 500)}${message.reasoning_content.length > 500 ? "..." : ""}]`;
-  }
+  const body = useMemo(() => {
+    let b = message.content || "";
+    if (message.tool_calls) {
+      b += `\n\n${message.tool_calls.map(t => `[调用: ${t.function.name}(${t.function.arguments})]`).join("\n")}`;
+    }
+    if (message.reasoning_content) {
+      b += `\n\n[思考: ${message.reasoning_content.slice(0, 500)}${message.reasoning_content.length > 500 ? "..." : ""}]`;
+    }
+    return b;
+  }, [message.content, message.tool_calls, message.reasoning_content]);
 
   return (
     <div className="debug-msg">
@@ -683,4 +802,4 @@ function DebugMessage({ message, index }: { message: ChatMessage; index: number 
       <pre className="debug-msg-body">{body}</pre>
     </div>
   );
-}
+});
