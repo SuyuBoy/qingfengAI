@@ -79,3 +79,84 @@
   font: inherit; color: var(--muted); font-size: 0.9rem;
 }
 #more-btn:hover { background: var(--bg); }
+
+@media (max-width: 640px) {
+  .top-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.6rem;
+    align-items: stretch;
+    margin-bottom: 1rem;
+  }
+
+  .search-bar {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .search-bar input[type="text"] {
+    min-width: 0;
+    min-height: 40px;
+    font-size: 0.95rem;
+  }
+
+  .top-row button,
+  .clear-btn {
+    min-height: 40px;
+    padding: 6px 14px;
+    font-size: 0.86rem;
+    white-space: nowrap;
+  }
+
+  #search-clear-btn {
+    grid-column: 1 / -1;
+  }
+
+  .cal-label {
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .month-group {
+    margin-bottom: 1.4rem;
+  }
+
+  .month-label {
+    margin-bottom: 0.75rem;
+    padding: 0.35rem 0;
+  }
+
+  .card {
+    padding: 1rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .card .meta {
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .card .card-id {
+    max-width: 44%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card .content {
+    font-size: 0.95rem;
+    line-height: 1.78;
+  }
+
+  .card .content h1 {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+}

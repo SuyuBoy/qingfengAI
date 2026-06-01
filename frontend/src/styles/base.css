@@ -43,6 +43,12 @@ nav a {
 nav a:hover, nav a.active { color: var(--text); border-bottom-color: var(--text); }
 nav .user { margin-left: auto; font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 0.5rem; }
 nav .user button, .crawl-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 2px 10px; cursor: pointer; font-size: 0.75rem; color: var(--muted); }
+nav .user-email {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .container { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
 
@@ -54,4 +60,50 @@ nav .user button, .crawl-btn { background: none; border: 1px solid var(--border)
   margin-top: 1rem; padding: 6px 16px;
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--card-bg); cursor: pointer; font: inherit;
+}
+
+@media (max-width: 640px) {
+  body {
+    line-height: 1.72;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  nav {
+    padding: 0 max(0.75rem, env(safe-area-inset-left)) 0 max(0.75rem, env(safe-area-inset-right));
+  }
+
+  nav .inner {
+    height: 54px;
+    gap: 1rem;
+  }
+
+  nav a {
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+    padding: 7px 0 5px;
+    white-space: nowrap;
+  }
+
+  nav .user {
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  nav .user-email {
+    display: none;
+  }
+
+  nav .user button,
+  .crawl-btn {
+    min-height: 36px;
+    padding: 4px 11px;
+    font-size: 0.8rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .container {
+    width: 100%;
+    padding: 1rem max(0.875rem, env(safe-area-inset-left)) 1.25rem max(0.875rem, env(safe-area-inset-right));
+  }
 }
