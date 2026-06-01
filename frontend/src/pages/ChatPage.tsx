@@ -59,7 +59,8 @@ type UiChatMessage = ChatMessage & {
 function loadSessions() {
   const raw = localStorage.getItem(SESSIONS_KEY);
   if (!raw) return [];
-  return JSON.parse(raw) as ChatSession[];
+  const sessions = JSON.parse(raw) as ChatSession[];
+  return Array.isArray(sessions) ? sessions : [];
 }
 
 function saveSessions(sessions: ChatSession[]) {
@@ -80,7 +81,10 @@ function makeId() {
 }
 
 function normalizeMessages(messages: ChatMessage[]): UiChatMessage[] {
-  return messages.map(message => ({ ...message, id: message.id || makeId() }));
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter(message => message && (message.role === "user" || message.role === "assistant" || message.role === "system" || message.role === "tool"))
+    .map(message => ({ ...message, id: message.id || makeId(), content: typeof message.content === "string" ? message.content : String(message.content || "") }));
 }
 
 function stripRuntimeFields(messages: UiChatMessage[]): ChatMessage[] {
@@ -103,7 +107,13 @@ function parseToolKey(raw: string) {
 }
 
 function getInitialState() {
-  const sessions = loadSessions();
+  let sessions: ChatSession[] = [];
+  try {
+    sessions = loadSessions();
+  } catch {
+    localStorage.removeItem(SESSIONS_KEY);
+    localStorage.removeItem(ACTIVE_KEY);
+  }
   const activeId = getActiveId();
   const activeSession = activeId ? sessions.find(s => s.id === activeId) : null;
   return {

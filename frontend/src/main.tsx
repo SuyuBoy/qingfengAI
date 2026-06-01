@@ -1,8 +1,13 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import ErrorBoundary from "./ErrorBoundary";
 import "./styles/base.css";
 import "./styles/login.css";
 import "./styles/dynamics.css";
 import "./styles/chat.css";
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>,
+);
