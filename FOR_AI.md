@@ -491,11 +491,11 @@ interface ChatMessage {
 
 | 文件 | 说明 |
 |---|---|
-| `js/klinecharts.umd.js` | KLineChart v9 UMD 构建产物（363KB），从 CDN 下载后本地化 |
+| `frontend/public/js/klinecharts.umd.js` | KLineChart v9 UMD 静态资源，构建时复制到 `react/js/` |
 | `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅 API，不参与构建 |
 
 > 获取 KLineChart 源码：`git clone https://github.com/liihuu/KLineChart.git klinecharts-src`
-> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@9.8.0/dist/umd/klinecharts.js" -o js/klinecharts.umd.js`
+> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@9.8.0/dist/umd/klinecharts.js" -o frontend/public/js/klinecharts.umd.js`
 
 #### v9 API 要点（与 v9 不同）
 
@@ -510,16 +510,16 @@ interface ChatMessage {
 #### 架构
 
 ```
-stocks.js
-  ├── init()                  → GET /api/stocks/active → 渲染左侧列表
+frontend/src/pages/StocksPage.tsx
+  ├── fetchActiveStocks()     → GET /api/stocks/active → 渲染左侧列表
   ├── loadIndex()             → GET /api/stocks/index → 清风指数卡片+K线
-  ├── _selectStock(code)      → GET /api/stocks/prices/:code → 个股K线
-  ├── _showIndex()            → klinecharts.init("kline-container")
-  └── _applyParams()          → 调指数参数后重新 loadIndex()
+  ├── selectStock(stock)      → GET /api/stocks/prices/:code → 个股K线
+  ├── ensureKLineCharts()     → 加载 react/js/klinecharts.umd.js
+  └── KLineChartPanel         → klinecharts.init(container)
 ```
 
-- `js/views/stocks.js` — 全部股票页面逻辑
-- `css/stocks.css` — 全宽左右分栏（左侧320px，右侧自适应）
+- `frontend/src/pages/StocksPage.tsx` — 全部股票页面逻辑
+- `frontend/src/styles/stocks.css` — 全宽左右分栏（左侧320px，右侧自适应）
 - 排序：活跃次数 / 总提及 / 最近提及
 - 交互：缩放、拖拽、十字光标
 

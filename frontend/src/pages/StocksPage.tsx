@@ -30,10 +30,7 @@ function datetimeToTs(datetime: string) {
 }
 
 function getKLineScriptCandidates() {
-  return [
-    new URL("../js/klinecharts.umd.js", window.location.href).toString(),
-    new URL("./js/klinecharts.umd.js", window.location.href).toString(),
-  ];
+  return [new URL("./js/klinecharts.umd.js", window.location.href).toString()];
 }
 
 function loadScript(src: string) {
