@@ -398,6 +398,128 @@ button {
   display: none;
 }
 
+.search-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: transparent;
+}
+
+.search-dialog {
+  width: min(720px, calc(100vw - 2rem));
+  height: min(600px, calc(100vh - 8rem));
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.18);
+}
+
+.search-dialog-head {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.search-dialog-head input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.search-dialog-head input::placeholder {
+  color: var(--muted-2);
+}
+
+.search-dialog-close {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.search-dialog-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.search-dialog-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  overscroll-behavior: contain;
+}
+
+.search-dialog-primary,
+.search-dialog-item {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.search-dialog-primary {
+  padding: 0 1rem;
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.search-dialog-item {
+  padding: 0 1rem;
+}
+
+.search-dialog-item:hover {
+  background: var(--surface);
+}
+
+.search-dialog-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-dialog-section {
+  padding: 1rem 1rem 0.35rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.search-dialog-empty {
+  padding: 2rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
 @media (max-width: 780px) {
   .app-shell,
   .app-shell.sidebar-collapsed {
@@ -483,5 +605,15 @@ button {
 
   .mobile-only {
     display: inline-flex;
+  }
+
+  .search-dialog-overlay {
+    align-items: flex-start;
+    padding: 4.5rem 0.75rem 0.75rem;
+  }
+
+  .search-dialog {
+    width: 100%;
+    height: min(620px, calc(100vh - 5.25rem));
   }
 }

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BarChart3,
   LogOut,
   Menu,
+  MessageSquare,
   MessageSquarePlus,
   Moon,
   PanelLeft,
@@ -57,8 +58,11 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const crawlCooldown = useRef(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const checkAuth = useCallback(async () => {
     if (!getToken()) {
@@ -105,6 +109,19 @@ export default function App() {
     };
   }, [checkAuth, refreshSessions]);
 
+  useEffect(() => {
+    if (!searchOpen) return;
+    const timer = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [searchOpen]);
+
   const triggerCrawl = useCallback(async () => {
     const now = Date.now();
     if (now - crawlCooldown.current < 60000) {
@@ -143,6 +160,7 @@ export default function App() {
     if (route !== "/chat") setRoute("/chat");
     window.dispatchEvent(new CustomEvent("chat-new-session"));
     setSidebarOpen(false);
+    setSearchOpen(false);
   }, [route]);
 
   const loadSession = useCallback((id: string) => {
@@ -150,6 +168,7 @@ export default function App() {
     if (route !== "/chat") setRoute("/chat");
     window.dispatchEvent(new CustomEvent("chat-load-session", { detail: { id } }));
     setSidebarOpen(false);
+    setSearchOpen(false);
   }, [route]);
 
   const toggleTheme = useCallback(() => {
@@ -160,6 +179,13 @@ export default function App() {
     () => [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12),
     [sessions],
   );
+
+  const searchableSessions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+    if (!query) return sorted;
+    return sorted.filter(session => session.title.toLowerCase().includes(query));
+  }, [searchQuery, sessions]);
 
   if (loading) return <main className="auth-screen"><div className="loading">加载中...</div></main>;
   if (!user) return <main className="auth-screen"><LoginPage onLogin={onLogin} /></main>;
@@ -200,7 +226,14 @@ export default function App() {
         </button>
 
         <nav className="sidebar-nav" aria-label="主功能">
-          <button className={`sidebar-nav-item${route === "/chat" ? " active" : ""}`} type="button" onClick={() => setRoute("/chat")}>
+          <button
+            className="sidebar-nav-item"
+            type="button"
+            onClick={() => {
+              setSearchOpen(true);
+              setSidebarOpen(false);
+            }}
+          >
             <Search size={19} />
             <span>搜索聊天</span>
           </button>
@@ -252,6 +285,73 @@ export default function App() {
       <main className="app-main" id="app">
         {route === "/stocks" ? <StocksPage /> : route === "/dynamics" ? <DynamicsPage /> : <ChatPage user={user} />}
       </main>
+      {searchOpen && (
+        <SearchDialog
+          query={searchQuery}
+          inputRef={searchInputRef}
+          sessions={searchableSessions}
+          onQueryChange={setSearchQuery}
+          onClose={() => setSearchOpen(false)}
+          onNewChat={startNewChat}
+          onLoadSession={loadSession}
+        />
+      )}
+    </div>
+  );
+}
+
+function SearchDialog({
+  query,
+  inputRef,
+  sessions,
+  onQueryChange,
+  onClose,
+  onNewChat,
+  onLoadSession,
+}: {
+  query: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  sessions: ChatSession[];
+  onQueryChange: (value: string) => void;
+  onClose: () => void;
+  onNewChat: () => void;
+  onLoadSession: (id: string) => void;
+}) {
+  return (
+    <div className="search-dialog-overlay" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="search-dialog" role="dialog" aria-modal="true" aria-label="搜索聊天">
+        <div className="search-dialog-head">
+          <Search size={20} />
+          <input
+            ref={inputRef}
+            value={query}
+            placeholder="搜索聊天..."
+            onChange={event => onQueryChange(event.target.value)}
+          />
+          <button className="search-dialog-close" type="button" title="关闭" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="search-dialog-body">
+          <button className="search-dialog-primary" type="button" onClick={onNewChat}>
+            <MessageSquarePlus size={19} />
+            <span>新聊天</span>
+          </button>
+          <div className="search-dialog-section">最近</div>
+          {sessions.length ? sessions.map(session => (
+            <button
+              className="search-dialog-item"
+              type="button"
+              key={session.id}
+              title={session.title}
+              onClick={() => onLoadSession(session.id)}
+            >
+              <MessageSquare size={19} />
+              <span>{session.title}</span>
+            </button>
+          )) : <div className="search-dialog-empty">没有匹配的聊天</div>}
+        </div>
+      </section>
     </div>
   );
 }
