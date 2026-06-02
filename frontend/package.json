@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:react-route": "tsc --noEmit && vite build --outDir ../react --emptyOutDir",
-    "build:github-root": "tsc --noEmit && vite build --outDir ../react --emptyOutDir",
+    "build:github-root": "tsc --noEmit && vite build --outDir ../.root-build --emptyOutDir && rm -rf ../assets ../js && cp -R ../.root-build/index.html ../index.html && cp -R ../.root-build/assets ../assets && cp -R ../.root-build/js ../js && rm -rf ../.root-build",
     "preview": "vite preview"
   },
   "dependencies": {

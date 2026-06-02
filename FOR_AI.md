@@ -491,7 +491,7 @@ interface ChatMessage {
 
 | 文件 | 说明 |
 |---|---|
-| `frontend/public/js/klinecharts.umd.js` | KLineChart v9 UMD 静态资源，构建时复制到 `react/js/` |
+| `frontend/public/js/klinecharts.umd.js` | KLineChart v9 UMD 静态资源，构建时复制到根目录 `js/` |
 | `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅 API，不参与构建 |
 
 > 获取 KLineChart 源码：`git clone https://github.com/liihuu/KLineChart.git klinecharts-src`
@@ -514,7 +514,7 @@ frontend/src/pages/StocksPage.tsx
   ├── fetchActiveStocks()     → GET /api/stocks/active → 渲染左侧列表
   ├── loadIndex()             → GET /api/stocks/index → 清风指数卡片+K线
   ├── selectStock(stock)      → GET /api/stocks/prices/:code → 个股K线
-  ├── ensureKLineCharts()     → 加载 react/js/klinecharts.umd.js
+  ├── ensureKLineCharts()     → 加载 js/klinecharts.umd.js
   └── KLineChartPanel         → klinecharts.init(container)
 ```
 

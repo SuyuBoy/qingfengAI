@@ -4,9 +4,9 @@
 
 当前仓库是清风研习社的前端模块，纯静态 SPA，部署入口为仓库根目录。
 
-- 根目录 `index.html` 会直接跳转到 `react/`。
+- 根目录 `index.html` 直接承载 React 应用。
 - React 是当前保留的前端实现，源码位于 `frontend/`。
-- `react/` 是 React 构建产物目录，用于线上访问。
+- 根目录 `assets/` 和 `js/` 是 React 构建产物资源，用于线上访问。
 
 前端共用 Google OAuth、JWT、本地存储和后端 API，通过 SSE 流式调用 `/api/chat`。
 
@@ -15,13 +15,16 @@
 ## 文件结构
 
 ```
-index.html             # 根入口，跳转到 react/
+index.html             # React 构建产物入口
+assets/                # React 构建产物资源
+js/
+  klinecharts.umd.js   # 股票页运行时加载的 KLineChart UMD
 frontend/
   package.json         # React 源码依赖与构建脚本
   vite.config.ts       # React Vite 配置，base="./"
   public/
     js/
-      klinecharts.umd.js # KLineChart 静态资源，构建时复制到 react/js/
+      klinecharts.umd.js # KLineChart 静态资源，构建时复制到根目录 js/
   src/
     App.tsx            # 路由、认证、侧边栏、主题、会话入口
     ErrorBoundary.tsx  # React 渲染错误兜底
@@ -34,11 +37,6 @@ frontend/
       ChatPage.tsx     # AI 对话页
       StocksPage.tsx   # 股票页
     styles/            # React 样式
-react/
-  index.html           # React 构建产物入口
-  assets/              # React 构建产物资源
-  js/
-    klinecharts.umd.js # 股票页运行时加载的 KLineChart UMD
 .external/
   assistant-ui/        # assistant-ui 组件仓库，用于 React 聊天界面参考/复用
   KLineChart/          # KLineChart 组件仓库，用于金融图表参考/复用
@@ -50,11 +48,12 @@ react/
 
 ### `index.html`
 
-根入口只负责跳转：
+根入口是 Vite 构建后的 React 页面：
 
-- meta refresh 跳转到 `./react/`
-- JavaScript `window.location.replace("./react/")`
-- 提供一个可点击的 fallback 链接
+- 加载 Google Sign-In SDK
+- 声明 `window.__API_BASE__`
+- 引用根目录 `assets/` 下的构建产物
+- `<div id="root"></div>` 作为 React 挂载点
 
 ### `frontend/package.json`
 
@@ -63,10 +62,9 @@ react/
 | 脚本 | 说明 |
 |---|---|
 | `npm run build` | TypeScript 检查 + Vite 构建到 `frontend/dist/` |
-| `npm run build:react-route` | TypeScript 检查 + Vite 构建到仓库根 `react/` |
-| `npm run build:github-root` | 同样构建到 `react/`，根入口保持跳转页 |
+| `npm run build:github-root` | TypeScript 检查 + Vite 构建到仓库根目录 |
 
-每次修改 React 源码后，需要执行 `npm run build:react-route` 更新 `react/` 构建产物。
+每次修改 React 源码后，需要执行 `npm run build:github-root` 更新根目录构建产物。
 
 ---
 
@@ -113,7 +111,7 @@ react/
 - 加载活跃股票列表 `/api/stocks/active`
 - 加载清风指数 `/api/stocks/index`
 - 加载个股价格 `/api/stocks/prices/:code`
-- 运行时从 `react/js/klinecharts.umd.js` 加载 KLineChart
+- 运行时从根目录 `js/klinecharts.umd.js` 加载 KLineChart
 - 支持指数参数、排序、个股选择、缩放拖拽和十字光标
 
 ---
@@ -121,6 +119,6 @@ react/
 ## 维护原则
 
 - 不再保留原生 JS 页面实现。
-- React 源码改动后同步构建 `react/`。
+- React 源码改动后同步构建根目录产物。
 - `.external/assistant-ui` 和 `.external/KLineChart` 是外部组件仓库副本，主要用于查阅源码、示例和 API。除非明确要同步或修改外部仓库，不要把业务改动写进 `.external/`。
 - 不在本地启动前端服务，按仓库规则只提交并推送远程。
