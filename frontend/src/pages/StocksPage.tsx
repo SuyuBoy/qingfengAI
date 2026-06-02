@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { KLineChartPro } from "@klinecharts/pro";
 import type { Datafeed, DatafeedSubscribeCallback, Period, SymbolInfo } from "@klinecharts/pro";
-import type { KLineData } from "klinecharts";
+import { CandleType, type KLineData } from "klinecharts";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
@@ -306,6 +306,7 @@ function KLineProChart({
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
         mainIndicators: isIndex ? [] : ["MA"],
         subIndicators: isIndex ? [] : ["VOL", "MACD"],
+        styles: isIndex ? { candle: { type: CandleType.Area } } : undefined,
         datafeed,
       }) as unknown as KLineChartProHandle;
       resizeChartDuringTransition(160);
