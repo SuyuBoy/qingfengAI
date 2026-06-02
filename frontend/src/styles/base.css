@@ -681,6 +681,10 @@ button {
     display: inline-flex;
   }
 
+  .app-shell.sidebar-open .mobile-menu-btn {
+    display: none;
+  }
+
   .desktop-only {
     display: none;
   }

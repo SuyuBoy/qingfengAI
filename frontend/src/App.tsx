@@ -221,7 +221,7 @@ export default function App() {
   if (user.role === "unpaid") return <main className="auth-screen"><LockPage user={user} onLogout={logout} /></main>;
 
   return (
-    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>
       <button className="mobile-menu-btn" type="button" title="打开侧边栏" onClick={() => setSidebarOpen(true)}>
         <Menu size={20} />
       </button>
