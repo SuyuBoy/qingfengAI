@@ -454,74 +454,72 @@ interface ChatMessage {
 
 ### 3.10 GET /api/stocks/prices/:order_book_id
 
-获取股票分钟K线。**需要 paid+ 权限。**
-
-查询参数:
-
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `start` | string | "" | 起始时间 YYYY-MM-DD-HH-MM |
-| `end` | string | "" | 结束时间 YYYY-MM-DD-HH-MM |
-| `limit` | int | 50 | 返回条数，最大200 |
+获取股票日线（从本地CSV）。**需要 paid+ 权限。**
 
 响应:
 ```json
 {
   "prices": [
-    {
-      "datetime": "2026-05-20-09-31",
-      "open": 10.5,
-      "high": 10.8,
-      "low": 10.3,
-      "close": 10.6,
-      "volume": 1234567.0,
-      "amount": 13000000.0
-    }
+    { "datetime": "2026-05-20", "open": 10.5, "high": 10.8, "low": 10.3, "close": 10.6, "volume": 1234567.0 }
   ]
 }
 ```
 
+数据来源: `kline_day/` 本地 CSV 文件。
+
 ---
 
-### 3.11 股票页面（前端）
+### 3.11 GET /api/stocks/index
 
-`#/stocks` 使用 **KLineChart v9** 渲染交互式K线图。
+获取清风指数序列（从 `index_state` 表）。**需要 paid+ 权限。**
+
+查询参数:
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `period` | string | `"1d"` | 指数周期: `1d` 日级 / `1w` 周级 |
+
+响应:
+```json
+{
+  "index": [
+    { "datetime": "2026-01-08", "value": 997.36 },
+    { "datetime": "2026-01-09", "value": 1007.57 }
+  ],
+  "meta": { "period": "1d", "points": 106, "first": "2026-01-05", "last": "2026-06-01" }
+}
+```
+
+指数计算: 本地 Python 脚本 (`db/tools/run_index_1d.py` / `run_index_1w.py`)，产出后写入 `index_state` 表。
+
+---
+
+### 3.12 股票页面（前端）
+
+`#/stocks` 使用 **KLineChart Pro**（`@klinecharts/pro` npm 包）渲染交互式K线图。
 
 #### 依赖
 
 | 文件 | 说明 |
 |---|---|
-| `frontend/public/js/klinecharts.umd.js` | KLineChart v9 UMD 静态资源，构建时复制到根目录 `js/` |
-| `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅 API，不参与构建 |
-
-> 获取 KLineChart 源码：`git clone https://github.com/liihuu/KLineChart.git klinecharts-src`
-> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@9.8.0/dist/umd/klinecharts.js" -o frontend/public/js/klinecharts.umd.js`
-
-#### v9 API 要点（与 v9 不同）
-
-| v9 | v10 | 说明 |
-|---|---|---|
-| `chart.applyNewData(data)` | `chart.setDataLoader({ getBars: ({callback}) => callback(data) })` | 数据注入改为回调模式 |
-| `chart.updateData(data)` | 同上 | 更新数据也走 setDataLoader |
-| `chart.dispose()` | **不存在** | 清空容器 DOM 后重新 `init()` 替代 |
-| - | `chart.setSymbol({ ticker })` | 必须设置标的 |
-| - | `chart.setPeriod({ span, type })` | 必须设置周期，type: "min"/"day" 等 |
+| `@klinecharts/pro` | npm 依赖，Vite 打包内联 |
+| `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅，不参与构建 |
 
 #### 架构
 
 ```
-frontend/src/pages/StocksPage.tsx
-  ├── fetchActiveStocks()     → GET /api/stocks/active → 渲染左侧列表
-  ├── loadIndex()             → GET /api/stocks/index → 清风指数卡片+K线
-  ├── selectStock(stock)      → GET /api/stocks/prices/:code → 个股K线
-  ├── ensureKLineCharts()     → 加载 js/klinecharts.umd.js
-  └── KLineChartPanel         → klinecharts.init(container)
+frontend/src/pages/StocksPage.tsx (React)
+  ├── loadStocks()         → GET /api/stocks/active → 左侧股票列表
+  ├── loadIndex()          → GET /api/stocks/index?period=1d → 指数K线
+  ├── selectStock(stock)   → GET /api/stocks/prices/:code → 个股K线
+  └── KLineProChart        → new KLineChartPro({ container, datafeed, ... })
 ```
 
-- `frontend/src/pages/StocksPage.tsx` — 全部股票页面逻辑
-- `frontend/src/styles/stocks.css` — 全宽左右分栏（左侧320px，右侧自适应）
-- 排序：活跃次数 / 总提及 / 最近提及
-- 交互：缩放、拖拽、十字光标
+- 指数模式: `StaticDatafeed` 一次性加载全部数据
+- 个股模式: `PeriodAwareDatafeed` 按周期缓存请求
+- 交互: 缩放、拖拽、十字光标、周期切换(1m~Y)
+- 内置指标: MA、VOL、MACD
+- 排序: 活跃次数 / 总提及 / 最近提及
 
 ### 3.12 GET /api/admin/users
 
