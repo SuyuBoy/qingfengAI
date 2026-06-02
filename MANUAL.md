@@ -38,8 +38,8 @@ frontend/
       StocksPage.tsx   # 股票页
     styles/            # React 样式
 .external/
-  assistant-ui/        # assistant-ui 组件仓库，用于 React 聊天界面参考/复用
-  KLineChart/          # KLineChart 组件仓库，用于金融图表参考/复用
+  assistant-ui/        # assistant-ui 组件仓库，用于 React 聊天界面参考/复用，GitHub: https://github.com/assistant-ui/assistant-ui
+  KLineChart/          # KLineChart 组件仓库，用于金融图表参考/复用，GitHub: https://github.com/klinecharts/KLineChart
 ```
 
 ---
@@ -120,5 +120,5 @@ frontend/
 
 - 不再保留原生 JS 页面实现。
 - React 源码改动后同步构建根目录产物。
-- `.external/assistant-ui` 和 `.external/KLineChart` 是外部组件仓库副本，主要用于查阅源码、示例和 API。除非明确要同步或修改外部仓库，不要把业务改动写进 `.external/`。
+- `.external/assistant-ui` 是 https://github.com/assistant-ui/assistant-ui 的本地副本，`.external/KLineChart` 是 https://github.com/klinecharts/KLineChart 的本地副本，主要用于查阅源码、示例和 API。除非明确要同步或修改外部仓库，不要把业务改动写进 `.external/`。
 - 不在本地启动前端服务，按仓库规则只提交并推送远程。

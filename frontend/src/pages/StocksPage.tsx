@@ -1,10 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, SlidersHorizontal } from "lucide-react";
+import {
+  BarChart3,
+  Camera,
+  Circle,
+  Eye,
+  Fullscreen,
+  Gauge,
+  Globe2,
+  Lock,
+  Magnet,
+  Menu,
+  MoveDiagonal2,
+  PencilRuler,
+  Settings,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type ChartMode = "index" | "stock";
+type KLinePeriod = { label: string; span: number; type: string };
 type KLinePoint = {
   timestamp: number;
   open: number;
@@ -16,6 +33,27 @@ type KLinePoint = {
 };
 
 const defaultBaseDate = new Date().toISOString().slice(0, 10);
+const chartPeriods: KLinePeriod[] = [
+  { label: "1m", span: 1, type: "min" },
+  { label: "5m", span: 5, type: "min" },
+  { label: "15m", span: 15, type: "min" },
+  { label: "1H", span: 1, type: "hour" },
+  { label: "2H", span: 2, type: "hour" },
+  { label: "4H", span: 4, type: "hour" },
+  { label: "D", span: 1, type: "day" },
+  { label: "W", span: 1, type: "week" },
+  { label: "M", span: 1, type: "month" },
+  { label: "Y", span: 1, type: "year" },
+];
+const drawingTools = [
+  { title: "十字光标", icon: MoveDiagonal2 },
+  { title: "趋势线", icon: PencilRuler },
+  { title: "圆形标注", icon: Circle },
+  { title: "水平线", icon: SlidersHorizontal },
+  { title: "磁吸", icon: Magnet },
+  { title: "锁定", icon: Lock },
+  { title: "显示", icon: Eye },
+];
 let klineScriptPromise: Promise<void> | null = null;
 
 function formatNumber(value: number) {
@@ -79,23 +117,30 @@ function readChartColors() {
 
 function getChartOptions(mode: ChartMode) {
   const colors = readChartColors();
+  const green = "#2dc08e";
+  const red = "#f92855";
+  const grid = "#e7eaf0";
+  const axis = "#d8dde6";
+  const text = "#7b8797";
   return {
     styles: {
       grid: {
-        horizontal: { color: colors.border },
-        vertical: { color: colors.border },
+        show: true,
+        horizontal: { show: true, size: 1, color: grid, style: "dashed", dashedValue: [2, 2] },
+        vertical: { show: true, size: 1, color: grid, style: "dashed", dashedValue: [2, 2] },
       },
       candle: {
         type: mode === "index" ? "area" : "candle_solid",
         bar: {
-          upColor: "#ef4444",
-          downColor: "#22c55e",
+          compareRule: "current_open",
+          upColor: green,
+          downColor: red,
           noChangeColor: colors.muted,
-          upBorderColor: "#ef4444",
-          downBorderColor: "#22c55e",
+          upBorderColor: green,
+          downBorderColor: red,
           noChangeBorderColor: colors.muted,
-          upWickColor: "#ef4444",
-          downWickColor: "#22c55e",
+          upWickColor: green,
+          downWickColor: red,
           noChangeWickColor: colors.muted,
         },
         area: {
@@ -107,35 +152,119 @@ function getChartOptions(mode: ChartMode) {
             { offset: 1, color: "rgba(16, 163, 127, 0.02)" },
           ],
         },
+        priceMark: {
+          show: true,
+          high: { show: true, color: text, textSize: 11, textFamily: "Helvetica Neue", textWeight: "normal", textOffset: 5 },
+          low: { show: true, color: text, textSize: 11, textFamily: "Helvetica Neue", textWeight: "normal", textOffset: 5 },
+          last: {
+            show: true,
+            compareRule: "current_open",
+            upColor: green,
+            downColor: red,
+            noChangeColor: green,
+            line: { show: true, style: "dashed", dashedValue: [5, 5], size: 1 },
+            text: {
+              show: true,
+              style: "fill",
+              color: "#ffffff",
+              size: 12,
+              family: "Helvetica Neue",
+              weight: "normal",
+              borderStyle: "solid",
+              borderDashedValue: [2, 2],
+              borderSize: 0,
+              borderColor: "transparent",
+              borderRadius: 2,
+              paddingLeft: 5,
+              paddingTop: 4,
+              paddingRight: 5,
+              paddingBottom: 4,
+            },
+          },
+        },
         tooltip: {
+          showRule: "always",
+          showType: "standard",
           rect: {
-            color: colors.surface,
-            borderColor: colors.border,
+            color: "#ffffff",
+            borderColor: "transparent",
           },
-          text: {
-            color: colors.text,
+          title: {
+            show: false,
+            color: text,
           },
+          legend: {
+            color: text,
+            size: 12,
+            marginLeft: 8,
+            marginTop: 4,
+            marginRight: 8,
+            marginBottom: 4,
+            template: [
+              { title: "时间", value: "{time}" },
+              { title: "开", value: "{open}" },
+              { title: "高", value: "{high}" },
+              { title: "低", value: "{low}" },
+              { title: "收", value: "{close}" },
+              { title: "成交量", value: "{volume}" },
+            ],
+          },
+          features: [],
+        },
+      },
+      indicator: {
+        ohlc: { compareRule: "current_open", upColor: "rgba(45, 192, 142, 0.68)", downColor: "rgba(249, 40, 85, 0.68)", noChangeColor: colors.muted },
+        bars: [{
+          style: "fill",
+          borderStyle: "solid",
+          borderSize: 1,
+          borderDashedValue: [2, 2],
+          upColor: "rgba(45, 192, 142, 0.68)",
+          downColor: "rgba(249, 40, 85, 0.68)",
+          noChangeColor: colors.muted,
+        }],
+        lines: ["#ff8f1f", "#9b5cc7", "#1677ff", "#ec297b", "#63d8ad"].map(color => ({
+          style: "solid",
+          smooth: false,
+          size: 1,
+          dashedValue: [2, 2],
+          color,
+        })),
+        lastValueMark: { show: false },
+        tooltip: {
+          showRule: "always",
+          showType: "standard",
+          title: { show: true, showName: true, showParams: true, color: text, size: 12, marginLeft: 8, marginTop: 4, marginRight: 8, marginBottom: 4 },
+          legend: { color: text, size: 12, marginLeft: 8, marginTop: 4, marginRight: 8, marginBottom: 4 },
+          features: [],
         },
       },
       xAxis: {
-        axisLine: { color: colors.border },
-        tickText: { color: colors.muted },
-        tickLine: { color: colors.border },
+        show: true,
+        axisLine: { show: true, color: axis, size: 1 },
+        tickText: { show: true, color: text, size: 12, marginStart: 4, marginEnd: 6 },
+        tickLine: { show: false, color: axis },
       },
       yAxis: {
-        axisLine: { color: colors.border },
-        tickText: { color: colors.muted },
-        tickLine: { color: colors.border },
+        show: true,
+        position: "right",
+        inside: false,
+        axisLine: { show: true, color: axis, size: 1 },
+        tickText: { show: true, color: text, size: 12, marginStart: 6, marginEnd: 8 },
+        tickLine: { show: false, color: axis },
       },
-      separator: { color: colors.border },
+      separator: { size: 1, color: axis, fill: true, activeBackgroundColor: "rgba(22, 119, 255, 0.06)" },
       crosshair: {
+        show: true,
         horizontal: {
-          line: { color: colors.muted },
-          text: { backgroundColor: colors.text, borderColor: colors.text },
+          show: true,
+          line: { show: true, style: "dashed", dashedValue: [4, 2], size: 1, color: "#8792a2" },
+          text: { color: "#ffffff", backgroundColor: "#7b8797", borderColor: "#7b8797" },
         },
         vertical: {
-          line: { color: colors.muted },
-          text: { backgroundColor: colors.text, borderColor: colors.text },
+          show: true,
+          line: { show: true, style: "dashed", dashedValue: [4, 2], size: 1, color: "#8792a2" },
+          text: { color: "#ffffff", backgroundColor: "#7b8797", borderColor: "#7b8797" },
         },
       },
     },
@@ -179,6 +308,7 @@ export default function StocksPage() {
   const [power, setPower] = useState(1);
   const [decay, setDecay] = useState(10);
   const [baseDate, setBaseDate] = useState(defaultBaseDate);
+  const [period, setPeriod] = useState<KLinePeriod>(chartPeriods[2]);
 
   const sortedStocks = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -306,32 +436,75 @@ export default function StocksPage() {
       </aside>
 
       <div className="stock-chart-panel">
-        <div className="stock-chart-header">
-          <div>
-            <h2>{selected ? selected.symbol : "清风指数"}</h2>
-            <p>
-              {selected
-                ? `${selected.order_book_id} · ${selected.industry_name || "未标注行业"}`
-                : `加权综合 · ${String(indexMeta.stocks || "?")} 成分股`}
-            </p>
+        <div className="stock-terminal">
+          <div className="stock-terminal-topbar">
+            <button className="chart-tool-btn menu-btn" type="button" title="菜单">
+              <Menu size={22} />
+            </button>
+            <div className="chart-symbol">
+              <span className="chart-symbol-badge">{(selected?.symbol || "Q").slice(0, 1).toUpperCase()}</span>
+              <div>
+                <strong>{selected ? selected.symbol : "清风指数"}</strong>
+                <small>
+                  {selected
+                    ? `${selected.order_book_id} · ${selected.industry_name || "未标注行业"}`
+                    : `加权综合 · ${String(indexMeta.stocks || "?")} 成分股`}
+                </small>
+              </div>
+            </div>
+            <div className="chart-periods" role="tablist" aria-label="K线周期">
+              {chartPeriods.map(item => (
+                <button
+                  className={`chart-period${period.label === item.label ? " active" : ""}`}
+                  type="button"
+                  key={item.label}
+                  onClick={() => setPeriod(item)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="chart-actions">
+              <button className="chart-action-btn" type="button" title="指标"><Gauge size={18} /><span>指标</span></button>
+              <button className="chart-action-btn" type="button" title="时区"><Globe2 size={18} /><span>时区</span></button>
+              <button className="chart-action-btn" type="button" title="设置"><Settings size={18} /><span>设置</span></button>
+              <button className="chart-action-btn" type="button" title="截屏"><Camera size={18} /><span>截屏</span></button>
+              <button className="chart-action-btn" type="button" title="全屏"><Fullscreen size={18} /><span>全屏</span></button>
+            </div>
+            <span className="chart-point-count">{chartSeries.length} 点</span>
           </div>
-          <span>{chartSeries.length} 点</span>
+          <div className="stock-chart-workspace">
+            <div className="chart-left-toolbar" aria-label="绘图工具">
+              {drawingTools.map(({ title, icon: Icon }) => (
+                <button className="chart-left-tool" type="button" title={title} key={title}>
+                  <Icon size={22} />
+                </button>
+              ))}
+              <button className="chart-left-tool chart-left-danger" type="button" title="清空">
+                <Trash2 size={22} />
+              </button>
+            </div>
+            <div className="chart-canvas-area">
+              <span className="chart-currency">USD</span>
+              {chartLoading
+                ? <div className="chart-placeholder">加载中...</div>
+                : (
+                    <KLineChart
+                      points={chartSeries}
+                      mode={selected ? "stock" : "index"}
+                      symbol={selected?.order_book_id || "QF_INDEX"}
+                      period={period}
+                    />
+                  )}
+            </div>
+          </div>
         </div>
-        {chartLoading
-          ? <div className="chart-placeholder">加载中...</div>
-          : (
-              <KLineChart
-                points={chartSeries}
-                mode={selected ? "stock" : "index"}
-                symbol={selected?.order_book_id || "QF_INDEX"}
-              />
-            )}
       </div>
     </section>
   );
 }
 
-function KLineChart({ points, mode, symbol }: { points: KLinePoint[]; mode: ChartMode; symbol: string }) {
+function KLineChart({ points, mode, symbol, period }: { points: KLinePoint[]; mode: ChartMode; symbol: string; period: KLinePeriod }) {
   const chartRef = useRef<KLineChartInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
@@ -352,11 +525,12 @@ function KLineChart({ points, mode, symbol }: { points: KLinePoint[]; mode: Char
         return;
       }
       chart.setSymbol?.({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
-      chart.setPeriod?.({ span: 1, type: "min" });
+      chart.setPeriod?.({ span: period.span, type: period.type });
       chart.setBarSpace?.(mode === "stock" ? 7 : 4);
       if (mode === "stock") {
         chart.createIndicator?.("MA", false, { id: "candle_pane" });
-        chart.createIndicator?.("VOL", false, { height: 120 });
+        chart.createIndicator?.("VOL", false, { height: 116 });
+        chart.createIndicator?.("MACD", false, { height: 78 });
       }
       chart.applyNewData(points);
       chart.scrollToRealTime?.(0);
@@ -369,7 +543,7 @@ function KLineChart({ points, mode, symbol }: { points: KLinePoint[]; mode: Char
       if (window.klinecharts && container) window.klinecharts.dispose(container);
       chartRef.current = null;
     };
-  }, [mode, points, symbol]);
+  }, [mode, period, points, symbol]);
 
   useEffect(() => {
     const resize = () => chartRef.current?.resize?.();
@@ -381,6 +555,9 @@ function KLineChart({ points, mode, symbol }: { points: KLinePoint[]; mode: Char
   return (
     <div className="kline-chart-shell">
       <div className="kline-chart" ref={containerRef} />
+      <div className="kline-watermark" aria-hidden="true">
+        <BarChart3 size={68} />
+      </div>
       {error && <div className="chart-overlay-error">{error}</div>}
     </div>
   );
