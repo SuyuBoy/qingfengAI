@@ -21,10 +21,8 @@ const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 const INDEX_CHART_PERIODS: Period[] = [
   { multiplier: 1, timespan: "minute", text: "1m" },
   { multiplier: 5, timespan: "minute", text: "5m" },
-  { multiplier: 10, timespan: "minute", text: "10m" },
+  { multiplier: 15, timespan: "minute", text: "15m" },
   { multiplier: 30, timespan: "minute", text: "30m" },
-  { multiplier: 1, timespan: "hour", text: "1H" },
-  { multiplier: 2, timespan: "hour", text: "2H" },
   { multiplier: 1, timespan: "day", text: "D" },
   { multiplier: 1, timespan: "week", text: "W" },
 ];
@@ -305,7 +303,7 @@ function KLineProChart({
           return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
         },
         getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
-          if (period.timespan === "minute" || period.timespan === "hour") {
+          if (period.timespan === "minute") {
             const cacheKey = `min_${ip}`;
             if (!indexCache[cacheKey]) {
               const data = await api.get<{ index: StockIndexPoint[] }>(
