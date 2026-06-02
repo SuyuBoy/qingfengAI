@@ -1,16 +1,19 @@
-.stocks-layout {
+/* 全宽股票页面 */
+.container:has(.stocks-layout) {
+  max-width: 100%;
+  padding: 0 1rem;
+}
+#app .stocks-layout {
   display: flex;
-  gap: 1rem;
-  height: calc(100vh - 80px);
-  min-height: 500px;
+  gap: 0;
+  min-height: calc(100vh - 60px);
 }
 
 .stock-list-panel {
-  width: 340px;
+  width: 320px;
   flex-shrink: 0;
   background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   padding: 1rem;
 }
@@ -18,10 +21,8 @@
 .stock-chart-panel {
   flex: 1;
   background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   padding: 1rem;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .chart-placeholder,
@@ -29,11 +30,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  height: 200px;
   color: var(--muted);
   font-size: 1.1rem;
 }
 
+/* 排序栏 */
+.sort-bar {
+  display: flex;
+  gap: 4px;
+  margin: 0.5rem 0;
+}
+
+.sort-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sort-btn.active {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* 股票列表 */
 .stock-row {
   display: flex;
   align-items: center;
@@ -48,10 +72,11 @@
 .stock-row:hover { background: rgba(255,255,255,0.04); }
 .stock-row.selected { background: rgba(59,130,246,0.15); }
 
-.stock-symbol { font-weight: 600; min-width: 70px; }
-.stock-code { color: var(--muted); font-size: 0.85rem; }
-.stock-meta { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+.stock-symbol { font-weight: 600; width: 70px; flex-shrink: 0; }
+.stock-code { color: var(--muted); font-size: 0.82rem; }
+.stock-meta { margin-left: auto; font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
 
+/* K线 */
 .chart-header {
   display: flex;
   justify-content: space-between;
@@ -64,12 +89,7 @@
   font-size: 1.1rem;
 }
 
-.stock-code {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 #kline-canvas {
-  width: 100%;
-  max-height: calc(100vh - 200px);
+  display: block;
+  max-width: 100%;
 }
