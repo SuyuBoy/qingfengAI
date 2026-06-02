@@ -159,9 +159,7 @@ function showIndexChart() {
       candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
     },
   });
-  chart.setSymbol({ ticker: "清风指数" });
-  chart.setPeriod({ span: 1, type: "min" });
-  chart.setDataLoader({ getBars: ({ callback }) => { callback(klineData); } });
+  chart.applyNewData(klineData);
 }
 
 // ---- 个股K线 ----
@@ -204,9 +202,7 @@ window._selectStock = async function (code) {
       candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
     },
   });
-  chart.setSymbol({ ticker: s.symbol });
-  chart.setPeriod({ span: 1, type: "min" });
-  chart.setDataLoader({ getBars: ({ callback }) => { callback(klineData); } });
+  chart.applyNewData(klineData);
 };
 
 // ---- 参数 ----
