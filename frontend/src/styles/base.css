@@ -14,6 +14,7 @@
   --danger: #d92d20;
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
   --sidebar-width: 280px;
+  --sidebar-rail-width: 64px;
   --radius: 8px;
   --font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
@@ -79,7 +80,7 @@ button {
 }
 
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-rail-width) minmax(0, 1fr);
 }
 
 .app-sidebar {
@@ -97,7 +98,57 @@ button {
 }
 
 .sidebar-collapsed .app-sidebar {
-  transform: translateX(-100%);
+  align-items: center;
+  padding: 0.75rem 0.45rem;
+  transform: none;
+}
+
+.sidebar-collapsed .sidebar-top {
+  width: 100%;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sidebar-collapsed .brand-row,
+.sidebar-collapsed .sidebar-primary,
+.sidebar-collapsed .sidebar-nav-item,
+.sidebar-collapsed .account-row {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar-collapsed .brand-row span,
+.sidebar-collapsed .sidebar-primary span,
+.sidebar-collapsed .sidebar-nav-item span,
+.sidebar-collapsed .sidebar-section,
+.sidebar-collapsed .account-main,
+.sidebar-collapsed .account-row svg,
+.sidebar-collapsed .sidebar-footer .sidebar-nav-item {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-tools {
+  justify-content: center;
+}
+
+.sidebar-collapsed .sidebar-tools .icon-btn:not(.desktop-only) {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-nav,
+.sidebar-collapsed .sidebar-footer {
+  width: 100%;
+  align-items: center;
+}
+
+.sidebar-collapsed .sidebar-footer {
+  margin-top: auto;
+  border-top: 0;
 }
 
 .sidebar-top,
@@ -282,8 +333,7 @@ button {
   min-height: 100vh;
 }
 
-.mobile-menu-btn,
-.sidebar-rail-btn {
+.mobile-menu-btn {
   position: fixed;
   z-index: 120;
   width: 38px;
@@ -303,11 +353,6 @@ button {
   top: 0.75rem;
   left: 0.75rem;
   display: none;
-}
-
-.sidebar-rail-btn {
-  top: 0.75rem;
-  left: 0.75rem;
 }
 
 .sidebar-scrim {
@@ -375,6 +420,50 @@ button {
     transform: translateX(-100%);
   }
 
+  .sidebar-collapsed .app-sidebar.open {
+    align-items: stretch;
+    padding: 0.75rem;
+    transform: translateX(0);
+  }
+
+  .sidebar-collapsed .app-sidebar.open .sidebar-top {
+    flex-direction: row;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .brand-row,
+  .sidebar-collapsed .app-sidebar.open .sidebar-primary,
+  .sidebar-collapsed .app-sidebar.open .sidebar-nav-item,
+  .sidebar-collapsed .app-sidebar.open .account-row {
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .brand-row span,
+  .sidebar-collapsed .app-sidebar.open .sidebar-primary span,
+  .sidebar-collapsed .app-sidebar.open .sidebar-nav-item span,
+  .sidebar-collapsed .app-sidebar.open .account-row svg {
+    display: initial;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .sidebar-section {
+    display: flex;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .account-main {
+    display: grid;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .account-row {
+    display: grid;
+  }
+
+  .sidebar-collapsed .app-sidebar.open .sidebar-tools .icon-btn:not(.desktop-only) {
+    display: inline-flex;
+  }
+
   .sidebar-scrim {
     position: fixed;
     inset: 0;
@@ -388,7 +477,6 @@ button {
     display: inline-flex;
   }
 
-  .sidebar-rail-btn,
   .desktop-only {
     display: none;
   }

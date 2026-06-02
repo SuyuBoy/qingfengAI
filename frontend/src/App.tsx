@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
-  ChevronLeft,
   LogOut,
   Menu,
   MessageSquarePlus,
@@ -181,7 +180,12 @@ export default function App() {
             <button className="icon-btn" type="button" title="切换主题" onClick={toggleTheme}>
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <button className="icon-btn desktop-only" type="button" title="收起侧边栏" onClick={() => setSidebarCollapsed(true)}>
+            <button
+              className="icon-btn desktop-only"
+              type="button"
+              title={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              onClick={() => setSidebarCollapsed(value => !value)}
+            >
               <PanelLeft size={17} />
             </button>
             <button className="icon-btn mobile-only" type="button" title="关闭侧边栏" onClick={() => setSidebarOpen(false)}>
@@ -245,11 +249,6 @@ export default function App() {
         </div>
       </aside>
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="关闭侧边栏" onClick={() => setSidebarOpen(false)} />}
-      {sidebarCollapsed && (
-        <button className="sidebar-rail-btn" type="button" title="展开侧边栏" onClick={() => setSidebarCollapsed(false)}>
-          <ChevronLeft size={18} />
-        </button>
-      )}
       <main className="app-main" id="app">
         {route === "/stocks" ? <StocksPage /> : route === "/dynamics" ? <DynamicsPage /> : <ChatPage user={user} />}
       </main>

@@ -16,12 +16,9 @@ import {
 import {
   ArrowDown,
   Bug,
-  ChevronLeft,
-  ChevronDown,
   Image as ImageIcon,
   PanelRightClose,
   Plus,
-  SlidersHorizontal,
   SendHorizontal,
   Square,
   X,
@@ -123,7 +120,7 @@ function getInitialState() {
 }
 
 function toThreadMessage(message: UiChatMessage): ThreadMessageLike {
-  const content = message.stream?.content || message.content || (message.stream?.typing ? "思考中..." : "");
+  const content = message.stream ? message.stream.content : message.content || "";
   return {
     id: message.id,
     role: message.role === "system" ? "system" : message.role === "user" ? "user" : "assistant",
@@ -196,7 +193,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     if (draft && streamId) {
       setMessages(prev => prev.map(message =>
         message.id === streamId
-          ? { ...message, content: draft.content || (draft.typing ? "思考中..." : ""), stream: { ...draft } }
+          ? { ...message, content: draft.content, stream: { ...draft } }
           : message,
       ));
     }
@@ -314,7 +311,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     const assistantMessage: UiChatMessage = {
       id: assistantId,
       role: "assistant",
-      content: "思考中...",
+      content: "",
       stream: { content: "", reasoning: "", steps: [], typing: true },
     };
 
@@ -489,114 +486,65 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     <AssistantRuntimeProvider runtime={runtime}>
       <div id="chat-view" className={chatViewClass}>
         <div className="chat-main">
-          <div className="chat-topbar">
-            <ChatControls
-              model={model}
-              cacheStats={cacheStats}
-              isAdmin={Boolean(user.is_admin)}
-              onModelChange={setModel}
-              onDebugOpen={openDebug}
-              onNew={beginNewSession}
-              toolCount={cards.length}
-              onToggleTools={expandSidebar}
-            />
-          </div>
           <AssistantThread
             pastedImages={pastedImages}
             streaming={streaming}
+            model={model}
             effort={effort}
             maxRounds={maxRounds}
             debug={debug}
+            cacheStats={cacheStats}
             isAdmin={Boolean(user.is_admin)}
+            onModelChange={setModel}
             onEffortChange={setEffort}
             onMaxRoundsChange={setMaxRounds}
             onDebugChange={setDebug}
             onDebugOpen={openDebug}
+            onOpenActivity={expandSidebar}
             onPaste={onPaste}
             onRemoveImage={removePastedImage}
           />
         </div>
         <ToolSidebar cards={cards} onCollapse={collapseSidebar} onReadArticle={openArticle} />
       </div>
-      {sidebarCollapsed && (
-        <button className="chat-sidebar-expand sidebar-expand-btn" title="展开工具调用" onClick={expandSidebar}>
-          <ChevronLeft size={15} /> 工具{cards.length ? ` (${cards.length})` : ""}
-        </button>
-      )}
       {articleId && <ArticleModal articleId={articleId} onClose={closeArticle} />}
       {debugOpen && <DebugModal messages={window.__debugMessages || stripRuntimeFields(messages)} debugLog={debugLog} onClose={closeDebug} />}
     </AssistantRuntimeProvider>
   );
 }
 
-const ChatControls = memo(function ChatControls({
-  model,
-  cacheStats,
-  isAdmin,
-  onModelChange,
-  onDebugOpen,
-  onNew,
-  toolCount,
-  onToggleTools,
-}: {
-  model: string;
-  cacheStats: DsCacheStats;
-  isAdmin: boolean;
-  onModelChange: (value: string) => void;
-  onDebugOpen: () => void;
-  onNew: () => void;
-  toolCount: number;
-  onToggleTools: () => void;
-}) {
-  return (
-    <div className="chat-controls">
-      <label className="model-select-wrap">
-        <select value={model} onChange={e => onModelChange(e.target.value)} aria-label="模型">
-          <option value="deepseek-v4-flash">DeepSeek v4 Flash</option>
-          <option value="deepseek-v4-pro">DeepSeek v4 Pro</option>
-        </select>
-        <ChevronDown size={15} />
-      </label>
-      <CacheRing stats={cacheStats} />
-      <button className="icon-text-btn chat-tools-btn" title="工具调用" onClick={onToggleTools}>
-        <SlidersHorizontal size={16} /> 工具{toolCount ? ` ${toolCount}` : ""}
-      </button>
-      {isAdmin && (
-        <button className="icon-text-btn" title="查看调试" onClick={onDebugOpen}>
-          <Bug size={15} /> 调试
-        </button>
-      )}
-      <button className="icon-btn" title="新对话" onClick={onNew}>
-        <Plus size={17} />
-      </button>
-    </div>
-  );
-});
-
 const AssistantThread = memo(function AssistantThread({
   pastedImages,
   streaming,
+  model,
   effort,
   maxRounds,
   debug,
+  cacheStats,
   isAdmin,
+  onModelChange,
   onEffortChange,
   onMaxRoundsChange,
   onDebugChange,
   onDebugOpen,
+  onOpenActivity,
   onPaste,
   onRemoveImage,
 }: {
   pastedImages: string[];
   streaming: boolean;
+  model: string;
   effort: string;
   maxRounds: number;
   debug: boolean;
+  cacheStats: DsCacheStats;
   isAdmin: boolean;
+  onModelChange: (value: string) => void;
   onEffortChange: (value: string) => void;
   onMaxRoundsChange: (value: number) => void;
   onDebugChange: (value: boolean) => void;
   onDebugOpen: () => void;
+  onOpenActivity: () => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveImage: (idx: number) => void;
 }) {
@@ -608,7 +556,7 @@ const AssistantThread = memo(function AssistantThread({
             <div className="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
           </AuiIf>
           <div className="aui-message-list">
-            <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+            <ThreadPrimitive.Messages>{() => <ThreadMessage onOpenActivity={onOpenActivity} />}</ThreadPrimitive.Messages>
           </div>
           <ThreadPrimitive.ViewportFooter className="aui-thread-footer">
             <ThreadPrimitive.ScrollToBottom asChild>
@@ -619,10 +567,13 @@ const AssistantThread = memo(function AssistantThread({
             <Composer
               pastedImages={pastedImages}
               streaming={streaming}
+              model={model}
               effort={effort}
               maxRounds={maxRounds}
               debug={debug}
+              cacheStats={cacheStats}
               isAdmin={isAdmin}
+              onModelChange={onModelChange}
               onEffortChange={onEffortChange}
               onMaxRoundsChange={onMaxRoundsChange}
               onDebugChange={onDebugChange}
@@ -640,10 +591,13 @@ const AssistantThread = memo(function AssistantThread({
 const Composer = memo(function Composer({
   pastedImages,
   streaming,
+  model,
   effort,
   maxRounds,
   debug,
+  cacheStats,
   isAdmin,
+  onModelChange,
   onEffortChange,
   onMaxRoundsChange,
   onDebugChange,
@@ -653,10 +607,13 @@ const Composer = memo(function Composer({
 }: {
   pastedImages: string[];
   streaming: boolean;
+  model: string;
   effort: string;
   maxRounds: number;
   debug: boolean;
+  cacheStats: DsCacheStats;
   isAdmin: boolean;
+  onModelChange: (value: string) => void;
   onEffortChange: (value: string) => void;
   onMaxRoundsChange: (value: number) => void;
   onDebugChange: (value: boolean) => void;
@@ -702,6 +659,13 @@ const Composer = memo(function Composer({
         {menuOpen && (
           <div className="composer-menu">
             <div className="composer-menu-row">
+              <span>模型</span>
+              <select value={model} onChange={e => onModelChange(e.target.value)}>
+                <option value="deepseek-v4-flash">DeepSeek v4 Flash</option>
+                <option value="deepseek-v4-pro">DeepSeek v4 Pro</option>
+              </select>
+            </div>
+            <div className="composer-menu-row">
               <span>思考强度</span>
               <select value={effort} onChange={e => onEffortChange(e.target.value)}>
                 <option value="high">高思考</option>
@@ -721,6 +685,7 @@ const Composer = memo(function Composer({
             <div className="composer-menu-note">
               图片可直接粘贴到输入框。
             </div>
+            <CacheRing stats={cacheStats} />
             {isAdmin && (
               <>
                 <label className="composer-menu-row switch-row">
@@ -773,9 +738,9 @@ const Composer = memo(function Composer({
   );
 });
 
-const ThreadMessage = memo(function ThreadMessage() {
+const ThreadMessage = memo(function ThreadMessage({ onOpenActivity }: { onOpenActivity: () => void }) {
   const role = useAuiState(state => state.message.role);
-  return role === "user" ? <UserMessage /> : <AssistantMessage />;
+  return role === "user" ? <UserMessage /> : <AssistantMessage onOpenActivity={onOpenActivity} />;
 });
 
 const UserMessage = memo(function UserMessage() {
@@ -789,13 +754,13 @@ const UserMessage = memo(function UserMessage() {
   );
 });
 
-const AssistantMessage = memo(function AssistantMessage() {
+const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { onOpenActivity: () => void }) {
   const original = useAuiState(state => getExternalStoreMessages<UiChatMessage>(state.message)[0]);
   return (
     <MessagePrimitive.Root className={`aui-message assistant${original?.stream?.typing ? " typing" : ""}${original?.stream?.error ? " error" : ""}`}>
       <div className="aui-message-role">AI</div>
       <div className="aui-message-body">
-        {original?.stream && <StreamThoughts draft={original.stream} />}
+        {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
         <MessagePrimitive.Parts>
           {({ part }) => part.type === "text" ? <MarkdownTextPart /> : null}
         </MessagePrimitive.Parts>
@@ -815,12 +780,19 @@ const MarkdownTextPart = memo(function MarkdownTextPart() {
   return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
-const StreamThoughts = memo(function StreamThoughts({ draft }: { draft: AssistantDraft }) {
-  if (!draft.steps.length && !draft.reasoning) return null;
+const StreamThoughts = memo(function StreamThoughts({ draft, onOpenActivity }: { draft: AssistantDraft; onOpenActivity: () => void }) {
+  if (!draft.typing && !draft.steps.length && !draft.reasoning) return null;
+  const toolCount = draft.steps.filter(step => step.type === "tool").length;
   return (
-    <details className="msg-think" open>
-      <summary>思考过程</summary>
-      <div className="think-steps">
+    <div className="msg-think">
+      {draft.reasoning && <div className="think-preview">{draft.reasoning}</div>}
+      <button className="thinking-status" type="button" onClick={onOpenActivity}>
+        {draft.typing ? "正在思考" : "思考完成"}
+        {toolCount ? <span> · {toolCount} 次工具调用</span> : null}
+      </button>
+      <details className="think-inline-detail">
+        <summary>展开思考过程</summary>
+        <div className="think-steps">
         {draft.steps.map((step, index) => (
           <div
             className={step.type === "tool" ? "think-tool" : "think-step"}
@@ -828,9 +800,9 @@ const StreamThoughts = memo(function StreamThoughts({ draft }: { draft: Assistan
             dangerouslySetInnerHTML={{ __html: step.text }}
           />
         ))}
-        {draft.reasoning && <div className="think-step">{draft.reasoning}</div>}
-      </div>
-    </details>
+        </div>
+      </details>
+    </div>
   );
 });
 
@@ -842,10 +814,13 @@ const ToolSidebar = memo(function ToolSidebar({ cards, onCollapse, onReadArticle
   return (
     <aside className="chat-sidebar tool-sidebar">
       <div className="tool-sidebar-title">
-        <span>工具调用</span>
+        <span>活动</span>
         <button className="icon-btn" title="收起工具调用" onClick={onCollapse}><PanelRightClose size={15} /></button>
       </div>
-      {!cards.length && <div className="tool-sidebar-empty">等待工具调用...</div>}
+      <div className="tool-activity-section">
+        <div className="tool-activity-title">思考</div>
+        <div className="tool-activity-subtitle">{cards.length ? "已记录工具调用过程" : "等待工具调用..."}</div>
+      </div>
       {cards.map(card => (
         <div className="tool-card" key={card.id}>
           <div className="tool-card-head">
