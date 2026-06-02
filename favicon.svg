@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0d0d0d"/>
+  <path d="M12 16c9-8 22-9 32-3 5 3 8 7 10 12-8-6-17-8-27-5-7 2-12 6-15 12 0-5 0-10 0-16Z" fill="#10a37f"/>
+  <path d="M15 42c10 6 23 6 34-1-4 8-13 13-23 12-7-1-13-5-16-10 2 0 3 0 5-1Z" fill="#c084fc"/>
+  <text x="32" y="40" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="700" fill="#ffffff">清</text>
+</svg>

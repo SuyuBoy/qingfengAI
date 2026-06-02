@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:github-root": "tsc --noEmit && vite build --outDir ../.root-build --emptyOutDir && rm -rf ../assets ../js && cp -R ../.root-build/index.html ../index.html && cp -R ../.root-build/assets ../assets && cp -R ../.root-build/js ../js && rm -rf ../.root-build",
+    "build:github-root": "tsc --noEmit && vite build --outDir ../.root-build --emptyOutDir && rm -rf ../assets ../js && cp -R ../.root-build/index.html ../index.html && cp -R ../.root-build/assets ../assets && cp -R ../.root-build/js ../js && cp -R ../.root-build/favicon.svg ../favicon.svg && rm -rf ../.root-build",
     "preview": "vite preview"
   },
   "dependencies": {
