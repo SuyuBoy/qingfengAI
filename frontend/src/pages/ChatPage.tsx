@@ -24,6 +24,13 @@ import {
   X,
 } from "lucide-react";
 import { API_BASE, api, getToken } from "../api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { escapeHtml, renderMarkdown } from "../markdown";
 import type {
   ArticleSummary,
@@ -631,6 +638,8 @@ const Composer = memo(function Composer({
   const composerRuntime = useComposerRuntime();
   const canSend = useAuiState(state => state.composer.canSend);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const plusRef = useRef<HTMLButtonElement | null>(null);
   const send = useCallback(() => {
     if (pastedImages.length && !composerRuntime.getState().text.trim()) {
       composerRuntime.setText("[图片]");
@@ -638,6 +647,19 @@ const Composer = memo(function Composer({
     setMenuOpen(false);
     composerRuntime.send();
   }, [composerRuntime, pastedImages.length]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (menuRef.current?.contains(target) || plusRef.current?.contains(target)) return;
+      if ((target as Element).closest?.("[data-slot='select-content']")) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
 
   return (
     <ComposerPrimitive.Root className="aui-composer-root">
@@ -655,8 +677,9 @@ const Composer = memo(function Composer({
           </div>
         )}
         <button
+          ref={plusRef}
           type="button"
-          className="composer-plus-btn"
+          className={`composer-plus-btn${menuOpen ? " is-open" : ""}`}
           title="更多选项"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen(open => !open)}
@@ -664,20 +687,30 @@ const Composer = memo(function Composer({
           <Plus size={20} />
         </button>
         {menuOpen && (
-          <div className="composer-menu">
+          <div className="composer-menu" ref={menuRef}>
             <div className="composer-menu-row">
               <span>模型</span>
-              <select value={model} onChange={e => onModelChange(e.target.value)}>
-                <option value="deepseek-v4-flash">DeepSeek v4 Flash</option>
-                <option value="deepseek-v4-pro">DeepSeek v4 Pro</option>
-              </select>
+              <Select value={model} onValueChange={onModelChange}>
+                <SelectTrigger aria-label="选择模型" className="composer-select-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deepseek-v4-flash">DeepSeek v4 Flash</SelectItem>
+                  <SelectItem value="deepseek-v4-pro">DeepSeek v4 Pro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="composer-menu-row">
               <span>思考强度</span>
-              <select value={effort} onChange={e => onEffortChange(e.target.value)}>
-                <option value="high">高思考</option>
-                <option value="max">最强思考</option>
-              </select>
+              <Select value={effort} onValueChange={onEffortChange}>
+                <SelectTrigger aria-label="选择思考强度" className="composer-select-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">高思考</SelectItem>
+                  <SelectItem value="max">最强思考</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <label className="composer-menu-row">
               <span>工具轮数</span>

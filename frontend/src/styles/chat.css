@@ -363,9 +363,22 @@
   color: var(--muted);
 }
 
+.composer-plus-btn svg {
+  transition: transform 0.16s ease;
+}
+
 .composer-plus-btn:hover {
   background: var(--surface-2);
   color: var(--text);
+}
+
+.composer-plus-btn.is-open {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.composer-plus-btn.is-open svg {
+  transform: rotate(45deg);
 }
 
 .composer-menu {
@@ -373,6 +386,10 @@
   left: 0;
   bottom: calc(100% + 0.6rem);
   width: min(320px, 92vw);
+  max-width: calc(100vw - 2rem);
+  max-height: min(420px, calc(100vh - 9rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.55rem;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -393,7 +410,6 @@
   font-size: 0.9rem;
 }
 
-.composer-menu-row select,
 .composer-menu-row input[type="number"],
 .composer-menu-row input[type="date"] {
   width: 150px;
@@ -405,9 +421,142 @@
   padding: 0 0.45rem;
 }
 
+.composer-menu-row > span:first-child {
+  flex: 0 0 auto;
+}
+
 .composer-menu-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
+}
+
+.aui-select-trigger {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.aui-select-trigger:hover,
+.aui-select-trigger[data-state="open"] {
+  background: var(--surface-2);
+}
+
+.aui-select-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-2) 68%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+.aui-select-trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.composer-select-trigger {
+  width: 166px;
+  max-width: 56vw;
+}
+
+.aui-select-trigger [data-slot="select-value"] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aui-select-chevron {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.aui-select-content {
+  z-index: 95;
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.aui-select-content[data-state="open"] {
+  animation: select-pop-in 0.12s ease-out;
+}
+
+@keyframes select-pop-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.aui-select-viewport {
+  padding: 0.25rem;
+}
+
+.aui-select-item {
+  position: relative;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 2rem 0.35rem 0.55rem;
+  border-radius: 6px;
+  outline: none;
+  cursor: default;
+  user-select: none;
+  font-size: 0.9rem;
+}
+
+.aui-select-item[data-highlighted] {
+  background: var(--surface-2);
+}
+
+.aui-select-item[data-disabled] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.aui-select-item-indicator {
+  position: absolute;
+  right: 0.45rem;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aui-select-separator {
+  height: 1px;
+  margin: 0.25rem;
+  background: var(--border);
+}
+
+.aui-select-label {
+  padding: 0.35rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.aui-select-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0;
+  color: var(--muted);
 }
 
 .composer-menu-note {
