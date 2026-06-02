@@ -304,17 +304,15 @@ function KLineProChart({
           const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
           return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
         },
-        getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
+        getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
           if (period.timespan === "minute" || period.timespan === "hour") {
-            const fd = tsToDateStr(from);
-            const td = tsToDateStr(to);
-            const key = `ohlc:${fd}:${td}:${ip}`;
-            if (!indexCache[key]) {
+            const cacheKey = `min_${ip}`;
+            if (!indexCache[cacheKey]) {
               const data = await api.get<{ index: StockIndexPoint[] }>(
-                `/api/stocks/index/ohlc?from=${fd}&to=${td}&period=${ip}`);
-              indexCache[key] = toIndexKLine(data?.index || []);
+                `/api/stocks/index/ohlc?period=${ip}`);
+              indexCache[cacheKey] = toIndexKLine(data?.index || []);
             }
-            return indexCache[key];
+            return indexCache[cacheKey];
           }
           // day / week — 都取日线数据，周线由图表聚合
           if (!indexCache[ip]) {
