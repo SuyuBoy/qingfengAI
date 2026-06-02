@@ -19,7 +19,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Er
     if (!this.state.error) return this.props.children;
 
     return (
-      <main className="container">
+      <main className="auth-screen">
         <div className="error">
           页面渲染失败：{this.state.error.message}
           <br />

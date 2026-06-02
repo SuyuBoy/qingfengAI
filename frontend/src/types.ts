@@ -77,3 +77,28 @@ export interface DsCacheStats {
   hit: number;
   miss: number;
 }
+
+export interface StockSummary {
+  order_book_id: string;
+  symbol: string;
+  industry_name?: string;
+  last_mentioned?: string;
+  active_from?: string;
+  active_mentions: number;
+  mention_count: number;
+}
+
+export interface StockPrice {
+  datetime: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+  amount?: number;
+}
+
+export interface StockIndexPoint {
+  datetime: string;
+  value: number;
+}

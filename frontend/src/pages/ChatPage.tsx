@@ -17,14 +17,13 @@ import {
   ArrowDown,
   Bug,
   ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Image as ImageIcon,
-  PanelLeftClose,
   PanelRightClose,
   Plus,
+  SlidersHorizontal,
   SendHorizontal,
   Square,
-  Trash2,
   X,
 } from "lucide-react";
 import { API_BASE, api, getToken } from "../api";
@@ -149,7 +148,6 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [messages, setMessages] = useState<UiChatMessage[]>(initial.messages);
   const [streaming, setStreaming] = useState(false);
   const [cards, setCards] = useState<ToolCardData[]>([]);
-  const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pastedImages, setPastedImages] = useState<string[]>([]);
   const [model, setModel] = useState("deepseek-v4-flash");
@@ -214,6 +212,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const persistSessions = useCallback((nextSessions: ChatSession[]) => {
     setSessions(nextSessions);
     saveSessions(nextSessions);
+    window.dispatchEvent(new CustomEvent("chat-sessions-changed"));
   }, []);
 
   const persistActiveSession = useCallback((sessionId: string | null, nextMessages: UiChatMessage[], currentSessions?: ChatSession[]) => {
@@ -258,12 +257,6 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     localCardsRef.current = [];
   }, []);
 
-  const deleteSession = useCallback((id: string) => {
-    const nextSessions = sessionsRef.current.filter(s => s.id !== id);
-    persistSessions(nextSessions);
-    if (id === activeSessionIdRef.current) beginNewSession();
-  }, [beginNewSession, persistSessions]);
-
   const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -287,14 +280,26 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setPastedImages(prev => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const collapseHistory = useCallback(() => setHistoryCollapsed(true), []);
-  const expandHistory = useCallback(() => setHistoryCollapsed(false), []);
   const collapseSidebar = useCallback(() => setSidebarCollapsed(true), []);
   const expandSidebar = useCallback(() => setSidebarCollapsed(false), []);
   const openArticle = useCallback((id: string) => setArticleId(id), []);
   const closeArticle = useCallback(() => setArticleId(null), []);
   const openDebug = useCallback(() => setDebugOpen(true), []);
   const closeDebug = useCallback(() => setDebugOpen(false), []);
+
+  useEffect(() => {
+    const onNewSession = () => beginNewSession();
+    const onLoadSession = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (id) loadSession(id);
+    };
+    window.addEventListener("chat-new-session", onNewSession);
+    window.addEventListener("chat-load-session", onLoadSession);
+    return () => {
+      window.removeEventListener("chat-new-session", onNewSession);
+      window.removeEventListener("chat-load-session", onLoadSession);
+    };
+  }, [beginNewSession, loadSession]);
 
   const sendMessage = useCallback(async (appendMessage: AppendMessage) => {
     const text = extractAppendText(appendMessage);
@@ -478,57 +483,41 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     onNew: sendMessage,
   });
 
-  const chatViewClass = useMemo(() =>
-    [sidebarCollapsed ? "collapsed" : "", historyCollapsed ? "history-collapsed" : ""]
-      .filter(Boolean).join(" "),
-    [sidebarCollapsed, historyCollapsed]);
-
-  const sortedSessions = useMemo(() =>
-    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt),
-    [sessions]);
+  const chatViewClass = useMemo(() => sidebarCollapsed ? "collapsed" : "", [sidebarCollapsed]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div id="chat-view" className={chatViewClass}>
-        <HistorySidebar
-          sessions={sortedSessions}
-          activeSessionId={activeSessionId}
-          onNew={beginNewSession}
-          onLoad={loadSession}
-          onDelete={deleteSession}
-          onCollapse={collapseHistory}
-        />
         <div className="chat-main">
           <div className="chat-topbar">
             <ChatControls
               model={model}
-              effort={effort}
-              maxRounds={maxRounds}
               cacheStats={cacheStats}
-              debug={debug}
               isAdmin={Boolean(user.is_admin)}
               onModelChange={setModel}
-              onEffortChange={setEffort}
-              onMaxRoundsChange={setMaxRounds}
-              onDebugChange={setDebug}
               onDebugOpen={openDebug}
               onNew={beginNewSession}
+              toolCount={cards.length}
+              onToggleTools={expandSidebar}
             />
           </div>
           <AssistantThread
             pastedImages={pastedImages}
             streaming={streaming}
+            effort={effort}
+            maxRounds={maxRounds}
+            debug={debug}
+            isAdmin={Boolean(user.is_admin)}
+            onEffortChange={setEffort}
+            onMaxRoundsChange={setMaxRounds}
+            onDebugChange={setDebug}
+            onDebugOpen={openDebug}
             onPaste={onPaste}
             onRemoveImage={removePastedImage}
           />
         </div>
         <ToolSidebar cards={cards} onCollapse={collapseSidebar} onReadArticle={openArticle} />
       </div>
-      {historyCollapsed && (
-        <button className="chat-sidebar-expand history-expand-btn" title="展开历史" onClick={expandHistory}>
-          <ChevronRight size={15} /> 历史
-        </button>
-      )}
       {sidebarCollapsed && (
         <button className="chat-sidebar-expand sidebar-expand-btn" title="展开工具调用" onClick={expandSidebar}>
           <ChevronLeft size={15} /> 工具{cards.length ? ` (${cards.length})` : ""}
@@ -542,65 +531,43 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
 
 const ChatControls = memo(function ChatControls({
   model,
-  effort,
-  maxRounds,
   cacheStats,
-  debug,
   isAdmin,
   onModelChange,
-  onEffortChange,
-  onMaxRoundsChange,
-  onDebugChange,
   onDebugOpen,
   onNew,
+  toolCount,
+  onToggleTools,
 }: {
   model: string;
-  effort: string;
-  maxRounds: number;
   cacheStats: DsCacheStats;
-  debug: boolean;
   isAdmin: boolean;
   onModelChange: (value: string) => void;
-  onEffortChange: (value: string) => void;
-  onMaxRoundsChange: (value: number) => void;
-  onDebugChange: (value: boolean) => void;
   onDebugOpen: () => void;
   onNew: () => void;
+  toolCount: number;
+  onToggleTools: () => void;
 }) {
   return (
     <div className="chat-controls">
-      <select value={model} onChange={e => onModelChange(e.target.value)} aria-label="模型">
-        <option value="deepseek-v4-flash">v4 Flash</option>
-        <option value="deepseek-v4-pro">v4 Pro</option>
-      </select>
-      <select value={effort} onChange={e => onEffortChange(e.target.value)} aria-label="思考强度">
-        <option value="high">高思考</option>
-        <option value="max">最强思考</option>
-      </select>
-      <label className="rounds-label">
-        工具轮数
-        <input
-          type="number"
-          value={maxRounds}
-          min="1"
-          max="50"
-          onChange={e => onMaxRoundsChange(Number(e.target.value) || 10)}
-        />
+      <label className="model-select-wrap">
+        <select value={model} onChange={e => onModelChange(e.target.value)} aria-label="模型">
+          <option value="deepseek-v4-flash">DeepSeek v4 Flash</option>
+          <option value="deepseek-v4-pro">DeepSeek v4 Pro</option>
+        </select>
+        <ChevronDown size={15} />
       </label>
       <CacheRing stats={cacheStats} />
+      <button className="icon-text-btn chat-tools-btn" title="工具调用" onClick={onToggleTools}>
+        <SlidersHorizontal size={16} /> 工具{toolCount ? ` ${toolCount}` : ""}
+      </button>
       {isAdmin && (
-        <>
-          <label className="debug-toggle">
-            <input type="checkbox" checked={debug} onChange={e => onDebugChange(e.target.checked)} />
-            调试
-          </label>
-          <button className="icon-text-btn" title="查看调试" onClick={onDebugOpen}>
-            <Bug size={15} /> 调试
-          </button>
-        </>
+        <button className="icon-text-btn" title="查看调试" onClick={onDebugOpen}>
+          <Bug size={15} /> 调试
+        </button>
       )}
-      <button className="icon-text-btn" title="新对话" onClick={onNew}>
-        <Plus size={15} /> 新对话
+      <button className="icon-btn" title="新对话" onClick={onNew}>
+        <Plus size={17} />
       </button>
     </div>
   );
@@ -609,11 +576,27 @@ const ChatControls = memo(function ChatControls({
 const AssistantThread = memo(function AssistantThread({
   pastedImages,
   streaming,
+  effort,
+  maxRounds,
+  debug,
+  isAdmin,
+  onEffortChange,
+  onMaxRoundsChange,
+  onDebugChange,
+  onDebugOpen,
   onPaste,
   onRemoveImage,
 }: {
   pastedImages: string[];
   streaming: boolean;
+  effort: string;
+  maxRounds: number;
+  debug: boolean;
+  isAdmin: boolean;
+  onEffortChange: (value: string) => void;
+  onMaxRoundsChange: (value: number) => void;
+  onDebugChange: (value: boolean) => void;
+  onDebugOpen: () => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveImage: (idx: number) => void;
 }) {
@@ -633,7 +616,20 @@ const AssistantThread = memo(function AssistantThread({
                 <ArrowDown size={16} />
               </button>
             </ThreadPrimitive.ScrollToBottom>
-            <Composer pastedImages={pastedImages} streaming={streaming} onPaste={onPaste} onRemoveImage={onRemoveImage} />
+            <Composer
+              pastedImages={pastedImages}
+              streaming={streaming}
+              effort={effort}
+              maxRounds={maxRounds}
+              debug={debug}
+              isAdmin={isAdmin}
+              onEffortChange={onEffortChange}
+              onMaxRoundsChange={onMaxRoundsChange}
+              onDebugChange={onDebugChange}
+              onDebugOpen={onDebugOpen}
+              onPaste={onPaste}
+              onRemoveImage={onRemoveImage}
+            />
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
@@ -644,20 +640,38 @@ const AssistantThread = memo(function AssistantThread({
 const Composer = memo(function Composer({
   pastedImages,
   streaming,
+  effort,
+  maxRounds,
+  debug,
+  isAdmin,
+  onEffortChange,
+  onMaxRoundsChange,
+  onDebugChange,
+  onDebugOpen,
   onPaste,
   onRemoveImage,
 }: {
   pastedImages: string[];
   streaming: boolean;
+  effort: string;
+  maxRounds: number;
+  debug: boolean;
+  isAdmin: boolean;
+  onEffortChange: (value: string) => void;
+  onMaxRoundsChange: (value: number) => void;
+  onDebugChange: (value: boolean) => void;
+  onDebugOpen: () => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveImage: (idx: number) => void;
 }) {
   const composerRuntime = useComposerRuntime();
   const canSend = useAuiState(state => state.composer.canSend);
+  const [menuOpen, setMenuOpen] = useState(false);
   const send = useCallback(() => {
     if (pastedImages.length && !composerRuntime.getState().text.trim()) {
       composerRuntime.setText("[图片]");
     }
+    setMenuOpen(false);
     composerRuntime.send();
   }, [composerRuntime, pastedImages.length]);
 
@@ -676,11 +690,55 @@ const Composer = memo(function Composer({
             ))}
           </div>
         )}
+        <button
+          type="button"
+          className="composer-plus-btn"
+          title="更多选项"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(open => !open)}
+        >
+          <Plus size={20} />
+        </button>
+        {menuOpen && (
+          <div className="composer-menu">
+            <div className="composer-menu-row">
+              <span>思考强度</span>
+              <select value={effort} onChange={e => onEffortChange(e.target.value)}>
+                <option value="high">高思考</option>
+                <option value="max">最强思考</option>
+              </select>
+            </div>
+            <label className="composer-menu-row">
+              <span>工具轮数</span>
+              <input
+                type="number"
+                value={maxRounds}
+                min="1"
+                max="50"
+                onChange={e => onMaxRoundsChange(Number(e.target.value) || 10)}
+              />
+            </label>
+            <div className="composer-menu-note">
+              图片可直接粘贴到输入框。
+            </div>
+            {isAdmin && (
+              <>
+                <label className="composer-menu-row switch-row">
+                  <span>调试模式</span>
+                  <input type="checkbox" checked={debug} onChange={e => onDebugChange(e.target.checked)} />
+                </label>
+                <button className="composer-menu-action" type="button" onClick={onDebugOpen}>
+                  <Bug size={15} /> 查看调试上下文
+                </button>
+              </>
+            )}
+          </div>
+        )}
         <ComposerPrimitive.Input
           rows={1}
           autoFocus
           className="aui-composer-input"
-          placeholder="输入问题...（可直接粘贴图片）"
+          placeholder="有问题，尽管问"
           submitMode="enter"
           addAttachmentOnPaste={false}
           onPaste={onPaste}
@@ -773,66 +831,6 @@ const StreamThoughts = memo(function StreamThoughts({ draft }: { draft: Assistan
         {draft.reasoning && <div className="think-step">{draft.reasoning}</div>}
       </div>
     </details>
-  );
-});
-
-const HistorySidebar = memo(function HistorySidebar({ sessions, activeSessionId, onNew, onLoad, onDelete, onCollapse }: {
-  sessions: ChatSession[];
-  activeSessionId: string | null;
-  onNew: () => void;
-  onLoad: (id: string) => void;
-  onDelete: (id: string) => void;
-  onCollapse: () => void;
-}) {
-  return (
-    <aside className="chat-sidebar history-sidebar">
-      <div className="tool-sidebar-title">
-        <span>历史对话</span>
-        <div className="chat-sidebar-actions">
-          <button className="icon-btn" title="新对话" onClick={onNew}><Plus size={15} /></button>
-          <button className="icon-btn" title="收起历史" onClick={onCollapse}><PanelLeftClose size={15} /></button>
-        </div>
-      </div>
-      {!sessions.length && <div className="tool-sidebar-empty">暂无历史对话</div>}
-      <div className="history-list">
-        {sessions.map(session => (
-          <HistoryCard
-            key={session.id}
-            session={session}
-            isActive={session.id === activeSessionId}
-            onLoad={onLoad}
-            onDelete={onDelete}
-          />
-        ))}
-      </div>
-    </aside>
-  );
-});
-
-const HistoryCard = memo(function HistoryCard({ session, isActive, onLoad, onDelete }: {
-  session: ChatSession;
-  isActive: boolean;
-  onLoad: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const date = useMemo(() => new Date(session.updatedAt).toLocaleDateString("zh-CN"), [session.updatedAt]);
-  const count = useMemo(() => session.messages.filter(m => m.role === "user").length, [session.messages]);
-
-  return (
-    <button className={`history-card${isActive ? " active" : ""}`} onClick={() => onLoad(session.id)}>
-      <span className="history-card-title">{session.title}</span>
-      <span className="history-card-meta">{date} · {count} 轮</span>
-      <span
-        className="history-card-del"
-        title="删除"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(session.id);
-        }}
-      >
-        <Trash2 size={13} />
-      </span>
-    </button>
   );
 });
 

@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, RefreshCw, Search, X } from "lucide-react";
 import { API_BASE, api } from "../api";
 import type { DynamicItem, DynamicsResponse } from "../types";
 
@@ -149,9 +150,20 @@ export default function DynamicsPage() {
   }, [initialLoad]);
 
   return (
-    <>
+    <section className="dynamics-page">
+      <div className="workspace-head">
+        <div>
+          <h1>动态</h1>
+          <p>清风文章库检索与归档</p>
+        </div>
+        <button className="mini-icon-btn" title="刷新" type="button" onClick={handleRefresh}>
+          <RefreshCw size={17} />
+        </button>
+      </div>
+
       <div className="top-row">
         <div className="search-bar">
+          <Search size={18} />
           <input
             type="text"
             id="search-kw"
@@ -162,10 +174,10 @@ export default function DynamicsPage() {
           />
           <button id="search-btn" onClick={doSearch}>搜索</button>
           {searchMode && (
-            <button id="search-clear-btn" className="clear-btn" onClick={clearSearch}>清空</button>
+            <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
           )}
         </div>
-        <button id="cal-btn" title="按日期筛选" onClick={() => document.getElementById("date-pick")?.click()}>📅</button>
+        <button id="cal-btn" title="按日期筛选" onClick={() => document.getElementById("date-pick")?.click()}><CalendarDays size={17} /></button>
         <span id="cal-label" className="cal-label">{currentDate}</span>
         {currentDate && (
           <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
@@ -177,7 +189,6 @@ export default function DynamicsPage() {
           value={currentDate}
           onChange={e => setDate(e.target.value)}
         />
-        <button id="refresh-btn" onClick={handleRefresh}>刷新</button>
       </div>
 
       <div id="card-list">
@@ -204,7 +215,7 @@ export default function DynamicsPage() {
           {moreLoading ? "加载中..." : "加载更多"}
         </button>
       )}
-    </>
+    </section>
   );
 }
 
