@@ -120,11 +120,18 @@ function getInitialState() {
 }
 
 function toThreadMessage(message: UiChatMessage): ThreadMessageLike {
+  const role = message.role === "system" ? "system" : message.role === "user" ? "user" : "assistant";
   const content = message.stream ? message.stream.content : message.content || "";
-  return {
+  const base = {
     id: message.id,
-    role: message.role === "system" ? "system" : message.role === "user" ? "user" : "assistant",
+    role,
     content: [{ type: "text", text: content }],
+  } satisfies ThreadMessageLike;
+
+  if (role !== "assistant") return base;
+
+  return {
+    ...base,
     status: message.stream?.typing ? { type: "running" } : message.stream?.error
       ? { type: "incomplete", reason: "error", error: message.stream.error }
       : { type: "complete", reason: "stop" },
