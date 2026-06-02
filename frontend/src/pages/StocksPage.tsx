@@ -247,6 +247,16 @@ function KLineProChart({
   const chartRef = useRef<KLineChartProHandle | null>(null);
   const resizeLoopRef = useRef(0);
   const [error, setError] = useState("");
+  const [theme, setTheme] = useState(() =>
+    (document.documentElement.dataset.theme || "dark") as "light" | "dark");
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setTheme((root.dataset.theme || "dark") as "light" | "dark");
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   const resizeChart = useCallback(() => {
     chartRef.current?._chartApi?.resize?.();
@@ -292,7 +302,7 @@ function KLineProChart({
 
     try {
       chartRef.current = new KLineChartPro({
-        container, locale: "zh-CN", theme: "dark", watermark: proWatermark,
+        container, locale: "zh-CN", theme, watermark: proWatermark,
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
         mainIndicators: ["MA"], subIndicators: ["VOL", "MACD"], datafeed,
       }) as unknown as KLineChartProHandle;
@@ -301,7 +311,7 @@ function KLineProChart({
       setError(reason instanceof Error ? reason.message : "KLineChart Pro 初始化失败");
     }
     return () => { chartRef.current = null; container.innerHTML = ""; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme, layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { resizeChartDuringTransition(); }, [layoutKey, resizeChartDuringTransition]);
 
