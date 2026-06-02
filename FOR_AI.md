@@ -485,14 +485,43 @@ interface ChatMessage {
 
 ### 3.11 股票页面（前端）
 
-`#/stocks` 页面使用 [KLineChart](https://github.com/klinecharts/KLineChart) 渲染交互式K线图，库文件在 `js/klinecharts.umd.js`。
+`#/stocks` 使用 **KLineChart v10** 渲染交互式K线图。
 
-架构:
-- `js/views/stocks.js` — 页面逻辑：获取活跃列表 → 用户点选股票 → 获取K线 → `klinecharts.init()` 渲染
-- `css/stocks.css` — 全宽左右分栏布局（左侧320px股票列表，右侧图表区）
-- 排序支持：活跃次数 / 总提及次数 / 最近提及日期
+#### 依赖
 
-K线图交互能力：缩放、拖拽、十字光标、支持未来添加技术指标。
+| 文件 | 说明 |
+|---|---|
+| `js/klinecharts.umd.js` | KLineChart v10 UMD 构建产物（363KB），从 CDN 下载后本地化 |
+| `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅 API，不参与构建 |
+
+> 获取 KLineChart 源码：`git clone https://github.com/liihuu/KLineChart.git klinecharts-src`
+> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@10.0.0-beta2/dist/umd/klinecharts.js" -o js/klinecharts.umd.js`
+
+#### v10 API 要点（与 v9 不同）
+
+| v9 | v10 | 说明 |
+|---|---|---|
+| `chart.applyNewData(data)` | `chart.setDataLoader({ getBars: ({callback}) => callback(data) })` | 数据注入改为回调模式 |
+| `chart.updateData(data)` | 同上 | 更新数据也走 setDataLoader |
+| `chart.dispose()` | **不存在** | 清空容器 DOM 后重新 `init()` 替代 |
+| - | `chart.setSymbol({ ticker })` | 必须设置标的 |
+| - | `chart.setPeriod({ span, type })` | 必须设置周期，type: "min"/"day" 等 |
+
+#### 架构
+
+```
+stocks.js
+  ├── init()                  → GET /api/stocks/active → 渲染左侧列表
+  ├── loadIndex()             → GET /api/stocks/index → 清风指数卡片+K线
+  ├── _selectStock(code)      → GET /api/stocks/prices/:code → 个股K线
+  ├── _showIndex()            → klinecharts.init("kline-container")
+  └── _applyParams()          → 调指数参数后重新 loadIndex()
+```
+
+- `js/views/stocks.js` — 全部股票页面逻辑
+- `css/stocks.css` — 全宽左右分栏（左侧320px，右侧自适应）
+- 排序：活跃次数 / 总提及 / 最近提及
+- 交互：缩放、拖拽、十字光标
 
 ### 3.12 GET /api/admin/users
 
