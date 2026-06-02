@@ -173,6 +173,8 @@ button {
 .sidebar-primary,
 .sidebar-nav-item,
 .recent-item,
+.recent-more,
+.recent-menu-item,
 .account-row,
 .icon-btn,
 .mini-icon-btn {
@@ -194,7 +196,6 @@ button {
 
 .brand-row:hover,
 .sidebar-nav-item:hover,
-.recent-item:hover,
 .account-row:hover,
 .icon-btn:hover,
 .mini-icon-btn:hover {
@@ -261,18 +262,98 @@ button {
   padding-right: 0.2rem;
 }
 
+.recent-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius);
+}
+
+.recent-row:hover,
+.recent-row:focus-within,
+.recent-row.menu-open {
+  background: var(--surface-2);
+}
+
 .recent-item {
   width: 100%;
   min-height: 34px;
-  display: block;
-  padding: 0.42rem 0.7rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0.42rem 2.45rem 0.42rem 0.7rem;
   border-radius: var(--radius);
   color: var(--text);
   text-align: left;
+  font-size: 0.88rem;
+}
+
+.recent-item span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.88rem;
+}
+
+.recent-more {
+  position: absolute;
+  right: 0.25rem;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  color: var(--muted);
+  opacity: 0;
+}
+
+.recent-row:hover .recent-more,
+.recent-row:focus-within .recent-more,
+.recent-row.menu-open .recent-more {
+  opacity: 1;
+}
+
+.recent-more:hover {
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.recent-menu {
+  position: fixed;
+  z-index: 220;
+  min-width: 128px;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+}
+
+.recent-menu-item {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 0.65rem;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+}
+
+.recent-menu-item:hover {
+  background: var(--surface-2);
+}
+
+.recent-menu-item.danger {
+  color: var(--danger);
+}
+
+@media (hover: none) {
+  .recent-more {
+    opacity: 1;
+  }
 }
 
 .sidebar-empty {

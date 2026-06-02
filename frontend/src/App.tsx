@@ -6,11 +6,13 @@ import {
   MessageSquare,
   MessageSquarePlus,
   Moon,
+  MoreHorizontal,
   PanelLeft,
   RefreshCw,
   Search,
   Sparkles,
   Sun,
+  Trash2,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -26,6 +28,7 @@ const ACTIVE_KEY = "chat_active_session";
 const THEME_KEY = "qf_theme";
 
 type ThemeMode = "light" | "dark";
+type SessionMenuState = { id: string; top: number; left: number };
 
 function getRoute() {
   const hash = window.location.hash.replace(/^#/, "");
@@ -41,6 +44,10 @@ function loadChatSessions() {
   if (!raw) return [];
   const sessions = JSON.parse(raw) as ChatSession[];
   return Array.isArray(sessions) ? sessions : [];
+}
+
+function saveChatSessions(sessions: ChatSession[]) {
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 }
 
 function getInitialTheme(): ThemeMode {
@@ -61,6 +68,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [openSessionMenu, setOpenSessionMenu] = useState<SessionMenuState | null>(null);
   const crawlCooldown = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,6 +130,13 @@ export default function App() {
     };
   }, [searchOpen]);
 
+  useEffect(() => {
+    if (!openSessionMenu) return;
+    const closeMenu = () => setOpenSessionMenu(null);
+    window.addEventListener("click", closeMenu);
+    return () => window.removeEventListener("click", closeMenu);
+  }, [openSessionMenu]);
+
   const triggerCrawl = useCallback(async () => {
     const now = Date.now();
     if (now - crawlCooldown.current < 60000) {
@@ -169,7 +184,21 @@ export default function App() {
     window.dispatchEvent(new CustomEvent("chat-load-session", { detail: { id } }));
     setSidebarOpen(false);
     setSearchOpen(false);
+    setOpenSessionMenu(null);
   }, [route]);
+
+  const deleteSession = useCallback((id: string) => {
+    const activeId = localStorage.getItem(ACTIVE_KEY);
+    const nextSessions = loadChatSessions().filter(session => session.id !== id);
+    saveChatSessions(nextSessions);
+    setSessions(nextSessions);
+    setOpenSessionMenu(null);
+    window.dispatchEvent(new CustomEvent("chat-sessions-changed"));
+    if (activeId === id) {
+      localStorage.removeItem(ACTIVE_KEY);
+      window.dispatchEvent(new CustomEvent("chat-session-deleted", { detail: { id } }));
+    }
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === "dark" ? "light" : "dark");
@@ -251,15 +280,48 @@ export default function App() {
           <div className="sidebar-section-title">最近</div>
           <div className="recent-list">
             {recentSessions.length ? recentSessions.map(session => (
-              <button
-                className="recent-item"
-                type="button"
-                key={session.id}
-                title={session.title}
-                onClick={() => loadSession(session.id)}
-              >
-                {session.title}
-              </button>
+              <div className={`recent-row${openSessionMenu?.id === session.id ? " menu-open" : ""}`} key={session.id}>
+                <button
+                  className="recent-item"
+                  type="button"
+                  title={session.title}
+                  onClick={() => loadSession(session.id)}
+                >
+                  <span>{session.title}</span>
+                </button>
+                <button
+                  className="recent-more"
+                  type="button"
+                  title="更多"
+                  aria-haspopup="menu"
+                  aria-expanded={openSessionMenu?.id === session.id}
+                  onClick={event => {
+                    event.stopPropagation();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const menuWidth = 128;
+                    const menuHeight = 48;
+                    const topBelow = rect.bottom + 4;
+                    const top = topBelow + menuHeight > window.innerHeight - 8 ? rect.top - menuHeight - 4 : topBelow;
+                    const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
+                    setOpenSessionMenu(value => value?.id === session.id ? null : { id: session.id, top, left });
+                  }}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+                {openSessionMenu?.id === session.id && (
+                  <div
+                    className="recent-menu"
+                    role="menu"
+                    style={{ top: openSessionMenu.top, left: openSessionMenu.left }}
+                    onClick={event => event.stopPropagation()}
+                  >
+                    <button className="recent-menu-item danger" type="button" role="menuitem" onClick={() => deleteSession(session.id)}>
+                      <Trash2 size={17} />
+                      <span>删除</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )) : <div className="sidebar-empty">暂无对话</div>}
           </div>
         </div>

@@ -176,6 +176,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const streamingRef = useRef(streaming);
   const draftAccRef = useRef<AssistantDraft | null>(null);
   const streamMessageIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const deletedSessionIdsRef = useRef(new Set<string>());
   const rafRef = useRef<number>(0);
   const localCardsRef = useRef<ToolCardData[]>([]);
   const localDebugLogRef = useRef<DebugLogEntry[]>([]);
@@ -244,8 +246,11 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     persistSessions(nextSessions);
   }, [persistSessions]);
 
-  const beginNewSession = useCallback(() => {
-    if (streamingRef.current) return;
+  const resetCurrentSession = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
     setMessages([]);
     setActiveSessionId(null);
     setStoredActiveId(null);
@@ -255,7 +260,14 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setDebugLog([]);
     localDebugLogRef.current = [];
     setPastedImages([]);
+    draftAccRef.current = null;
+    streamMessageIdRef.current = null;
   }, []);
+
+  const beginNewSession = useCallback(() => {
+    if (streamingRef.current) return;
+    resetCurrentSession();
+  }, [resetCurrentSession]);
 
   const loadSession = useCallback((id: string) => {
     if (streamingRef.current || id === activeSessionIdRef.current) return;
@@ -317,13 +329,24 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       const id = (event as CustomEvent<{ id?: string }>).detail?.id;
       if (id) loadSession(id);
     };
+    const onSessionDeleted = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id) return;
+      deletedSessionIdsRef.current.add(id);
+      if (id === activeSessionIdRef.current) {
+        abortControllerRef.current?.abort();
+        resetCurrentSession();
+      }
+    };
     window.addEventListener("chat-new-session", onNewSession);
     window.addEventListener("chat-load-session", onLoadSession);
+    window.addEventListener("chat-session-deleted", onSessionDeleted);
     return () => {
       window.removeEventListener("chat-new-session", onNewSession);
       window.removeEventListener("chat-load-session", onLoadSession);
+      window.removeEventListener("chat-session-deleted", onSessionDeleted);
     };
-  }, [beginNewSession, loadSession]);
+  }, [beginNewSession, loadSession, resetCurrentSession]);
 
   const sendMessage = useCallback(async (appendMessage: AppendMessage) => {
     const text = extractAppendText(appendMessage);
@@ -355,6 +378,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setCards([]);
     setDebugLog([]);
     setStreaming(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     let finalMessages = outboundMessages;
     let content = "";
@@ -381,6 +406,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
+        signal: abortController.signal,
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${getToken()}`,
@@ -468,12 +494,17 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       if (!receivedDoneMessages && content) {
         finalMessages = [...finalMessages, { id: makeId(), role: "assistant", content }];
       }
+      if (deletedSessionIdsRef.current.has(sessionId)) return;
       const cleanFinalMessages = normalizeMessages(stripRuntimeFields(finalMessages));
       setMessages(cleanFinalMessages);
       setCards(accumulatedCards);
       setDebugLog(accumulatedDebugLog);
       persistActiveSession(sessionId, cleanFinalMessages);
     } catch (e) {
+      if (deletedSessionIdsRef.current.has(sessionId)) {
+        draftAccRef.current = null;
+        return;
+      }
       const failed: UiChatMessage = {
         id: assistantId,
         role: "assistant",
@@ -490,6 +521,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       persistActiveSession(sessionId, previousMessages);
       draftAccRef.current = null;
     } finally {
+      if (abortControllerRef.current === abortController) abortControllerRef.current = null;
       streamMessageIdRef.current = null;
       setStreaming(false);
     }
