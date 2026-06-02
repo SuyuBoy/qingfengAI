@@ -5,9 +5,15 @@
   grid-template-columns: minmax(0, 1fr) 360px;
   overflow: hidden;
   background: var(--bg);
+  transition: grid-template-columns 0.18s ease;
+}
+
+.stocks-page.stocks-collapsed {
+  grid-template-columns: minmax(0, 1fr) 48px;
 }
 
 .stocks-panel {
+  position: relative;
   height: 100vh;
   min-height: 0;
   display: flex;
@@ -16,6 +22,46 @@
   overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--surface);
+}
+
+.stocks-collapse-rail {
+  display: none;
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.stocks-collapse-rail:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.stocks-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stocks-collapsed .stocks-panel {
+  padding: 0.4rem;
+}
+
+.stocks-collapsed .stocks-collapse-rail {
+  display: inline-flex;
+}
+
+.stocks-collapsed .stocks-panel-head,
+.stocks-collapsed .index-summary,
+.stocks-collapsed .index-params,
+.stocks-collapsed .stock-sort-bar,
+.stocks-collapsed .stock-list {
+  display: none;
 }
 
 .stocks-panel-head {
@@ -284,12 +330,25 @@
     overflow: visible;
   }
 
+  .stocks-page.stocks-collapsed {
+    grid-template-columns: 1fr;
+  }
+
   .stocks-panel {
     height: auto;
     min-height: 0;
     max-height: 60vh;
     border-left: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .stocks-collapsed .stocks-panel {
+    max-height: none;
+    min-height: 52px;
+  }
+
+  .stocks-collapsed .stocks-collapse-rail {
+    height: 40px;
   }
 
   .stock-chart-panel {

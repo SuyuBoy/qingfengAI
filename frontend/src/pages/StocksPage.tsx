@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, SlidersHorizontal } from "lucide-react";
+import { BarChart3, PanelRightClose, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import { KLineChartPro } from "@klinecharts/pro";
 import type { Datafeed, DatafeedSubscribeCallback, Period, SymbolInfo } from "@klinecharts/pro";
 import type { KLineData } from "klinecharts";
@@ -123,6 +123,7 @@ export default function StocksPage() {
   const [power, setPower] = useState(1);
   const [decay, setDecay] = useState(10);
   const [baseDate, setBaseDate] = useState(defaultBaseDate);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const sortedStocks = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -196,7 +197,7 @@ export default function StocksPage() {
   }, [loadIndex]);
 
   return (
-    <section className="stocks-page">
+    <section className={`stocks-page${panelCollapsed ? " stocks-collapsed" : ""}`}>
       <div className="stock-chart-panel">
         {chartLoading
           ? <div className="chart-placeholder">加载中...</div>
@@ -209,14 +210,27 @@ export default function StocksPage() {
       </div>
 
       <aside className="stocks-panel">
+        <button
+          className="stocks-collapse-rail"
+          type="button"
+          title={panelCollapsed ? "展开股票列表" : "折叠股票列表"}
+          onClick={() => setPanelCollapsed(collapsed => !collapsed)}
+        >
+          {panelCollapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
+        </button>
         <div className="stocks-panel-head">
           <div>
             <h1>股票</h1>
             <p>清风文章库中的活跃标的</p>
           </div>
-          <button className="mini-icon-btn" type="button" title="刷新" onClick={loadStocks}>
-            <BarChart3 size={17} />
-          </button>
+          <div className="stocks-panel-actions">
+            <button className="mini-icon-btn" type="button" title="刷新" onClick={loadStocks}>
+              <BarChart3 size={17} />
+            </button>
+            <button className="mini-icon-btn" type="button" title="折叠股票列表" onClick={() => setPanelCollapsed(true)}>
+              <PanelRightClose size={17} />
+            </button>
+          </div>
         </div>
 
         <button className={`index-summary${!selected ? " active" : ""}`} type="button" onClick={loadIndex}>
