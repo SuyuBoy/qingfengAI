@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { KLineChartPro } from "@klinecharts/pro";
 import type { Datafeed, DatafeedSubscribeCallback, Period, SymbolInfo } from "@klinecharts/pro";
-import { CandleType, type KLineData } from "klinecharts";
+import type { KLineData } from "klinecharts";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
@@ -54,10 +54,17 @@ function datetimeToTs(datetime: string) {
 }
 
 function toIndexKLine(series: StockIndexPoint[]): KLinePoint[] {
-  return series.map(point => ({
-    timestamp: datetimeToTs(point.datetime),
-    open: point.value, high: point.value, low: point.value, close: point.value, volume: 0,
-  })).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));
+  return series.map((point, i) => {
+    const prevClose = i > 0 ? series[i - 1].value : point.value;
+    return {
+      timestamp: datetimeToTs(point.datetime),
+      open: prevClose,
+      high: Math.max(prevClose, point.value),
+      low: Math.min(prevClose, point.value),
+      close: point.value,
+      volume: 0,
+    };
+  }).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));
 }
 
 function toStockKLine(series: StockPrice[]): KLinePoint[] {
@@ -304,9 +311,8 @@ function KLineProChart({
       chartRef.current = new KLineChartPro({
         container, locale: "zh-CN", theme, watermark: proWatermark,
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
-        mainIndicators: isIndex ? [] : ["MA"],
-        subIndicators: isIndex ? [] : ["VOL", "MACD"],
-        styles: isIndex ? { candle: { type: CandleType.Area } } : undefined,
+        mainIndicators: ["MA"],
+        subIndicators: ["VOL", "MACD"],
         datafeed,
       }) as unknown as KLineChartProHandle;
       resizeChartDuringTransition(160);
