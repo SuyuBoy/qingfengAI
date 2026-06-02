@@ -348,7 +348,7 @@
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: end;
+  align-items: center;
   gap: 0.35rem;
   min-height: 64px;
   padding: 0.6rem 0.65rem;
@@ -356,6 +356,10 @@
   border-radius: 32px;
   background: var(--card-bg);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.09);
+}
+
+.aui-composer-shell.is-multiline {
+  align-items: end;
 }
 
 :root[data-theme="dark"] .aui-composer-shell {
@@ -620,10 +624,15 @@
 }
 
 .aui-composer-actions {
-  align-self: end;
+  align-self: center;
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.aui-composer-shell.is-multiline .composer-plus-btn,
+.aui-composer-shell.is-multiline .aui-composer-actions {
+  align-self: end;
 }
 
 .image-upload-btn {

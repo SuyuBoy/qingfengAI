@@ -692,14 +692,29 @@ const Composer = memo(function Composer({
   const composerRuntime = useComposerRuntime();
   const canSend = useAuiState(state => state.composer.canSend);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMultiline, setIsMultiline] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const plusRef = useRef<HTMLButtonElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const syncInputRows = useCallback((input: HTMLTextAreaElement | null) => {
+    if (!input) {
+      setIsMultiline(false);
+      return;
+    }
+    const style = window.getComputedStyle(input);
+    const fontSize = Number.parseFloat(style.fontSize) || 16;
+    const lineHeight = Number.parseFloat(style.lineHeight) || fontSize * 1.45;
+    const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+    setIsMultiline(input.scrollHeight > lineHeight + paddingTop + paddingBottom + 2);
+  }, []);
   const send = useCallback(() => {
     if (pastedImages.length && !composerRuntime.getState().text.trim()) {
       composerRuntime.setText("[图片]");
     }
     setMenuOpen(false);
+    setIsMultiline(false);
     composerRuntime.send();
   }, [composerRuntime, pastedImages.length]);
 
@@ -728,7 +743,7 @@ const Composer = memo(function Composer({
 
   return (
     <ComposerPrimitive.Root className="aui-composer-root">
-      <div className="aui-composer-shell">
+      <div className={`aui-composer-shell${isMultiline ? " is-multiline" : ""}`}>
         {pastedImages.length > 0 && (
           <div className="chat-paste-preview">
             {pastedImages.map((b64, i) => (
@@ -805,12 +820,14 @@ const Composer = memo(function Composer({
           </div>
         )}
         <ComposerPrimitive.Input
+          ref={composerInputRef}
           rows={1}
           autoFocus
           className="aui-composer-input"
           placeholder="有问题，尽管问"
           submitMode="enter"
           addAttachmentOnPaste={false}
+          onInput={event => syncInputRows(event.currentTarget)}
           onPaste={onPaste}
           aria-label="输入问题"
         />
