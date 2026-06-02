@@ -311,7 +311,7 @@ function KLineProChart({
       setError(reason instanceof Error ? reason.message : "KLineChart Pro 初始化失败");
     }
     return () => { chartRef.current = null; container.innerHTML = ""; };
-  }, [theme, layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme, layoutKey, isIndex ? indexPoints : null]);  // index mode: re-init when data arrives
 
   useEffect(() => { resizeChartDuringTransition(); }, [layoutKey, resizeChartDuringTransition]);
 
