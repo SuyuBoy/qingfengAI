@@ -64,6 +64,12 @@ async function showChat() {
   await mod.init(app);
 }
 
+async function showStocks() {
+  const app = document.getElementById("app");
+  const mod = await import("./views/stocks.js");
+  await mod.init(app);
+}
+
 function showLock() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -88,6 +94,8 @@ async function route() {
     showLock();
   } else if (hash === "/chat") {
     await showChat();
+  } else if (hash === "/stocks") {
+    await showStocks();
   } else {
     await showDynamics();
   }
