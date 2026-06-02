@@ -10,6 +10,9 @@ type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & {
   turnover?: number;
 };
+type KLineChartProHandle = {
+  _chartApi?: { resize?: () => void };
+};
 
 const defaultBaseDate = new Date().toISOString().slice(0, 10);
 const defaultPeriod: Period = { multiplier: 15, timespan: "minute", text: "15m" };
@@ -205,6 +208,7 @@ export default function StocksPage() {
               <KLineProChart
                 points={chartSeries}
                 symbol={symbolInfo}
+                layoutKey={panelCollapsed ? "collapsed" : "expanded"}
               />
             )}
       </div>
@@ -278,9 +282,36 @@ export default function StocksPage() {
   );
 }
 
-function KLineProChart({ points, symbol }: { points: KLinePoint[]; symbol: SymbolInfo }) {
+function KLineProChart({
+  points,
+  symbol,
+  layoutKey,
+}: {
+  points: KLinePoint[];
+  symbol: SymbolInfo;
+  layoutKey: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<KLineChartProHandle | null>(null);
+  const resizeLoopRef = useRef(0);
   const [error, setError] = useState("");
+
+  const resizeChart = useCallback(() => {
+    chartRef.current?._chartApi?.resize?.();
+    window.dispatchEvent(new Event("resize"));
+  }, []);
+
+  const resizeChartDuringTransition = useCallback((duration = 320) => {
+    window.cancelAnimationFrame(resizeLoopRef.current);
+    const startedAt = window.performance.now();
+    const tick = (now: number) => {
+      resizeChart();
+      if (now - startedAt < duration) {
+        resizeLoopRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+    resizeLoopRef.current = window.requestAnimationFrame(tick);
+  }, [resizeChart]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -288,7 +319,7 @@ function KLineProChart({ points, symbol }: { points: KLinePoint[]; symbol: Symbo
     setError("");
     container.innerHTML = "";
     try {
-      new KLineChartPro({
+      chartRef.current = new KLineChartPro({
         container,
         locale: "zh-CN",
         theme: "light",
@@ -300,14 +331,48 @@ function KLineProChart({ points, symbol }: { points: KLinePoint[]; symbol: Symbo
         mainIndicators: ["MA"],
         subIndicators: ["VOL", "MACD"],
         datafeed: new StaticDatafeed(symbol, points),
-      });
+      }) as unknown as KLineChartProHandle;
+      resizeChartDuringTransition(160);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "KLineChart Pro 初始化失败");
     }
     return () => {
+      chartRef.current = null;
       container.innerHTML = "";
     };
-  }, [points, symbol]);
+  }, [points, resizeChartDuringTransition, symbol]);
+
+  useEffect(() => {
+    resizeChartDuringTransition();
+  }, [layoutKey, resizeChartDuringTransition]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => resizeChartDuringTransition());
+    });
+    observer.observe(container);
+    if (container.parentElement) observer.observe(container.parentElement);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [resizeChartDuringTransition]);
+
+  useEffect(() => {
+    const appShell = document.querySelector(".app-shell");
+    if (!appShell) return;
+    const observer = new MutationObserver(() => resizeChartDuringTransition(360));
+    observer.observe(appShell, { attributes: true, attributeFilter: ["class", "style"] });
+    return () => observer.disconnect();
+  }, [resizeChartDuringTransition]);
+
+  useEffect(() => () => {
+    window.cancelAnimationFrame(resizeLoopRef.current);
+  }, []);
 
   if (!points.length) return <div className="chart-placeholder">暂无图表数据</div>;
   return (
