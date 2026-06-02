@@ -485,19 +485,19 @@ interface ChatMessage {
 
 ### 3.11 股票页面（前端）
 
-`#/stocks` 使用 **KLineChart v10** 渲染交互式K线图。
+`#/stocks` 使用 **KLineChart v9** 渲染交互式K线图。
 
 #### 依赖
 
 | 文件 | 说明 |
 |---|---|
-| `js/klinecharts.umd.js` | KLineChart v10 UMD 构建产物（363KB），从 CDN 下载后本地化 |
+| `js/klinecharts.umd.js` | KLineChart v9 UMD 构建产物（363KB），从 CDN 下载后本地化 |
 | `klinecharts-src/` | KLineChart 源码克隆（gitignore），仅供查阅 API，不参与构建 |
 
 > 获取 KLineChart 源码：`git clone https://github.com/liihuu/KLineChart.git klinecharts-src`
-> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@10.0.0-beta2/dist/umd/klinecharts.js" -o js/klinecharts.umd.js`
+> 获取 UMD 构建产物：`curl -L "https://cdn.jsdelivr.net/npm/klinecharts@9.8.0/dist/umd/klinecharts.js" -o js/klinecharts.umd.js`
 
-#### v10 API 要点（与 v9 不同）
+#### v9 API 要点（与 v9 不同）
 
 | v9 | v10 | 说明 |
 |---|---|---|
