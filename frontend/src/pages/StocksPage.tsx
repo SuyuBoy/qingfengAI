@@ -36,6 +36,63 @@ const proWatermark = `
   <path d="M96.5831,52.3726C95.7692,52.3726,95.1094,52.9569,95.1094,53.6778L95.1094,61.5094L87.741,61.5094C86.1132,61.5094,84.7936,62.6782,84.7936,64.12L84.7936,86.3094C84.7936,87.7512,86.1132,88.92,87.741,88.92L95.1094,88.92L95.1094,96.7515C95.1094,97.4724,95.7692,98.0568,96.5831,98.0568C97.397,98.0568,98.0568,97.4724,98.0568,96.7515L98.0568,88.92L105.425,88.92C107.053,88.92,108.373,87.7512,108.373,86.3094L108.373,64.12C108.373,62.6782,107.053,61.5094,105.425,61.5094L98.0568,61.5094L98.0568,53.6778C98.0568,52.9569,97.397,52.3726,96.5831,52.3726Z" fill-rule="evenodd" />
 </svg>`;
 
+function periodToFrequency(period: Period): string {
+  if (period.timespan === "minute") return `${period.multiplier}m`;
+  if (period.timespan === "hour") return `${period.multiplier}h`;
+  if (period.timespan === "day") return "1d";
+  if (period.timespan === "week") return "1w";
+  if (period.timespan === "month") return "1M";
+  if (period.timespan === "year") return "1Y";
+  return "1m";
+}
+
+class PeriodAwareDatafeed implements Datafeed {
+  private cache: Map<string, KLinePoint[]> = new Map();
+  private pending: Map<string, Promise<KLinePoint[]>> = new Map();
+
+  constructor(
+    private readonly symbol: SymbolInfo,
+    private readonly fetcher: (freq: string) => Promise<KLinePoint[]>,
+  ) {}
+
+  searchSymbols(search?: string) {
+    const text = (search || "").trim().toLowerCase();
+    const haystack = `${this.symbol.ticker} ${this.symbol.shortName || ""} ${this.symbol.name || ""}`.toLowerCase();
+    return Promise.resolve(!text || haystack.includes(text) ? [this.symbol] : []);
+  }
+
+  async getHistoryKLineData(
+    _symbol: SymbolInfo,
+    period: Period,
+    _from: number,
+    _to: number,
+  ) {
+    const freq = periodToFrequency(period);
+
+    // Return cached data if available
+    const cached = this.cache.get(freq);
+    if (cached) return cached;
+
+    // Deduplicate concurrent requests for the same frequency
+    const inflight = this.pending.get(freq);
+    if (inflight) return inflight;
+
+    const promise = this.fetcher(freq).then(data => {
+      this.cache.set(freq, data);
+      return data;
+    }).finally(() => {
+      this.pending.delete(freq);
+    });
+
+    this.pending.set(freq, promise);
+    return promise;
+  }
+
+  subscribe(_symbol: SymbolInfo, _period: Period, _callback: DatafeedSubscribeCallback) {}
+
+  unsubscribe(_symbol: SymbolInfo, _period: Period) {}
+}
+
 class StaticDatafeed implements Datafeed {
   constructor(private readonly symbol: SymbolInfo, private readonly points: KLinePoint[]) {}
 
@@ -115,9 +172,9 @@ function getSymbolInfo(selected: StockSummary | null, indexMeta: Record<string, 
 export default function StocksPage() {
   const [stocks, setStocks] = useState<StockSummary[]>([]);
   const [selected, setSelected] = useState<StockSummary | null>(null);
-  const [prices, setPrices] = useState<StockPrice[]>([]);
   const [indexSeries, setIndexSeries] = useState<StockIndexPoint[]>([]);
   const [indexMeta, setIndexMeta] = useState<Record<string, number | string>>({});
+  const [indexRevision, setIndexRevision] = useState(0);
   const [sortBy, setSortBy] = useState<SortKey>("active_mentions");
   const [sortDir, setSortDir] = useState(-1);
   const [loading, setLoading] = useState(true);
@@ -135,7 +192,7 @@ export default function StocksPage() {
     });
   }, [sortBy, sortDir, stocks]);
 
-  const chartSeries = useMemo(() => selected ? toStockKLine(prices) : toIndexKLine(indexSeries), [indexSeries, prices, selected]);
+  const indexChartSeries = useMemo(() => toIndexKLine(indexSeries), [indexSeries]);
   const symbolInfo = useMemo(() => getSymbolInfo(selected, indexMeta), [indexMeta, selected]);
 
   const latestIndex = indexSeries[indexSeries.length - 1];
@@ -166,7 +223,7 @@ export default function StocksPage() {
       setIndexSeries(data?.index || []);
       setIndexMeta(data?.meta || {});
       setSelected(null);
-      setPrices([]);
+      setIndexRevision(rev => rev + 1);
     } finally {
       setChartLoading(false);
     }
@@ -174,13 +231,6 @@ export default function StocksPage() {
 
   const selectStock = useCallback(async (stock: StockSummary) => {
     setSelected(stock);
-    setChartLoading(true);
-    try {
-      const data = await api.get<{ prices: StockPrice[] }>(`/api/stocks/prices/${encodeURIComponent(stock.order_book_id)}`, { limit: 200 });
-      setPrices(data?.prices || []);
-    } finally {
-      setChartLoading(false);
-    }
   }, []);
 
   const changeSort = useCallback((key: SortKey) => {
@@ -202,15 +252,27 @@ export default function StocksPage() {
   return (
     <section className={`stocks-page${panelCollapsed ? " stocks-collapsed" : ""}`}>
       <div className="stock-chart-panel">
-        {chartLoading
+        {chartLoading && !selected
           ? <div className="chart-placeholder">加载中...</div>
-          : (
-              <KLineProChart
-                points={chartSeries}
-                symbol={symbolInfo}
-                layoutKey={panelCollapsed ? "collapsed" : "expanded"}
-              />
-            )}
+          : selected
+            ? (
+                <KLineProChart
+                  key={`stock:${selected.order_book_id}`}
+                  symbol={symbolInfo}
+                  isIndex={false}
+                  layoutKey={panelCollapsed ? "collapsed" : "expanded"}
+                  orderBookId={selected.order_book_id}
+                />
+              )
+            : (
+                <KLineProChart
+                  key={`index:${indexRevision}`}
+                  symbol={symbolInfo}
+                  isIndex={true}
+                  indexPoints={indexChartSeries}
+                  layoutKey={panelCollapsed ? "collapsed" : "expanded"}
+                />
+              )}
       </div>
 
       <aside className="stocks-panel">
@@ -283,12 +345,16 @@ export default function StocksPage() {
 }
 
 function KLineProChart({
-  points,
   symbol,
+  isIndex,
+  indexPoints,
+  orderBookId,
   layoutKey,
 }: {
-  points: KLinePoint[];
   symbol: SymbolInfo;
+  isIndex: boolean;
+  indexPoints?: KLinePoint[];
+  orderBookId?: string;
   layoutKey: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -313,11 +379,32 @@ function KLineProChart({
     resizeLoopRef.current = window.requestAnimationFrame(tick);
   }, [resizeChart]);
 
+  // Create chart once per mount (parent controls lifecycle via React key)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !points.length) return;
+    if (!container) return;
     setError("");
     container.innerHTML = "";
+
+    let datafeed: Datafeed;
+
+    if (isIndex) {
+      // Index uses static data — no period switching
+      const points = indexPoints || [];
+      datafeed = new StaticDatafeed(symbol, points);
+      if (!points.length) return; // Don't render chart without data
+    } else {
+      // Stock uses dynamic datafeed that fetches per period
+      const fetcher = async (freq: string) => {
+        const data = await api.get<{ prices: StockPrice[] }>(
+          `/api/stocks/prices/${encodeURIComponent(orderBookId || symbol.ticker)}`,
+          { frequency: freq, limit: 5000 },
+        );
+        return toStockKLine(data?.prices || []);
+      };
+      datafeed = new PeriodAwareDatafeed(symbol, fetcher);
+    }
+
     try {
       chartRef.current = new KLineChartPro({
         container,
@@ -330,7 +417,7 @@ function KLineProChart({
         timezone: "Asia/Shanghai",
         mainIndicators: ["MA"],
         subIndicators: ["VOL", "MACD"],
-        datafeed: new StaticDatafeed(symbol, points),
+        datafeed,
       }) as unknown as KLineChartProHandle;
       resizeChartDuringTransition(160);
     } catch (reason) {
@@ -340,7 +427,7 @@ function KLineProChart({
       chartRef.current = null;
       container.innerHTML = "";
     };
-  }, [points, resizeChartDuringTransition, symbol]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     resizeChartDuringTransition();
@@ -374,7 +461,11 @@ function KLineProChart({
     window.cancelAnimationFrame(resizeLoopRef.current);
   }, []);
 
-  if (!points.length) return <div className="chart-placeholder">暂无图表数据</div>;
+  // For index mode with no data, show empty state
+  if (isIndex && (!indexPoints || !indexPoints.length)) {
+    return <div className="chart-placeholder">暂无图表数据</div>;
+  }
+
   return (
     <div className="stock-pro-chart">
       <div className="stock-pro-chart-inner" ref={containerRef} />
