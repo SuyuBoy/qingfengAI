@@ -124,7 +124,11 @@ function renderChart(panel, priceData) {
       candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
     },
   });
-  chart.applyNewData(klineData);
+  chart.setSymbol({ ticker: s.symbol });
+  chart.setPeriod({ span: 1, type: "min" });
+  chart.setDataLoader({
+    getBars: ({ callback }) => { callback(klineData); },
+  });
 }
 
 function datetimeToTs(dt) {
