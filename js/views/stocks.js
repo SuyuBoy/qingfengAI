@@ -151,7 +151,8 @@ function showIndexChart() {
     timestamp: datetimeToTs(d.datetime),
     open: d.value, high: d.value, low: d.value, close: d.value, volume: 0,
   }));
-  if (chart) { chart.dispose(); chart = null; }
+  const el = document.getElementById("kline-container");
+  el.innerHTML = "";
   chart = klinecharts.init("kline-container", {
     styles: {
       grid: { horizontal: { color: "rgba(255,255,255,0.06)" }, vertical: { color: "rgba(255,255,255,0.06)" } },
@@ -195,7 +196,8 @@ window._selectStock = async function (code) {
     open: d.open, high: d.high, low: d.low, close: d.close,
     volume: d.volume, turnover: d.amount || 0,
   }));
-  if (chart) { chart.dispose(); chart = null; }
+  const el2 = document.getElementById("kline-container");
+  el2.innerHTML = "";
   chart = klinecharts.init("kline-container", {
     styles: {
       grid: { horizontal: { color: "rgba(255,255,255,0.06)" }, vertical: { color: "rgba(255,255,255,0.06)" } },
