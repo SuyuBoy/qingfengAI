@@ -292,7 +292,7 @@ function KLineProChart({
 
     try {
       chartRef.current = new KLineChartPro({
-        container, locale: "zh-CN", theme: "light", watermark: proWatermark,
+        container, locale: "zh-CN", theme: "dark", watermark: proWatermark,
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
         mainIndicators: ["MA"], subIndicators: ["VOL", "MACD"], datafeed,
       }) as unknown as KLineChartProHandle;
