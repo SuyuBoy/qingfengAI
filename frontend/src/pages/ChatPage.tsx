@@ -546,6 +546,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       <div id="chat-view" className={chatViewClass}>
         <div className="chat-main">
           <AssistantThread
+            isEmpty={visibleMessages.length === 0}
             pastedImages={pastedImages}
             streaming={streaming}
             model={model}
@@ -574,6 +575,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
 }
 
 const AssistantThread = memo(function AssistantThread({
+  isEmpty,
   pastedImages,
   streaming,
   model,
@@ -592,6 +594,7 @@ const AssistantThread = memo(function AssistantThread({
   onPaste,
   onRemoveImage,
 }: {
+  isEmpty: boolean;
   pastedImages: string[];
   streaming: boolean;
   model: string;
@@ -611,7 +614,7 @@ const AssistantThread = memo(function AssistantThread({
   onRemoveImage: (idx: number) => void;
 }) {
   return (
-    <ThreadPrimitive.Root className="aui-thread-root">
+    <ThreadPrimitive.Root className={`aui-thread-root${isEmpty ? " is-empty" : ""}`}>
       <ThreadPrimitive.Viewport className="aui-thread-viewport" turnAnchor="top">
         <div className="aui-thread-inner">
           <AuiIf condition={(state) => state.thread.isEmpty}>

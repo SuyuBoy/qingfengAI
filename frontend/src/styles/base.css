@@ -195,6 +195,7 @@ button {
 }
 
 .brand-row:hover,
+.sidebar-primary:hover,
 .sidebar-nav-item:hover,
 .account-row:hover,
 .icon-btn:hover,
@@ -228,8 +229,8 @@ button {
 
 .sidebar-primary {
   margin-bottom: 0.4rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 0;
 }
 
 .sidebar-nav {

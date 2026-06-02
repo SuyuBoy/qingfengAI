@@ -94,6 +94,28 @@
   font-weight: 500;
 }
 
+.aui-thread-root.is-empty .aui-thread-inner {
+  justify-content: center;
+  padding-bottom: 7vh;
+}
+
+.aui-thread-root.is-empty .chat-empty {
+  margin: 0;
+  padding: 0 1rem 1.7rem;
+}
+
+.aui-thread-root.is-empty .aui-message-list {
+  display: none;
+}
+
+.aui-thread-root.is-empty .aui-thread-footer {
+  position: relative;
+  bottom: auto;
+  margin-top: 0;
+  padding: 0 1rem;
+  background: transparent;
+}
+
 .aui-message {
   max-width: 100%;
   display: grid;
@@ -598,6 +620,7 @@
 }
 
 .aui-composer-actions {
+  align-self: end;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -945,6 +968,14 @@
   .chat-empty {
     padding-top: 28vh;
     font-size: 1.5rem;
+  }
+
+  .aui-thread-root.is-empty .aui-thread-inner {
+    padding-bottom: 4vh;
+  }
+
+  .aui-thread-root.is-empty .chat-empty {
+    padding: 0 0.75rem 1.35rem;
   }
 
   .aui-message.user {
