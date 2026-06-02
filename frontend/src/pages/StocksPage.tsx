@@ -9,10 +9,9 @@ import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & { turnover?: number };
 type KLineChartProHandle = { _chartApi?: { resize?: () => void } };
-type IndexPeriod = "1m" | "1d" | "1w";
+type IndexPeriod = "1d" | "1w";
 
 const INDEX_PERIODS: { key: IndexPeriod; label: string }[] = [
-  { key: "1m", label: "分钟" },
   { key: "1d", label: "日级" },
   { key: "1w", label: "周级" },
 ];
@@ -29,12 +28,6 @@ const INDEX_CHART_PERIODS: Period[] = [
   { multiplier: 1, timespan: "day", text: "D" },
   { multiplier: 1, timespan: "week", text: "W" },
 ];
-
-function chartPeriodToIndexPeriod(p: Period): IndexPeriod {
-  if (p.timespan === "minute" || p.timespan === "hour") return "1m";
-  if (p.timespan === "week") return "1w";
-  return "1d";
-}
 
 function buildPeriods(dataDays: number): Period[] {
   const periods: Period[] = [];
@@ -69,6 +62,11 @@ function datetimeToTs(datetime: string) {
   const date = parts.slice(0, 3).join("-");
   const time = parts.slice(3).join(":") || "00:00";
   return new Date(`${date}T${time}:00+08:00`).getTime();
+}
+
+function tsToDateStr(ts: number) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function toIndexKLine(series: StockIndexPoint[]): KLinePoint[] {
@@ -114,7 +112,7 @@ export default function StocksPage() {
   const [stocks, setStocks] = useState<StockSummary[]>([]);
   const [selected, setSelected] = useState<StockSummary | null>(null);
   const [indexPeriod, setIndexPeriod] = useState<IndexPeriod>("1d");
-  const [indexSeries, setIndexSeries] = useState<Record<IndexPeriod, StockIndexPoint[]>>({ "1m": [], "1d": [], "1w": [] });
+  const [indexSeries, setIndexSeries] = useState<Record<IndexPeriod, StockIndexPoint[]>>({ "1d": [], "1w": [] });
   const [indexMeta, setIndexMeta] = useState<Record<string, number | string>>({});
   const [sortBy, setSortBy] = useState<SortKey>("active_mentions");
   const [sortDir, setSortDir] = useState(-1);
@@ -167,7 +165,7 @@ export default function StocksPage() {
   }, []);
 
   useEffect(() => { loadStocks(); }, [loadStocks]);
-  useEffect(() => { loadIndex("1d"); loadIndex("1w"); loadIndex("1m"); }, []);
+  useEffect(() => { loadIndex("1d"); loadIndex("1w"); }, []);
 
   return (
     <section className={`stocks-page${panelCollapsed ? " stocks-collapsed" : ""}`}>
@@ -176,7 +174,8 @@ export default function StocksPage() {
           ? <KLineProChart key={`stock:${selected.order_book_id}`} symbol={symbolInfo} isIndex={false}
               layoutKey={panelCollapsed ? "collapsed" : "expanded"} orderBookId={selected.order_book_id} periods={periods} />
           : <KLineProChart key={`index:${indexPeriod}`} symbol={symbolInfo} isIndex={true}
-              layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={INDEX_CHART_PERIODS} />
+              layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={INDEX_CHART_PERIODS}
+              indexPeriod={indexPeriod} />
         }
       </div>
 
@@ -243,10 +242,11 @@ export default function StocksPage() {
 }
 
 function KLineProChart({
-  symbol, isIndex, orderBookId, layoutKey, periods,
+  symbol, isIndex, orderBookId, layoutKey, periods, indexPeriod,
 }: {
   symbol: SymbolInfo; isIndex: boolean;
   orderBookId?: string; layoutKey: string; periods: Period[];
+  indexPeriod?: IndexPeriod;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
@@ -296,6 +296,7 @@ function KLineProChart({
 
     let datafeed: Datafeed;
     if (isIndex) {
+      const ip = indexPeriod || "1d";
       const indexCache: Record<string, KLinePoint[]> = {};
       datafeed = {
         searchSymbols: (search?: string) => {
@@ -303,13 +304,24 @@ function KLineProChart({
           const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
           return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
         },
-        getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
-          const apiPeriod = chartPeriodToIndexPeriod(period);
-          if (!indexCache[apiPeriod]) {
-            const data = await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${apiPeriod}`);
-            indexCache[apiPeriod] = toIndexKLine(data?.index || []);
+        getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
+          if (period.timespan === "minute" || period.timespan === "hour") {
+            const fd = tsToDateStr(from);
+            const td = tsToDateStr(to);
+            const key = `ohlc:${fd}:${td}:${ip}`;
+            if (!indexCache[key]) {
+              const data = await api.get<{ index: StockIndexPoint[] }>(
+                `/api/stocks/index/ohlc?from=${fd}&to=${td}&period=${ip}`);
+              indexCache[key] = toIndexKLine(data?.index || []);
+            }
+            return indexCache[key];
           }
-          return indexCache[apiPeriod];
+          // day / week — 都取日线数据，周线由图表聚合
+          if (!indexCache[ip]) {
+            const data = await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${ip}`);
+            indexCache[ip] = toIndexKLine(data?.index || []);
+          }
+          return indexCache[ip];
         },
         subscribe: () => {}, unsubscribe: () => {},
       };
