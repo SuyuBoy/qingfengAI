@@ -304,7 +304,10 @@ function KLineProChart({
       chartRef.current = new KLineChartPro({
         container, locale: "zh-CN", theme, watermark: proWatermark,
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
-        mainIndicators: ["MA"], subIndicators: ["VOL", "MACD"], datafeed,
+        mainIndicators: isIndex ? [] : ["MA"],
+        subIndicators: isIndex ? [] : ["VOL", "MACD"],
+        styles: isIndex ? { candle: { type: "area" } } : undefined,
+        datafeed,
       }) as unknown as KLineChartProHandle;
       resizeChartDuringTransition(160);
     } catch (reason) {
