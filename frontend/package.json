@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.13",
+    "@klinecharts/pro": "^0.1.1",
+    "klinecharts": "^9.8.0",
     "lucide-react": "^1.17.0",
     "marked": "^16.0.0",
     "radix-ui": "^1.4.3",

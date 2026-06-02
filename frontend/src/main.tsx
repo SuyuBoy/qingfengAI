@@ -5,6 +5,7 @@ import "./styles/base.css";
 import "./styles/login.css";
 import "./styles/dynamics.css";
 import "./styles/chat.css";
+import "@klinecharts/pro/dist/klinecharts-pro.css";
 import "./styles/stocks.css";
 
 createRoot(document.getElementById("root")!).render(
