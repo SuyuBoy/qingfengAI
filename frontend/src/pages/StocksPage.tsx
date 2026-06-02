@@ -56,12 +56,13 @@ function datetimeToTs(datetime: string) {
 function toIndexKLine(series: StockIndexPoint[]): KLinePoint[] {
   return series.map((point, i) => {
     const prevClose = i > 0 ? series[i - 1].value : point.value;
+    const o = point.open ?? prevClose;
+    const c = point.close ?? point.value;
+    const h = point.high ?? Math.max(o, c);
+    const l = point.low ?? Math.min(o, c);
     return {
       timestamp: datetimeToTs(point.datetime),
-      open: prevClose,
-      high: Math.max(prevClose, point.value),
-      low: Math.min(prevClose, point.value),
-      close: point.value,
+      open: o, high: h, low: l, close: c,
       volume: 0,
     };
   }).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));

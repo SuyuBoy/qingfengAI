@@ -101,4 +101,8 @@ export interface StockPrice {
 export interface StockIndexPoint {
   datetime: string;
   value: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
 }
