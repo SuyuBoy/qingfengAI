@@ -1,15 +1,171 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, SlidersHorizontal } from "lucide-react";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
-type SeriesPoint = { label: string; value: number };
+type ChartMode = "index" | "stock";
+type KLinePoint = {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  turnover?: number;
+};
 
 const defaultBaseDate = new Date().toISOString().slice(0, 10);
+let klineScriptPromise: Promise<void> | null = null;
 
 function formatNumber(value: number) {
   return Number.isFinite(value) ? value.toFixed(2) : "--";
+}
+
+function datetimeToTs(datetime: string) {
+  const parts = datetime.split("-");
+  const date = parts.slice(0, 3).join("-");
+  const time = parts.slice(3).join(":") || "00:00";
+  return new Date(`${date}T${time}:00+08:00`).getTime();
+}
+
+function getKLineScriptCandidates() {
+  return [
+    new URL("../js/klinecharts.umd.js", window.location.href).toString(),
+    new URL("./js/klinecharts.umd.js", window.location.href).toString(),
+  ];
+}
+
+function loadScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[data-klinecharts-src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`KLineChart 加载失败：${src}`)), { once: true });
+      if (window.klinecharts) resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.klinechartsSrc = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`KLineChart 加载失败：${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+function ensureKLineCharts() {
+  if (window.klinecharts) return Promise.resolve();
+  if (!klineScriptPromise) {
+    const candidates = getKLineScriptCandidates();
+    klineScriptPromise = candidates.reduce<Promise<void>>(
+      (chain, src) => chain.catch(() => loadScript(src)),
+      Promise.reject(new Error("KLineChart 未加载")),
+    ).then(() => {
+      if (!window.klinecharts) throw new Error("KLineChart 未初始化");
+    });
+  }
+  return klineScriptPromise;
+}
+
+function readChartColors() {
+  const styles = getComputedStyle(document.documentElement);
+  return {
+    accent: styles.getPropertyValue("--accent").trim() || "#10a37f",
+    border: styles.getPropertyValue("--border").trim() || "#e5e5e5",
+    surface: styles.getPropertyValue("--card-bg").trim() || "#ffffff",
+    text: styles.getPropertyValue("--text").trim() || "#0d0d0d",
+    muted: styles.getPropertyValue("--muted").trim() || "#6b6b6b",
+  };
+}
+
+function getChartOptions(mode: ChartMode) {
+  const colors = readChartColors();
+  return {
+    styles: {
+      grid: {
+        horizontal: { color: colors.border },
+        vertical: { color: colors.border },
+      },
+      candle: {
+        type: mode === "index" ? "area" : "candle_solid",
+        bar: {
+          upColor: "#ef4444",
+          downColor: "#22c55e",
+          noChangeColor: colors.muted,
+          upBorderColor: "#ef4444",
+          downBorderColor: "#22c55e",
+          noChangeBorderColor: colors.muted,
+          upWickColor: "#ef4444",
+          downWickColor: "#22c55e",
+          noChangeWickColor: colors.muted,
+        },
+        area: {
+          lineSize: 2,
+          lineColor: colors.accent,
+          value: "close",
+          backgroundColor: [
+            { offset: 0, color: "rgba(16, 163, 127, 0.22)" },
+            { offset: 1, color: "rgba(16, 163, 127, 0.02)" },
+          ],
+        },
+        tooltip: {
+          rect: {
+            color: colors.surface,
+            borderColor: colors.border,
+          },
+          text: {
+            color: colors.text,
+          },
+        },
+      },
+      xAxis: {
+        axisLine: { color: colors.border },
+        tickText: { color: colors.muted },
+        tickLine: { color: colors.border },
+      },
+      yAxis: {
+        axisLine: { color: colors.border },
+        tickText: { color: colors.muted },
+        tickLine: { color: colors.border },
+      },
+      separator: { color: colors.border },
+      crosshair: {
+        horizontal: {
+          line: { color: colors.muted },
+          text: { backgroundColor: colors.text, borderColor: colors.text },
+        },
+        vertical: {
+          line: { color: colors.muted },
+          text: { backgroundColor: colors.text, borderColor: colors.text },
+        },
+      },
+    },
+  };
+}
+
+function toIndexKLine(series: StockIndexPoint[]): KLinePoint[] {
+  return series.map(point => ({
+    timestamp: datetimeToTs(point.datetime),
+    open: point.value,
+    high: point.value,
+    low: point.value,
+    close: point.value,
+    volume: 0,
+  })).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));
+}
+
+function toStockKLine(series: StockPrice[]): KLinePoint[] {
+  return series.map(point => ({
+    timestamp: datetimeToTs(point.datetime),
+    open: Number(point.open),
+    high: Number(point.high),
+    low: Number(point.low),
+    close: Number(point.close),
+    volume: Number(point.volume || 0),
+    turnover: Number(point.amount || 0),
+  })).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));
 }
 
 export default function StocksPage() {
@@ -34,10 +190,7 @@ export default function StocksPage() {
     });
   }, [sortBy, sortDir, stocks]);
 
-  const chartSeries = useMemo<SeriesPoint[]>(() => {
-    if (selected) return prices.map(price => ({ label: price.datetime, value: price.close }));
-    return indexSeries.map(point => ({ label: point.datetime, value: point.value }));
-  }, [indexSeries, prices, selected]);
+  const chartSeries = useMemo(() => selected ? toStockKLine(prices) : toIndexKLine(indexSeries), [indexSeries, prices, selected]);
 
   const latestIndex = indexSeries[indexSeries.length - 1];
   const previousIndex = indexSeries[indexSeries.length - 2];
@@ -167,43 +320,71 @@ export default function StocksPage() {
           </div>
           <span>{chartSeries.length} 点</span>
         </div>
-        {chartLoading ? <div className="chart-placeholder">加载中...</div> : <LineChart points={chartSeries} />}
+        {chartLoading
+          ? <div className="chart-placeholder">加载中...</div>
+          : (
+              <KLineChart
+                points={chartSeries}
+                mode={selected ? "stock" : "index"}
+                symbol={selected?.order_book_id || "QF_INDEX"}
+              />
+            )}
       </div>
     </section>
   );
 }
 
-function LineChart({ points }: { points: SeriesPoint[] }) {
-  if (!points.length) return <div className="chart-placeholder">暂无图表数据</div>;
-  const values = points.map(point => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const width = 900;
-  const height = 420;
-  const path = points.map((point, index) => {
-    const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
-    const y = height - ((point.value - min) / span) * height;
-    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(" ");
+function KLineChart({ points, mode, symbol }: { points: KLinePoint[]; mode: ChartMode; symbol: string }) {
+  const chartRef = useRef<KLineChartInstance | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState("");
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !points.length) return;
+    let disposed = false;
+    setError("");
+    ensureKLineCharts().then(() => {
+      if (disposed || !window.klinecharts) return;
+      window.klinecharts.dispose(container);
+      container.innerHTML = "";
+      const chart = window.klinecharts.init(container, getChartOptions(mode));
+      chartRef.current = chart;
+      if (!chart) {
+        setError("K线图初始化失败");
+        return;
+      }
+      chart.setSymbol?.({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
+      chart.setPeriod?.({ span: 1, type: "min" });
+      chart.setBarSpace?.(mode === "stock" ? 7 : 4);
+      if (mode === "stock") {
+        chart.createIndicator?.("MA", false, { id: "candle_pane" });
+        chart.createIndicator?.("VOL", false, { height: 120 });
+      }
+      chart.applyNewData(points);
+      chart.scrollToRealTime?.(0);
+    }).catch(reason => {
+      setError(reason instanceof Error ? reason.message : "KLineChart 加载失败");
+    });
+
+    return () => {
+      disposed = true;
+      if (window.klinecharts && container) window.klinecharts.dispose(container);
+      chartRef.current = null;
+    };
+  }, [mode, points, symbol]);
+
+  useEffect(() => {
+    const resize = () => chartRef.current?.resize?.();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  if (!points.length) return <div className="chart-placeholder">暂无图表数据</div>;
   return (
-    <div className="line-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="走势线图">
-        <defs>
-          <linearGradient id="stock-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path className="chart-area" d={`${path} L ${width} ${height} L 0 ${height} Z`} />
-        <path className="chart-line" d={path} />
-      </svg>
-      <div className="chart-scale">
-        <span>{points[0].label}</span>
-        <strong>{formatNumber(values[values.length - 1])}</strong>
-        <span>{points[points.length - 1].label}</span>
-      </div>
+    <div className="kline-chart-shell">
+      <div className="kline-chart" ref={containerRef} />
+      {error && <div className="chart-overlay-error">{error}</div>}
     </div>
   );
 }

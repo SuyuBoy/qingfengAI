@@ -212,7 +212,7 @@
   font-size: 0.86rem;
 }
 
-.line-chart,
+.kline-chart-shell,
 .chart-placeholder {
   min-height: min(62vh, 520px);
   border: 1px solid var(--border);
@@ -226,38 +226,26 @@
   color: var(--muted);
 }
 
-.line-chart {
-  padding: 1rem;
+.kline-chart-shell {
+  position: relative;
+  height: min(72vh, 640px);
+  overflow: hidden;
 }
 
-.line-chart svg {
+.kline-chart {
   width: 100%;
-  height: min(58vh, 480px);
-  display: block;
+  height: 100%;
 }
 
-.chart-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.chart-area {
-  fill: url(#stock-fill);
-}
-
-.chart-scale {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.chart-scale strong {
-  color: var(--text);
+.chart-overlay-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+  color: var(--danger);
+  text-align: center;
 }
 
 @media (max-width: 960px) {

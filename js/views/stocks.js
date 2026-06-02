@@ -151,15 +151,7 @@ function showIndexChart() {
     timestamp: datetimeToTs(d.datetime),
     open: d.value, high: d.value, low: d.value, close: d.value, volume: 0,
   }));
-  const el = document.getElementById("kline-container");
-  el.innerHTML = "";
-  chart = klinecharts.init("kline-container", {
-    styles: {
-      grid: { horizontal: { color: "rgba(255,255,255,0.06)" }, vertical: { color: "rgba(255,255,255,0.06)" } },
-      candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
-    },
-  });
-  chart.applyNewData(klineData);
+  chart = renderKLineChart(klineData, { mode: "index", symbol: "QF_INDEX" });
 }
 
 // ---- 个股K线 ----
@@ -194,15 +186,7 @@ window._selectStock = async function (code) {
     open: d.open, high: d.high, low: d.low, close: d.close,
     volume: d.volume, turnover: d.amount || 0,
   }));
-  const el2 = document.getElementById("kline-container");
-  el2.innerHTML = "";
-  chart = klinecharts.init("kline-container", {
-    styles: {
-      grid: { horizontal: { color: "rgba(255,255,255,0.06)" }, vertical: { color: "rgba(255,255,255,0.06)" } },
-      candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
-    },
-  });
-  chart.applyNewData(klineData);
+  chart = renderKLineChart(klineData, { mode: "stock", symbol: code });
 };
 
 // ---- 参数 ----
@@ -229,6 +213,88 @@ function datetimeToTs(dt) {
     return a;
   }, ["", ""]);
   return new Date(d + "T" + t + ":00+08:00").getTime();
+}
+
+function renderKLineChart(data, options) {
+  const el = document.getElementById("kline-container");
+  if (!el) return null;
+  klinecharts.dispose?.("kline-container");
+  el.innerHTML = "";
+  const instance = klinecharts.init("kline-container", { styles: chartStyles(options.mode) });
+  if (!instance) return null;
+  instance.setSymbol?.({ ticker: options.symbol, pricePrecision: 2, volumePrecision: 0 });
+  instance.setPeriod?.({ span: 1, type: "min" });
+  instance.setBarSpace?.(options.mode === "stock" ? 7 : 4);
+  if (options.mode === "stock") {
+    instance.createIndicator?.("MA", false, { id: "candle_pane" });
+    instance.createIndicator?.("VOL", false, { height: 120 });
+  }
+  instance.applyNewData(data);
+  instance.scrollToRealTime?.(0);
+  return instance;
+}
+
+function chartStyles(mode) {
+  const root = getComputedStyle(document.documentElement);
+  const accent = root.getPropertyValue("--accent").trim() || "#10a37f";
+  const border = root.getPropertyValue("--border").trim() || "#e8e4df";
+  const card = root.getPropertyValue("--card-bg").trim() || "#fff";
+  const text = root.getPropertyValue("--text").trim() || "#2c2c2c";
+  const muted = root.getPropertyValue("--muted").trim() || "#999";
+  return {
+    grid: {
+      horizontal: { color: border },
+      vertical: { color: border },
+    },
+    candle: {
+      type: mode === "index" ? "area" : "candle_solid",
+      bar: {
+        upColor: "#ef4444",
+        downColor: "#22c55e",
+        noChangeColor: muted,
+        upBorderColor: "#ef4444",
+        downBorderColor: "#22c55e",
+        noChangeBorderColor: muted,
+        upWickColor: "#ef4444",
+        downWickColor: "#22c55e",
+        noChangeWickColor: muted,
+      },
+      area: {
+        lineSize: 2,
+        lineColor: accent,
+        value: "close",
+        backgroundColor: [
+          { offset: 0, color: "rgba(16, 163, 127, 0.22)" },
+          { offset: 1, color: "rgba(16, 163, 127, 0.02)" },
+        ],
+      },
+      tooltip: {
+        rect: { color: card, borderColor: border },
+        text: { color: text },
+      },
+    },
+    xAxis: {
+      axisLine: { color: border },
+      tickText: { color: muted },
+      tickLine: { color: border },
+    },
+    yAxis: {
+      axisLine: { color: border },
+      tickText: { color: muted },
+      tickLine: { color: border },
+    },
+    separator: { color: border },
+    crosshair: {
+      horizontal: {
+        line: { color: muted },
+        text: { backgroundColor: text, borderColor: text },
+      },
+      vertical: {
+        line: { color: muted },
+        text: { backgroundColor: text, borderColor: text },
+      },
+    },
+  };
 }
 
 function esc(s) { return (s || "").replace(/</g, "&lt;"); }
