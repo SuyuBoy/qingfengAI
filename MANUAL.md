@@ -327,6 +327,8 @@ React 聊天页已经接入 `@assistant-ui/react`，核心结构是：
 
 `assistant-ui` 是开源 TypeScript/React AI 聊天 UI 库。当前 React 聊天页已经安装并使用 `@assistant-ui/react`。实现聊天相关功能时优先查阅：
 
+- GitHub 仓库：https://github.com/assistant-ui/assistant-ui
+
 - primitives：`Thread`、`Message`、`Composer`、`ThreadList`、`ActionBar`。
 - runtime：`useExternalStoreRuntime`、custom runtime、streaming 接入方式。
 - 交互：自动滚动、停止生成、附件、重试、工具调用展示、可访问性。
@@ -336,6 +338,8 @@ React 聊天页已经接入 `@assistant-ui/react`，核心结构是：
 ### `.external/KLineChart`
 
 `KLineChart` 是基于 HTML5 canvas 的轻量金融图表库，提供 TypeScript 类型、移动端支持、指标和画线能力。实现 React 股票页图表功能时优先查阅：
+
+- GitHub 仓库：https://github.com/liihuu/KLineChart
 
 - K 线、分时、折线等金融图表渲染。
 - 缩放、拖拽、十字光标、tooltip、坐标轴。
