@@ -4,7 +4,8 @@ let stocks = [];
 let sortBy = "active_mentions";
 let sortDir = -1;
 let selectedCode = null;
-let priceData = [];
+let selectedStock = null;
+let chart = null;
 
 export async function init(container) {
   const data = await api.get("/api/stocks/active");
@@ -71,103 +72,69 @@ window._selectStock = async function (code) {
     r.classList.toggle("selected", r.dataset.code === code);
   });
 
+  selectedStock = stocks.find(s => s.order_book_id === code);
+  if (!selectedStock) return;
+
   const panel = document.getElementById("chart-panel");
   panel.innerHTML = `<div class="chart-loading">加载中...</div>`;
 
   try {
     const resp = await api.get(`/api/stocks/prices/${code}?limit=200`);
-    priceData = (resp && resp.prices) || [];
-    renderChart(panel, stocks.find(s => s.order_book_id === code));
+    const priceData = (resp && resp.prices) || [];
+    renderChart(panel, priceData);
   } catch (e) {
     panel.innerHTML = `<div class="chart-placeholder">加载失败: ${e.message}</div>`;
   }
 };
 
-function renderChart(panel, s) {
+function renderChart(panel, priceData) {
   if (!priceData.length) {
     panel.innerHTML = `<div class="chart-placeholder">暂无K线数据</div>`;
     return;
   }
-  if (!s) return;
 
-  const latest = priceData[priceData.length - 1];
-  const first = priceData[0];
+  const s = selectedStock;
+  const first = priceData[0], latest = priceData[priceData.length - 1];
 
   panel.innerHTML = `
     <div class="chart-header">
       <h3>${esc(s.symbol)} <span class="stock-code">${esc(s.order_book_id)}</span></h3>
       <span>${esc(s.industry_name || "")} | ${first.datetime} ~ ${latest.datetime} | ${priceData.length}根</span>
     </div>
-    <canvas id="kline-canvas"></canvas>
+    <div id="kline-container" style="width:100%;height:calc(100vh - 160px)"></div>
   `;
 
-  // 自适应 canvas 尺寸
-  const canvas = document.getElementById("kline-canvas");
-  canvas.width = canvas.parentElement.clientWidth - 32;
-  canvas.height = Math.min(500, window.innerHeight * 0.6);
-  drawKline();
+  // 转换数据格式
+  const klineData = priceData.map(d => ({
+    timestamp: datetimeToTs(d.datetime),
+    open: d.open,
+    high: d.high,
+    low: d.low,
+    close: d.close,
+    volume: d.volume,
+    turnover: d.amount || 0,
+  }));
+
+  // 销毁旧图表
+  if (chart) { chart.dispose(); chart = null; }
+
+  chart = klinecharts.init("kline-container", {
+    styles: {
+      grid: { horizontal: { color: "rgba(255,255,255,0.06)" }, vertical: { color: "rgba(255,255,255,0.06)" } },
+      candle: { bar: { upColor: "#ef4444", downColor: "#22c55e", upBorderColor: "#ef4444", downBorderColor: "#22c55e" } },
+    },
+  });
+  chart.applyNewData(klineData);
 }
 
-function drawKline() {
-  const canvas = document.getElementById("kline-canvas");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { top: 20, right: 60, bottom: 40, left: 60 };
-  const pw = W - pad.left - pad.right;
-  const ph = H - pad.top - pad.bottom;
-
-  const highs = priceData.map(d => d.high);
-  const lows = priceData.map(d => d.low);
-  let maxH = Math.max(...highs), minL = Math.min(...lows);
-  const range = (maxH - minL) * 0.05 || maxH * 0.01;
-  maxH += range; minL -= range;
-
-  const n = priceData.length;
-  const gap = pw / n;
-  const barW = Math.max(1, gap * 0.7);
-
-  const x = i => pad.left + gap * i + gap / 2;
-  const y = v => pad.top + ph * (1 - (v - minL) / (maxH - minL));
-
-  // 网格
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i <= 4; i++) {
-    const yy = pad.top + ph * i / 4;
-    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
-    ctx.fillStyle = "#888";
-    ctx.font = "10px monospace";
-    ctx.fillText((maxH - (maxH - minL) * i / 4).toFixed(2), W - pad.right + 4, yy + 4);
-  }
-
-  // K线
-  for (let i = 0; i < n; i++) {
-    const d = priceData[i];
-    const up = d.close >= d.open;
-    ctx.strokeStyle = up ? "#ef4444" : "#22c55e";
-    ctx.fillStyle = up ? "#ef4444" : "#22c55e";
-    ctx.beginPath();
-    ctx.moveTo(x(i), y(d.high));
-    ctx.lineTo(x(i), y(d.low));
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    const bh = Math.max(1, Math.abs(y(d.open) - y(d.close)));
-    const by = Math.min(y(d.open), y(d.close));
-    ctx.fillRect(x(i) - barW / 2, by, barW, bh);
-  }
-
-  // 成交量
-  const volMax = Math.max(...priceData.map(d => d.volume));
-  for (let i = 0; i < n; i++) {
-    const d = priceData[i];
-    const vh = Math.max(1, d.volume / volMax * ph * 0.25);
-    const up = d.close >= d.open;
-    ctx.fillStyle = up ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)";
-    ctx.fillRect(x(i) - barW / 2, H - pad.bottom - vh, barW, vh);
-  }
+function datetimeToTs(dt) {
+  // "2026-05-20-09-31" → timestamp ms
+  const [d, t] = dt.split("-").reduce((a, v, i) => {
+    if (i < 3) { a[0] = (a[0] || "") + (a[0] ? "-" : "") + v; }
+    else { a[1] = (a[1] || "") + (a[1] ? ":" : "") + v; }
+    return a;
+  }, ["", ""]);
+  return new Date(d + "T" + t + ":00+08:00").getTime();
 }
 
 function esc(s) { return (s || "").replace(/</g, "&lt;"); }
