@@ -302,22 +302,25 @@ function KLineProChart({
           const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
           return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
         },
-        getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
-          if (period.timespan === "minute") {
-            const cacheKey = `min_${ip}`;
-            if (!indexCache[cacheKey]) {
-              const data = await api.get<{ index: StockIndexPoint[] }>(
-                `/api/stocks/index/ohlc?period=${ip}`);
-              indexCache[cacheKey] = toIndexKLine(data?.index || []);
-            }
-            return indexCache[cacheKey];
+        getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
+          const isMin = period.timespan === "minute";
+          const cacheKey = isMin ? `min_${ip}` : ip;
+
+          if (!indexCache[cacheKey]) {
+            const data = isMin
+              ? await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index/ohlc?period=${ip}`)
+              : await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${ip}`);
+            indexCache[cacheKey] = toIndexKLine(data?.index || []);
           }
-          // day / week — 都取日线数据，周线由图表聚合
-          if (!indexCache[ip]) {
-            const data = await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${ip}`);
-            indexCache[ip] = toIndexKLine(data?.index || []);
+
+          const all = indexCache[cacheKey];
+          if (!all.length) return [];
+
+          // 按图表请求范围过滤，避免全量返回导致循环
+          if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
+            return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
-          return indexCache[ip];
+          return all;
         },
         subscribe: () => {}, unsubscribe: () => {},
       };
