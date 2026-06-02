@@ -95,7 +95,6 @@ function getSymbolInfo(selected: StockSummary | null, indexMeta: Record<string, 
       shortName: selected.symbol,
       name: selected.industry_name || selected.symbol,
       market: "stocks",
-      priceCurrency: "usd",
       pricePrecision: 2,
       volumePrecision: 0,
     };
@@ -105,7 +104,6 @@ function getSymbolInfo(selected: StockSummary | null, indexMeta: Record<string, 
     shortName: "QF",
     name: `清风指数 · ${String(indexMeta.stocks || "?")} 成分股`,
     market: "stocks",
-    priceCurrency: "usd",
     pricePrecision: 2,
     volumePrecision: 0,
   };
@@ -199,6 +197,17 @@ export default function StocksPage() {
 
   return (
     <section className="stocks-page">
+      <div className="stock-chart-panel">
+        {chartLoading
+          ? <div className="chart-placeholder">加载中...</div>
+          : (
+              <KLineProChart
+                points={chartSeries}
+                symbol={symbolInfo}
+              />
+            )}
+      </div>
+
       <aside className="stocks-panel">
         <div className="stocks-panel-head">
           <div>
@@ -251,17 +260,6 @@ export default function StocksPage() {
           ))}
         </div>
       </aside>
-
-      <div className="stock-chart-panel">
-        {chartLoading
-          ? <div className="chart-placeholder">加载中...</div>
-          : (
-              <KLineProChart
-                points={chartSeries}
-                symbol={symbolInfo}
-              />
-            )}
-      </div>
     </section>
   );
 }

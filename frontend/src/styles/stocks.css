@@ -2,7 +2,7 @@
   height: 100vh;
   min-height: 0;
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 360px;
   overflow: hidden;
   background: var(--bg);
 }
@@ -14,7 +14,7 @@
   flex-direction: column;
   padding: 1rem;
   overflow: hidden;
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   background: var(--surface);
 }
 
@@ -210,13 +210,45 @@
 .stock-pro-chart .klinecharts-pro {
   height: 100%;
   min-height: 0;
-  border-left: 1px solid #ebedf1;
 }
 
 .stock-pro-chart .klinecharts-pro-period-bar {
+  min-width: 0;
+  flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
+  white-space: nowrap;
   scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.stock-pro-chart .klinecharts-pro-period-bar .menu-container,
+.stock-pro-chart .klinecharts-pro-period-bar .symbol,
+.stock-pro-chart .klinecharts-pro-period-bar .item,
+.stock-pro-chart .klinecharts-pro-period-bar .period,
+.stock-pro-chart .klinecharts-pro-period-bar .tools {
+  flex: 0 0 auto;
+}
+
+.stock-pro-chart .klinecharts-pro-period-bar .symbol {
+  max-width: 180px;
+  white-space: nowrap;
+}
+
+.stock-pro-chart .klinecharts-pro-period-bar .symbol span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-pro-chart .klinecharts-pro-period-bar .tools span {
+  white-space: nowrap;
+}
+
+.stock-pro-chart .klinecharts-pro-price-unit {
+  display: none !important;
 }
 
 .stock-pro-chart .klinecharts-pro-widget {
@@ -256,7 +288,7 @@
     height: auto;
     min-height: 0;
     max-height: 60vh;
-    border-right: 0;
+    border-left: 0;
     border-bottom: 1px solid var(--border);
   }
 
