@@ -287,6 +287,19 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     }
   }, []);
 
+  const addImageFiles = useCallback((files: FileList | File[]) => {
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith("image/"));
+    for (const file of imageFiles) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const value = String(reader.result || "");
+        const b64 = value.split(",")[1];
+        if (b64) setPastedImages(prev => [...prev, b64]);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
   const removePastedImage = useCallback((idx: number) => {
     setPastedImages(prev => prev.filter((_, i) => i !== idx));
   }, []);
@@ -515,6 +528,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             onDebugChange={setDebug}
             onDebugOpen={openDebug}
             onOpenActivity={expandSidebar}
+            onAddImages={addImageFiles}
             onPaste={onPaste}
             onRemoveImage={removePastedImage}
           />
@@ -542,6 +556,7 @@ const AssistantThread = memo(function AssistantThread({
   onDebugChange,
   onDebugOpen,
   onOpenActivity,
+  onAddImages,
   onPaste,
   onRemoveImage,
 }: {
@@ -559,6 +574,7 @@ const AssistantThread = memo(function AssistantThread({
   onDebugChange: (value: boolean) => void;
   onDebugOpen: () => void;
   onOpenActivity: () => void;
+  onAddImages: (files: FileList | File[]) => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveImage: (idx: number) => void;
 }) {
@@ -592,6 +608,7 @@ const AssistantThread = memo(function AssistantThread({
               onMaxRoundsChange={onMaxRoundsChange}
               onDebugChange={onDebugChange}
               onDebugOpen={onDebugOpen}
+              onAddImages={onAddImages}
               onPaste={onPaste}
               onRemoveImage={onRemoveImage}
             />
@@ -616,6 +633,7 @@ const Composer = memo(function Composer({
   onMaxRoundsChange,
   onDebugChange,
   onDebugOpen,
+  onAddImages,
   onPaste,
   onRemoveImage,
 }: {
@@ -632,6 +650,7 @@ const Composer = memo(function Composer({
   onMaxRoundsChange: (value: number) => void;
   onDebugChange: (value: boolean) => void;
   onDebugOpen: () => void;
+  onAddImages: (files: FileList | File[]) => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveImage: (idx: number) => void;
 }) {
@@ -640,6 +659,7 @@ const Composer = memo(function Composer({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const plusRef = useRef<HTMLButtonElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const send = useCallback(() => {
     if (pastedImages.length && !composerRuntime.getState().text.trim()) {
       composerRuntime.setText("[图片]");
@@ -647,6 +667,16 @@ const Composer = memo(function Composer({
     setMenuOpen(false);
     composerRuntime.send();
   }, [composerRuntime, pastedImages.length]);
+
+  const openImagePicker = useCallback(() => {
+    imageInputRef.current?.click();
+  }, []);
+
+  const onImageInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files?.length) onAddImages(files);
+    event.target.value = "";
+  }, [onAddImages]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -723,7 +753,7 @@ const Composer = memo(function Composer({
               />
             </label>
             <div className="composer-menu-note">
-              图片可直接粘贴到输入框。
+              图片可点击按钮选择，也可直接粘贴到输入框。
             </div>
             <CacheRing stats={cacheStats} />
             {isAdmin && (
@@ -750,10 +780,25 @@ const Composer = memo(function Composer({
           aria-label="输入问题"
         />
         <div className="aui-composer-actions">
-          <div className="paste-hint" title="支持粘贴图片">
+          <input
+            ref={imageInputRef}
+            className="image-upload-input"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={onImageInputChange}
+          />
+          <button
+            type="button"
+            className="image-upload-btn"
+            title="添加图片"
+            aria-label="添加图片"
+            disabled={streaming}
+            onClick={openImagePicker}
+          >
             <ImageIcon size={15} />
             {pastedImages.length > 0 && <span>{pastedImages.length}</span>}
-          </div>
+          </button>
           <AuiIf condition={(state) => !state.thread.isRunning}>
             <button
               type="button"
