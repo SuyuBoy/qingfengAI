@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { KLineChartPro } from "@klinecharts/pro";
-import type { Datafeed, DatafeedSubscribeCallback, Period, SymbolInfo } from "@klinecharts/pro";
+import type { Datafeed, Period, SymbolInfo } from "@klinecharts/pro";
 import type { KLineData } from "klinecharts";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
@@ -9,14 +9,32 @@ import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & { turnover?: number };
 type KLineChartProHandle = { _chartApi?: { resize?: () => void } };
-type IndexPeriod = "1d" | "1w";
+type IndexPeriod = "1m" | "1d" | "1w";
 
 const INDEX_PERIODS: { key: IndexPeriod; label: string }[] = [
+  { key: "1m", label: "分钟" },
   { key: "1d", label: "日级" },
   { key: "1w", label: "周级" },
 ];
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
+
+const INDEX_CHART_PERIODS: Period[] = [
+  { multiplier: 1, timespan: "minute", text: "1m" },
+  { multiplier: 5, timespan: "minute", text: "5m" },
+  { multiplier: 10, timespan: "minute", text: "10m" },
+  { multiplier: 30, timespan: "minute", text: "30m" },
+  { multiplier: 1, timespan: "hour", text: "1H" },
+  { multiplier: 2, timespan: "hour", text: "2H" },
+  { multiplier: 1, timespan: "day", text: "D" },
+  { multiplier: 1, timespan: "week", text: "W" },
+];
+
+function chartPeriodToIndexPeriod(p: Period): IndexPeriod {
+  if (p.timespan === "minute" || p.timespan === "hour") return "1m";
+  if (p.timespan === "week") return "1w";
+  return "1d";
+}
 
 function buildPeriods(dataDays: number): Period[] {
   const periods: Period[] = [];
@@ -92,42 +110,21 @@ function getSymbolInfo(selected: StockSummary | null, periodLabel: string): Symb
   };
 }
 
-class StaticDatafeed implements Datafeed {
-  constructor(private readonly symbol: SymbolInfo, private readonly points: KLinePoint[]) {}
-  searchSymbols(search?: string) {
-    const text = (search || "").trim().toLowerCase();
-    const haystack = `${this.symbol.ticker} ${this.symbol.shortName || ""}`.toLowerCase();
-    return Promise.resolve(!text || haystack.includes(text) ? [this.symbol] : []);
-  }
-  getHistoryKLineData(_symbol: SymbolInfo, _period: Period, from: number, to: number) {
-    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return Promise.resolve(this.points);
-    const rangeMatched = this.points.filter(p => p.timestamp >= from && p.timestamp <= to);
-    return Promise.resolve(rangeMatched);
-  }
-  subscribe(_symbol: SymbolInfo, _period: Period, _callback: DatafeedSubscribeCallback) {}
-  unsubscribe(_symbol: SymbolInfo, _period: Period) {}
-}
-
 export default function StocksPage() {
   const [stocks, setStocks] = useState<StockSummary[]>([]);
   const [selected, setSelected] = useState<StockSummary | null>(null);
   const [indexPeriod, setIndexPeriod] = useState<IndexPeriod>("1d");
-  const [indexSeries, setIndexSeries] = useState<Record<IndexPeriod, StockIndexPoint[]>>({ "1d": [], "1w": [] });
+  const [indexSeries, setIndexSeries] = useState<Record<IndexPeriod, StockIndexPoint[]>>({ "1m": [], "1d": [], "1w": [] });
   const [indexMeta, setIndexMeta] = useState<Record<string, number | string>>({});
   const [sortBy, setSortBy] = useState<SortKey>("active_mentions");
   const [sortDir, setSortDir] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
-  const selectedSeries = indexSeries[indexPeriod] || [];
-  const latestVal = selectedSeries.length ? selectedSeries[selectedSeries.length - 1]?.value : null;
-  const prevVal = selectedSeries.length > 1 ? selectedSeries[selectedSeries.length - 2]?.value : null;
-  const indexChange = latestVal != null && prevVal != null ? latestVal - prevVal : 0;
-  const dataDays = selectedSeries.length
-    ? Math.ceil((datetimeToTs(selectedSeries[selectedSeries.length - 1].datetime) - datetimeToTs(selectedSeries[0].datetime)) / 86400000)
+  const dataDays = indexSeries[indexPeriod]?.length
+    ? Math.ceil((datetimeToTs(indexSeries[indexPeriod][indexSeries[indexPeriod].length - 1].datetime) - datetimeToTs(indexSeries[indexPeriod][0].datetime)) / 86400000)
     : 0;
   const periods = useMemo(() => buildPeriods(dataDays), [dataDays]);
-  const indexChartSeries = useMemo(() => toIndexKLine(selectedSeries), [selectedSeries]);
   const symbolInfo = useMemo(() => getSymbolInfo(selected,
     INDEX_PERIODS.find(p => p.key === indexPeriod)?.label || ""), [selected, indexPeriod]);
 
@@ -170,7 +167,7 @@ export default function StocksPage() {
   }, []);
 
   useEffect(() => { loadStocks(); }, [loadStocks]);
-  useEffect(() => { loadIndex("1d"); loadIndex("1w"); }, []);
+  useEffect(() => { loadIndex("1d"); loadIndex("1w"); loadIndex("1m"); }, []);
 
   return (
     <section className={`stocks-page${panelCollapsed ? " stocks-collapsed" : ""}`}>
@@ -179,7 +176,7 @@ export default function StocksPage() {
           ? <KLineProChart key={`stock:${selected.order_book_id}`} symbol={symbolInfo} isIndex={false}
               layoutKey={panelCollapsed ? "collapsed" : "expanded"} orderBookId={selected.order_book_id} periods={periods} />
           : <KLineProChart key={`index:${indexPeriod}`} symbol={symbolInfo} isIndex={true}
-              indexPoints={indexChartSeries} layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={periods} />
+              layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={INDEX_CHART_PERIODS} />
         }
       </div>
 
@@ -246,9 +243,9 @@ export default function StocksPage() {
 }
 
 function KLineProChart({
-  symbol, isIndex, indexPoints, orderBookId, layoutKey, periods,
+  symbol, isIndex, orderBookId, layoutKey, periods,
 }: {
-  symbol: SymbolInfo; isIndex: boolean; indexPoints?: KLinePoint[];
+  symbol: SymbolInfo; isIndex: boolean;
   orderBookId?: string; layoutKey: string; periods: Period[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -299,8 +296,23 @@ function KLineProChart({
 
     let datafeed: Datafeed;
     if (isIndex) {
-      datafeed = new StaticDatafeed(symbol, indexPoints || []);
-      if (!indexPoints?.length) return;
+      const indexCache: Record<string, KLinePoint[]> = {};
+      datafeed = {
+        searchSymbols: (search?: string) => {
+          const t = (search || "").trim().toLowerCase();
+          const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
+          return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
+        },
+        getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
+          const apiPeriod = chartPeriodToIndexPeriod(period);
+          if (!indexCache[apiPeriod]) {
+            const data = await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${apiPeriod}`);
+            indexCache[apiPeriod] = toIndexKLine(data?.index || []);
+          }
+          return indexCache[apiPeriod];
+        },
+        subscribe: () => {}, unsubscribe: () => {},
+      };
     } else {
       datafeed = {
         searchSymbols: (search?: string) => {
@@ -331,7 +343,7 @@ function KLineProChart({
       setError(reason instanceof Error ? reason.message : "KLineChart Pro 初始化失败");
     }
     return () => { chartRef.current = null; container.innerHTML = ""; };
-  }, [theme, layoutKey, isIndex ? indexPoints : null]);  // index mode: re-init when data arrives
+  }, [theme, layoutKey]);
 
   useEffect(() => { resizeChartDuringTransition(); }, [layoutKey, resizeChartDuringTransition]);
 
@@ -347,8 +359,6 @@ function KLineProChart({
     if (container.parentElement) observer.observe(container.parentElement);
     return () => { window.cancelAnimationFrame(frame); observer.disconnect(); };
   }, [resizeChartDuringTransition]);
-
-  if (isIndex && (!indexPoints || !indexPoints.length)) return <div className="chart-placeholder">暂无图表数据</div>;
 
   return <div className="stock-pro-chart">
     <div className="stock-pro-chart-inner" ref={containerRef} />
