@@ -100,9 +100,9 @@ class StaticDatafeed implements Datafeed {
     return Promise.resolve(!text || haystack.includes(text) ? [this.symbol] : []);
   }
   getHistoryKLineData(_symbol: SymbolInfo, _period: Period, from: number, to: number) {
-    const rangeMatched = Number.isFinite(from) && Number.isFinite(to) && to > from
-      ? this.points.filter(p => p.timestamp >= from && p.timestamp <= to) : [];
-    return Promise.resolve(rangeMatched.length ? rangeMatched : this.points);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return Promise.resolve(this.points);
+    const rangeMatched = this.points.filter(p => p.timestamp >= from && p.timestamp <= to);
+    return Promise.resolve(rangeMatched);
   }
   subscribe(_symbol: SymbolInfo, _period: Period, _callback: DatafeedSubscribeCallback) {}
   unsubscribe(_symbol: SymbolInfo, _period: Period) {}
@@ -268,17 +268,27 @@ function KLineProChart({
 
   const resizeChart = useCallback(() => {
     chartRef.current?._chartApi?.resize?.();
-    window.dispatchEvent(new Event("resize"));
   }, []);
 
+  const resizingRef = useRef(false);
+
   const resizeChartDuringTransition = useCallback((duration = 320) => {
+    if (resizingRef.current) return;  // 防止 ResizeObserver 重入
+    resizingRef.current = true;
     window.cancelAnimationFrame(resizeLoopRef.current);
     const startedAt = window.performance.now();
     const tick = (now: number) => {
       resizeChart();
-      if (now - startedAt < duration) resizeLoopRef.current = window.requestAnimationFrame(tick);
+      if (now - startedAt < duration) {
+        resizeLoopRef.current = window.requestAnimationFrame(tick);
+      } else {
+        window.cancelAnimationFrame(resizeLoopRef.current);
+        resizingRef.current = false;
+      }
     };
     resizeLoopRef.current = window.requestAnimationFrame(tick);
+    // 兜底：超时后无论如何解锁
+    setTimeout(() => { resizingRef.current = false; }, duration + 100);
   }, [resizeChart]);
 
   useEffect(() => {
