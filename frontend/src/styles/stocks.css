@@ -91,7 +91,9 @@
 
 .index-summary {
   width: 100%;
-  display: grid;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.15rem;
   margin-bottom: 0.75rem;
   padding: 0.9rem;
@@ -416,3 +418,19 @@
   background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
 }
 .holdings-btn, .calendar-btn { display: none; }
+
+.index-summary-left { display: grid; gap: 0.15rem; }
+.index-card-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.index-card-btns button {
+  width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-1); color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.index-card-btns button:hover { background: var(--surface-2); color: var(--text); }
+.holdings-header { display: flex; gap: 8px; padding: 4px 8px; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.holdings-item { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4px; padding: 3px 8px; font-size: 0.82rem; }
+.holdings-btn, .calendar-btn { display: none; }
+.date-picker-popover {
+  position: absolute; z-index: 20; top: 100%; right: 0;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+}
