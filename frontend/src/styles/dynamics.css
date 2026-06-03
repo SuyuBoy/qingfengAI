@@ -38,23 +38,32 @@
 .search-bar {
   min-width: 0;
   flex: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.45rem;
   color: var(--muted);
 }
 
+.search-bar > svg {
+  display: block;
+  align-self: center;
+}
+
 .search-bar input[type="text"] {
   min-width: 0;
   flex: 1;
-  height: 38px;
+  height: auto;
+  min-height: 38px;
   padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--text);
   font-size: 1rem;
-  line-height: 38px;
+  line-height: 1.25;
+  align-self: center;
+  appearance: none;
 }
 
 .search-bar > button,
@@ -87,7 +96,7 @@
   min-height: 36px;
 }
 
-.date-picker-popover {
+.dynamics-page .date-picker-popover {
   position: absolute;
   top: calc(100% + 0.45rem);
   right: 0;
@@ -118,7 +127,7 @@
   --ring: oklch(0.705 0.015 286.067);
 }
 
-:root[data-theme="dark"] .date-picker-popover {
+:root[data-theme="dark"] .dynamics-page .date-picker-popover {
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
@@ -302,8 +311,8 @@
   }
 
   .search-bar input[type="text"] {
-    height: 44px;
-    line-height: 44px;
+    min-height: 0;
+    line-height: 1.25;
   }
 
   #search-btn {
@@ -341,9 +350,27 @@
     line-height: 1;
   }
 
-  .date-picker-popover {
-    right: 0;
-    max-width: calc(100vw - 1.7rem);
+  .dynamics-page .date-picker-popover {
+    position: fixed;
+    top: 8.75rem;
+    left: 50%;
+    right: auto;
+    width: min(320px, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    transform: translateX(-50%);
+    z-index: 180;
+  }
+
+  .dynamics-page .date-picker-popover [data-slot="calendar"] {
+    width: 100%;
+    padding: 0.75rem;
+    --cell-size: 2.35rem;
+  }
+
+  .dynamics-page .date-picker-popover .rdp-months,
+  .dynamics-page .date-picker-popover .rdp-month,
+  .dynamics-page .date-picker-popover .rdp-month_grid {
+    width: 100%;
   }
 
   .cal-label {

@@ -413,7 +413,7 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 .index-card-btn:hover { background: var(--surface-2); color: var(--text); }
-.date-picker-popover {
+.stocks-page .date-picker-popover {
   position: absolute; z-index: 20; top: 100%; right: 0;
   background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
 }
@@ -430,7 +430,7 @@
 .holdings-header { display: flex; gap: 8px; padding: 4px 8px; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
 .holdings-item { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4px; padding: 3px 8px; font-size: 0.82rem; }
 .holdings-btn, .calendar-btn { display: none; }
-.date-picker-popover {
+.stocks-page .date-picker-popover {
   position: absolute; z-index: 20; top: 100%; right: 0;
   background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
 }
