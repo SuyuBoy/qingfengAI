@@ -47,11 +47,13 @@ const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
 
 type ActivityStep = { type: "think" | "tool"; text: string };
+type ThoughtPhase = "thinking" | "tool" | "done";
 
 interface AssistantDraft {
   content: string;
   reasoning: string;
   steps: ActivityStep[];
+  phase: ThoughtPhase;
   typing: boolean;
   error?: string;
 }
@@ -399,7 +401,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       id: assistantId,
       role: "assistant",
       content: "",
-      stream: { content: "", reasoning: "", steps: [], typing: true },
+      stream: { content: "", reasoning: "", steps: [], phase: "thinking", typing: true },
     };
 
     setPastedImages([]);
@@ -425,6 +427,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     let reasoning = "";
     let reasoningContent = "";
     let steps: ActivityStep[] = [];
+    let phase: ThoughtPhase = "thinking";
     let currentCardId: string | null = null;
     let receivedDoneMessages = false;
     const accumulatedCards: ToolCardData[] = [];
@@ -438,7 +441,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
 
     const syncDraftAcc = () => {
       const activeSteps = reasoning ? [...steps, { type: "think" as const, text: escapeHtml(reasoning) }] : steps;
-      draftAccRef.current = { content, reasoning, steps: activeSteps, typing: !content };
+      draftAccRef.current = { content, reasoning, steps: activeSteps, phase, typing: phase !== "done" };
       localCardsRef.current = accumulatedCards;
       localActivityStepsRef.current = activeSteps;
       localDebugLogRef.current = accumulatedDebugLog;
@@ -497,6 +500,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               });
             } else if (obj.tool || obj.cached) {
               flushReasoning();
+              phase = "tool";
               const raw = obj.tool || obj.cached;
               const { name, query } = parseToolKey(raw);
               const id = makeId();
@@ -508,9 +512,11 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               const cardIdx = accumulatedCards.findIndex(c => c.id === currentCardId);
               if (cardIdx >= 0) accumulatedCards[cardIdx] = { ...accumulatedCards[cardIdx], articles };
             } else if (obj.reasoning) {
+              phase = "thinking";
               reasoning += obj.reasoning;
               reasoningContent += obj.reasoning;
             } else if (obj.delta) {
+              phase = "thinking";
               flushReasoning();
               content += obj.delta;
             } else if (obj.done && obj.messages) {
@@ -525,7 +531,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       }
 
       flushReasoning();
-      draftAccRef.current = { content, reasoning: "", steps, typing: false };
+      phase = "done";
+      draftAccRef.current = { content, reasoning: "", steps, phase, typing: false };
       localCardsRef.current = accumulatedCards;
       localActivityStepsRef.current = steps;
       localDebugLogRef.current = accumulatedDebugLog;
@@ -565,6 +572,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           content: `请求失败: ${e instanceof Error ? e.message : "未知错误"}`,
           reasoning: "",
           steps: [],
+          phase: "done",
           typing: false,
           error: "1",
         },
@@ -950,6 +958,7 @@ const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { on
       <div className="aui-message-role">AI</div>
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
+        {!original?.stream && original?.reasoning_content && <CompletedThoughts onOpenActivity={onOpenActivity} />}
         <MessagePrimitive.Parts>
           {({ part }) => part.type === "text" ? <MarkdownTextPart /> : null}
         </MessagePrimitive.Parts>
@@ -969,16 +978,33 @@ const MarkdownTextPart = memo(function MarkdownTextPart() {
   return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
+function thoughtStatusText(draft: AssistantDraft) {
+  if (draft.error) return "思考中断";
+  if (!draft.typing) return "思考完成";
+  return draft.phase === "tool" ? "调用工具" : "正在思考";
+}
+
 const StreamThoughts = memo(function StreamThoughts({ draft, onOpenActivity }: { draft: AssistantDraft; onOpenActivity: () => void }) {
   if (!draft.typing && !draft.steps.length && !draft.reasoning) return null;
   const toolCount = draft.steps.filter(step => step.type === "tool").length;
+  const isActive = draft.typing && !draft.error;
   return (
     <div className="msg-think">
-      <button className="thinking-status" type="button" onClick={onOpenActivity}>
-        {draft.typing ? "正在思考" : "思考完成"}
+      <button className={`thinking-status${isActive ? " is-active" : ""}`} type="button" onClick={onOpenActivity}>
+        <span className="thinking-status-label">{thoughtStatusText(draft)}</span>
         {toolCount ? <span> · {toolCount} 次工具调用</span> : null}
       </button>
       {draft.reasoning && <div className="think-preview">{draft.reasoning}</div>}
+    </div>
+  );
+});
+
+const CompletedThoughts = memo(function CompletedThoughts({ onOpenActivity }: { onOpenActivity: () => void }) {
+  return (
+    <div className="msg-think completed-think">
+      <button className="thinking-status" type="button" onClick={onOpenActivity}>
+        <span className="thinking-status-label">思考完成</span>
+      </button>
     </div>
   );
 });

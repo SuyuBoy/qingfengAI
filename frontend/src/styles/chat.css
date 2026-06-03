@@ -285,6 +285,22 @@
   color: var(--muted-2);
 }
 
+.thinking-status.is-active .thinking-status-label::after {
+  content: "";
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: thinking-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes thinking-dots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75%,
+  100% { content: "..."; }
+}
+
 .think-preview {
   max-width: 100%;
   color: var(--muted);
