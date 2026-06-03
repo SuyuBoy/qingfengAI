@@ -106,10 +106,13 @@ export interface StockIndexPoint {
   low?: number;
   close?: number;
   volume?: number;
+<<<<<<< HEAD
 }
 
 export interface Holding {
   o: string;
   sc: number;
   w: number;
+=======
+>>>>>>> 84031d958a6a0ba7038d9e504bed7bc87c11147e
 }
