@@ -105,4 +105,11 @@ export interface StockIndexPoint {
   high?: number;
   low?: number;
   close?: number;
+  volume?: number;
+}
+
+export interface Holding {
+  o: string;
+  sc: number;
+  w: number;
 }

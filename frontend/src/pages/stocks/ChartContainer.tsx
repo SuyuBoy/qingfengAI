@@ -54,7 +54,7 @@ export function ChartContainer({
         const all = aggregateBars(indexCache[cacheKey], mult);
         if (!all.length) return [];
         if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
-          return all.filter(p => p.timestamp >= from && p.timestamp <= to);
+          return all.filter((p: any) => p.timestamp >= from && p.timestamp <= to);
         }
         return all;
       },

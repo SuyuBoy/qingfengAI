@@ -14,7 +14,7 @@ const INDEX_CHART_PERIODS = [
   { multiplier: 30, timespan: "minute", text: "30m" },
   { multiplier: 1, timespan: "day", text: "D" },
   { multiplier: 1, timespan: "week", text: "W" },
-] as const;
+];
 
 function toPeriods(stock: StockSummary | null): any[] {
   if (!stock) return INDEX_CHART_PERIODS;
