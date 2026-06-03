@@ -48,6 +48,37 @@ import type {
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
 const markdownRemarkPlugins = [remarkGfm];
+const markdownComponents = {
+  br: () => null,
+};
+
+function normalizeChatMarkdown(text: string) {
+  const lines = text
+    .replace(/\r\n?/g, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .split("\n");
+  const normalized: string[] = [];
+  let inFence = false;
+
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      normalized.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      normalized.push(line);
+      continue;
+    }
+
+    if (!line.trim()) continue;
+
+    normalized.push(line.trimEnd().replace(/\\$/, ""));
+  }
+
+  return normalized.join("\n").trim();
+}
 
 type ActivityStep = { type: "think" | "tool"; text: string };
 type ThoughtPhase = "thinking" | "tool" | "done";
@@ -976,7 +1007,14 @@ const PlainTextPart = memo(function PlainTextPart() {
 });
 
 const MarkdownTextPart = memo(function MarkdownTextPart() {
-  return <MarkdownTextPrimitive remarkPlugins={markdownRemarkPlugins} className="markdown-body" />;
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={markdownRemarkPlugins}
+      components={markdownComponents}
+      preprocess={normalizeChatMarkdown}
+      className="markdown-body"
+    />
+  );
 });
 
 function thoughtStatusText(draft: AssistantDraft) {

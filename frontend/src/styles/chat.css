@@ -170,7 +170,7 @@
 }
 
 .markdown-body p {
-  margin: 0.65em 0;
+  margin: 0.35em 0;
 }
 
 .markdown-body p:first-child {
@@ -185,7 +185,7 @@
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  margin: 1.1em 0 0.45em;
+  margin: 0.75em 0 0.3em;
   line-height: 1.42;
 }
 
@@ -196,8 +196,12 @@
 
 .markdown-body ul,
 .markdown-body ol {
-  margin: 0.45em 0;
+  margin: 0.35em 0;
   padding-left: 1.5em;
+}
+
+.markdown-body li + li {
+  margin-top: 0.12em;
 }
 
 .markdown-body code {
@@ -220,10 +224,16 @@
 }
 
 .markdown-body blockquote {
-  margin: 0.7em 0;
-  padding: 0.25em 0.9em;
+  margin: 0.45em 0;
+  padding: 0.15em 0.85em;
   border-left: 3px solid var(--border);
   color: var(--muted);
+}
+
+.markdown-body hr {
+  margin: 0.55em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
 .markdown-body table {

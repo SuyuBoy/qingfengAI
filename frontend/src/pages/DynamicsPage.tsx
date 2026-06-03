@@ -177,18 +177,23 @@ export default function DynamicsPage() {
             <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
           )}
         </div>
-        <button id="cal-btn" title="按日期筛选" onClick={() => document.getElementById("date-pick")?.click()}><CalendarDays size={17} /></button>
+        <div className="date-picker-control" title="按日期筛选">
+          <button id="cal-btn" type="button" tabIndex={-1} aria-hidden="true">
+            <CalendarDays size={17} />
+          </button>
+          <input
+            type="date"
+            id="date-pick"
+            className="date-pick-input"
+            aria-label="按日期筛选"
+            value={currentDate}
+            onChange={e => setDate(e.target.value)}
+          />
+        </div>
         <span id="cal-label" className="cal-label">{currentDate}</span>
         {currentDate && (
           <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
         )}
-        <input
-          type="date"
-          id="date-pick"
-          style={{ display: "none" }}
-          value={currentDate}
-          onChange={e => setDate(e.target.value)}
-        />
       </div>
 
       <div id="card-list">
