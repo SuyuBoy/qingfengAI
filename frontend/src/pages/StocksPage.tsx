@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import type { StockIndexPoint, StockSummary } from "../types";
 import { StockPanel } from "./stocks/StockPanel";
+import { IndexCard } from "./stocks/IndexCard";
 import { ChartContainer } from "./stocks/ChartContainer";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
