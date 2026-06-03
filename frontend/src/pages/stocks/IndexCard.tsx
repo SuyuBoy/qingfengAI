@@ -2,17 +2,10 @@ import { useState, useCallback } from "react";
 import { CalendarDays, BarChart3, X } from "lucide-react";
 import { formatNumber } from "./stockUtils";
 import { Calendar } from "../../components/ui/calendar";
-import { api } from "../../api";
 
-interface Holding { o: string; sc: number; w: number; }
-
-function parseDate(value: string) {
-  if (!value) return undefined;
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-function formatDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+interface Holding {
+  o: string; symbol?: string; sc: number; w: number;
+  open?: number; high?: number; low?: number; close?: number;
 }
 
 export function IndexCard({
@@ -23,33 +16,22 @@ export function IndexCard({
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [holdingsDate, setHoldingsDate] = useState("");
-  const [prices, setPrices] = useState<Record<string, { open: number; close: number }>>({});
-  const [names, setNames] = useState<Record<string, string>>({});
   const [calOpen, setCalOpen] = useState(false);
 
   const load = useCallback(async () => {
     await onLoadHoldings();
     const ds = Object.keys(holdingsData).sort().reverse();
-    if (ds.length) { setHoldingsDate(ds[0]); loadPrices(ds[0]); }
+    if (ds.length) setHoldingsDate(ds[0]);
     setModalOpen(true);
   }, [onLoadHoldings, holdingsData]);
 
-  const loadPrices = useCallback(async (date: string) => {
-    try {
-      const data = await api.get<{ prices: any; names: Record<string, string> }>(
-        `/api/stocks/index/holdings/prices?date=${date}`);
-      if (data?.prices) setPrices(data.prices);
-      if (data?.names) setNames(data.names);
-    } catch {}
-  }, []);
-
   const handleCalendarSelect = useCallback((date: Date | undefined) => {
     if (date) {
-      const d = formatDate(date);
-      if (holdingsData[d]) { setHoldingsDate(d); loadPrices(d); }
+      const d = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+      if (holdingsData[d]) setHoldingsDate(d);
       setCalOpen(false);
     }
-  }, [holdingsData, loadPrices]);
+  }, [holdingsData]);
 
   const holding = holdingsData[holdingsDate] || [];
 
@@ -83,24 +65,25 @@ export function IndexCard({
             </div>
             {calOpen && (
               <div style={{padding:"0.5rem 1.15rem"}}>
-                <Calendar mode="single" selected={parseDate(holdingsDate)} onSelect={handleCalendarSelect} />
+                <Calendar mode="single" selected={
+                  holdingsDate ? new Date(holdingsDate + "T00:00:00+08:00") : undefined
+                } onSelect={handleCalendarSelect} />
               </div>
             )}
             <div className="modal-body">
               <table className="holdings-table">
-                <thead><tr><th>名称</th><th>代码</th><th>开盘</th><th>收盘</th><th>涨跌</th><th>权重</th></tr></thead>
+                <thead><tr><th>名称</th><th>代码</th><th>开</th><th>收</th><th>涨跌</th><th>权重</th></tr></thead>
                 <tbody>
                   {holding.map(h => {
-                    const p = prices[h.o];
-                    const chg = p && p.open ? ((p.close / p.open - 1) * 100) : 0;
+                    const chg = h.open ? ((h.close! / h.open - 1) * 100) : 0;
                     return (
                       <tr key={h.o}>
-                        <td>{names[h.o] || ""}</td>
+                        <td>{h.symbol || ""}</td>
                         <td>{h.o}</td>
-                        <td>{p?.open ? p.open.toFixed(2) : "--"}</td>
-                        <td>{p?.close ? p.close.toFixed(2) : "--"}</td>
+                        <td>{h.open != null ? h.open.toFixed(2) : "--"}</td>
+                        <td>{h.close != null ? h.close.toFixed(2) : "--"}</td>
                         <td style={{color: chg >= 0 ? '#EF5350' : '#26A69A'}}>
-                          {p?.open ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
+                          {h.open != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
                         <td>{(h.w * 100).toFixed(1)}%</td>
                       </tr>
                     );
