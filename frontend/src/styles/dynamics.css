@@ -339,16 +339,17 @@
 
   .search-bar {
     min-width: 0;
-    height: 44px;
+    height: 100%;
+    align-self: stretch;
     align-items: center;
     gap: 0.45rem;
   }
 
   .search-bar input[type="text"] {
-    height: 1.35em;
+    height: 100%;
     min-height: 0;
     padding: 0;
-    line-height: 1.35;
+    line-height: normal;
   }
 
   #search-btn {
