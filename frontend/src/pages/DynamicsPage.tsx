@@ -219,31 +219,33 @@ export default function DynamicsPage() {
             <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
           )}
         </div>
-        <div className="date-picker-control" ref={calendarRef}>
-          <button
-            id="cal-btn"
-            type="button"
-            title="按日期筛选"
-            aria-label="按日期筛选"
-            aria-expanded={calendarOpen}
-            onClick={() => setCalendarOpen(open => !open)}
-          >
-            <CalendarDays size={17} />
-          </button>
-          {calendarOpen && (
-            <div className="date-picker-popover">
-              <Calendar
-                mode="single"
-                selected={parseDateInput(currentDate)}
-                onSelect={handleCalendarSelect}
-              />
-            </div>
+        <div className="filter-actions">
+          <div className="date-picker-control" ref={calendarRef}>
+            <button
+              id="cal-btn"
+              type="button"
+              title="按日期筛选"
+              aria-label="按日期筛选"
+              aria-expanded={calendarOpen}
+              onClick={() => setCalendarOpen(open => !open)}
+            >
+              <CalendarDays size={17} />
+            </button>
+            {calendarOpen && (
+              <div className="date-picker-popover">
+                <Calendar
+                  mode="single"
+                  selected={parseDateInput(currentDate)}
+                  onSelect={handleCalendarSelect}
+                />
+              </div>
+            )}
+          </div>
+          <span id="cal-label" className="cal-label">{currentDate}</span>
+          {currentDate && (
+            <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
           )}
         </div>
-        <span id="cal-label" className="cal-label">{currentDate}</span>
-        {currentDate && (
-          <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
-        )}
       </div>
 
       <div id="card-list">
