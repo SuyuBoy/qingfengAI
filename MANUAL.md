@@ -1,145 +1,134 @@
 # 前端模块手册
 
-## 概述
+## 数据表（9 张）
 
-当前仓库是清风研习社的前端模块，纯静态 SPA，部署入口为仓库根目录。
+### 1. bili_dynamics — B站动态
+| PK | Type |
+|----|------|
+| dynamic_id | STRING |
 
-- 根目录 `index.html` 直接承载 React 应用。
-- React 是当前保留的前端实现，源码位于 `frontend/`。
-- 根目录 `assets/` 和 `js/` 是 React 构建产物资源，用于线上访问。
+列: date, type, title, content, embedding
 
-前端共用 Google OAuth、JWT、本地存储和后端 API，通过 SSE 流式调用 `/api/chat`。
+每篇爬取的 B 站动态文章。写入后不改。
 
----
+### 2. bili_images — 动态配图
+| PK | Type |
+|----|------|
+| dynamic_id | STRING |
 
-## 文件结构
+列: img_0, img_1, ... (分块存储，每块 ≤2MB)
 
-```
-index.html             # React 构建产物入口
-assets/                # React 构建产物资源
-js/
-  klinecharts.umd.js   # 股票页运行时加载的 KLineChart UMD
-frontend/
-  package.json         # React 源码依赖与构建脚本
-  vite.config.ts       # React Vite 配置，base="./"
-  public/
-    js/
-      klinecharts.umd.js # KLineChart 静态资源，构建时复制到根目录 js/
-  src/
-    App.tsx            # 路由、认证、侧边栏、主题、会话入口
-    ErrorBoundary.tsx  # React 渲染错误兜底
-    api.ts             # API 封装，复用 bili_jwt
-    main.tsx           # React 挂载入口
-    markdown.ts        # Markdown/表格渲染辅助
-    pages/
-      LoginPage.tsx    # 登录页
-      DynamicsPage.tsx # 动态页
-      ChatPage.tsx     # AI 对话页
-      StocksPage.tsx   # 股票页
-    styles/            # React 样式
-.external/
-  assistant-ui/        # assistant-ui 组件仓库，用于 React 聊天界面参考/复用，GitHub: https://github.com/assistant-ui/assistant-ui
-  KLineChart/          # KLineChart 组件仓库，用于金融图表参考/复用，GitHub: https://github.com/klinecharts/KLineChart
-```
+### 3. bili_config — 键值配置
+| PK | Type |
+|----|------|
+| uid | STRING |
+| dynamic_id | STRING |
+
+uid 固定为 "config"，dynamic_id 为 key。存 B 站 cookie 等。
+
+### 4. bili_users — 用户
+| PK | Type |
+|----|------|
+| uid | STRING |
+| email | STRING |
+
+uid 固定为 "config"。role: unpaid/paid/admin。
+
+### 5. article_analysis — LLM 分析结果
+| PK | Type |
+|----|------|
+| dynamic_id | STRING |
+
+列: date, stocks, sectors, market_sent, methods, stocks_detail
+
+DeepSeek 提取的结构化信息。stocks_detail = JSON: `[{o, n, sc, r}]`（代码，名称，评分，理由）。
+
+### 6. index_state — 指数快照
+| PK | Type |
+|----|------|
+| period | STRING |
+| period_date | STRING |
+
+period: "1d" / "1w" / "1m"
+列: open_val, high, low, close, volume, base_value, latest_value, holdings, params, articles_used, summary
+
+holdings = JSON: `[{o, symbol, sc, w, open, high, low, close, volume}]`
+- 调仓时写入 o/sc/w
+- 收盘后补 OHLCV + name
+
+### 7. stock_pool — 股票池
+| PK | Type |
+|----|------|
+| order_book_id | STRING |
+
+列: symbol, sector_code, industry_name, listed_date, special_type, added_date, last_mentioned, mention_count, active_from, active_mentions, active
+
+活跃条件: 30天内有提及。updateRow 增量更新，不丢元数据。
+
+### 8. stock_prices_day — 个股日K线
+| PK | Type |
+|----|------|
+| order_book_id | STRING |
+| date | STRING |
+
+列: open, high, low, close, volume
+
+活跃股票自动下载。新激活补 50 天历史，已有股票每日增量。
+
+### 9. stock_prices_min — 个股分钟线
+| PK | Type |
+|----|------|
+| order_book_id | STRING |
+| datetime | STRING |
+
+列: open, high, low, close, volume
+
+目前未使用。分钟线指数通过 rqdatac 实时拉取。
 
 ---
 
 ## 部署流程
 
-### GitHub Actions 自动构建（推荐）
+### GitHub Actions 自动构建
 
-本仓库配置了 `.github/workflows/react-root.yml`，推送 `frontend/**` 源码后自动：
+`.github/workflows/react-root.yml`，推送 `frontend/**` 源码后自动 npm build + commit 产物。
 
-1. `npm ci` 安装依赖
-2. `npm run build:github-root` 构建到根目录
-3. 自动 commit + push 构建产物
+**不要手动提交构建产物（index.html、assets/）**。
 
-**不要手动提交构建产物（`index.html`、`assets/`）**，让 GitHub Actions 负责。只提交 `frontend/src/` 下的源码改动。
-
-### 本地验证构建
-
-如需本地验证：
+### Git 推送
 
 ```bash
-cd page/frontend
-npm run build:github-root
-```
-
-但不要 commit 构建产物。验证完后 `git checkout -- index.html assets/` 恢复。
-
-### Git 推送注意事项
-
-本机 git 的 HTTPS TLS 握手可能不稳定，推送失败时用：
-
-```bash
+# HTTPS 不稳定时用
 GIT_SSL_NO_VERIFY=1 git push origin main
 ```
 
-不要用 `git push -f`，始终先 `git pull --rebase`。
+## 前端文件结构
 
----
+```
+index.html             # 构建产物入口
+assets/                # 构建产物
+frontend/
+  src/
+    pages/
+      StocksPage.tsx        # 股票页壳（~100行）
+      stocks/
+        StockPanel.tsx      # 右侧侧边栏 + 指数卡片
+        IndexCard.tsx       # 指数卡片 + 持仓弹窗
+        ChartContainer.tsx  # K线容器
+        stockUtils.ts       # 工具函数
+      ChatPage.tsx          # AI 对话
+      DynamicsPage.tsx      # 动态文章
+      LoginPage.tsx         # 登录
+    components/ui/
+      calendar.tsx          # react-day-picker 日历控件
+```
 
-## React 实现
+## 爬虫定时流程
 
-### `frontend/src/App.tsx`
-
-- 维护 hash 路由：`/login`、`/chat`、`/dynamics`、`/stocks`
-- 认证检查：读取 `bili_jwt`，调用 `/api/auth/me`
-- 未登录进入登录页，`unpaid` 用户进入锁定页
-- 渲染侧边栏、主题切换、最近会话、聊天搜索、管理员爬虫入口
-
-### `frontend/src/api.ts`
-
-- `TOKEN_KEY = "bili_jwt"`，token 存储在 localStorage
-- 自动附加 `Authorization: Bearer` 头
-- 401 清除 token 并跳转登录
-- 403 抛出 "未付费" 错误
-- 提供 `api.get()`、`api.post()`、`api.delete()`
-
-### `frontend/src/pages/LoginPage.tsx`
-
-- 加载 Google Sign-In SDK
-- 获取 Google Client ID 并缓存到 sessionStorage
-- 登录成功后写入 JWT 并进入 `/chat`
-
-### `frontend/src/pages/DynamicsPage.tsx`
-
-- 加载动态列表，支持游标分页
-- 支持关键词、文章 ID、日期筛选
-- 使用 `marked` 渲染文章 Markdown
-- 将 `![img:N]` 转换为后端图片地址
-
-### `frontend/src/pages/ChatPage.tsx`
-
-- 发送消息到 `/api/chat`
-- 读取 SSE 流式响应
-- 展示 reasoning、工具调用、文章引用和最终回复
-- 本地持久化多会话列表和当前会话
-- 支持图片粘贴、调试视图、文章弹窗
-
-### `frontend/src/pages/StocksPage.tsx`
-
-壳组件（~117 行），负责状态管理 + 布局骨架。子组件在 `stocks/` 目录下：
-
-| 文件 | 职责 |
+| 时间 | 动作 |
 |------|------|
-| `StockPanel.tsx` | 右侧侧边栏：排序、股票列表、折叠 |
-| `IndexCard.tsx` | 指数卡片 + 日历弹窗 + 持仓面板 |
-| `ChartContainer.tsx` | K 线容器：datafeed 构建、图表生命周期 |
-| `stockUtils.ts` | 工具函数：K 线转换、周期聚合、颜色交换 |
-
-- 加载活跃股票列表 `/api/stocks/active`
-- 加载清风指数 `/api/stocks/index`
-- 加载个股价格 `/api/stocks/prices/:code`
-- 加载历史持仓 `/api/stocks/index/holdings`
-- 运行时从根目录 `js/klinecharts.umd.js` 加载 KLineChart
-- 支持指数参数、排序、个股选择、缩放拖拽、十字光标和日历选日期
-
----
-
-## 维护原则
-
-- 不再保留原生 JS 页面实现。
-- React 源码改动后同步构建根目录产物。
-- `.external/assistant-ui` 是 https://github.com/assistant-ui/assistant-ui 的本地副本，`.external/KLineChart` 是 https://github.com/klinecharts/KLineChart 的本地副本，主要用于查阅源码、示例和 API。除非明确要同步或修改外部仓库，不要把业务改动写进 `.external/`。
-- 不在本地启动前端服务，按仓库规则只提交并推送远程。
+| 每小时 | crawl B站 |
+| 周一 0:50-1:10 | 周总结 |
+| 9:10-9:30 | 调仓（幂等） |
+| 9:30-15:10 | 分钟线（每次更新后同步日线） |
+| 18:00 | 股票池更新 + K线下载 |
