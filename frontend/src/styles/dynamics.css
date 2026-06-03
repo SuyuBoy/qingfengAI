@@ -263,11 +263,41 @@
 
   .top-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 0.55rem;
   }
 
   .search-bar {
-    grid-column: 1 / -1;
+    grid-column: 1;
+  }
+
+  .date-picker-control {
+    grid-column: 2;
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .date-picker-control #cal-btn {
+    min-height: 44px;
+  }
+
+  .date-picker-popover {
+    right: 0;
+    max-width: calc(100vw - 1.7rem);
+  }
+
+  .cal-label {
+    grid-column: 1;
+    padding-left: 0.15rem;
+  }
+
+  #cal-reset {
+    grid-column: 2;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
   }
 
   .card {
