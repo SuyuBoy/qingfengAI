@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import type { StockSummary } from "../../types";
 import { IndexCard } from "./IndexCard";
+import { IndexCard } from "./IndexCard";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 

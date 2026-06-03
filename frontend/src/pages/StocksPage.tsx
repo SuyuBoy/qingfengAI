@@ -107,7 +107,9 @@ export default function StocksPage() {
         onChangeSort={changeSort} onRefresh={loadAll}
         indexValue={indexValue} indexChange={indexChange}
         holdingsData={holdingsData} onLoadHoldings={loadHoldings}
-        collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
+        collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)}
+        indexValue={indexValue} indexChange={indexChange}
+        holdingsData={holdingsData} onLoadHoldings={loadHoldings} />
     </section>
   );
 }
