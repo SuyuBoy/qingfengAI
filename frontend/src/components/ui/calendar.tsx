@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import {
   ChevronDownIcon,
@@ -10,85 +12,166 @@ import {
   type DayButton,
 } from "react-day-picker";
 
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
+import { cn } from "../../lib/utils";
+import { Button, buttonVariants } from "./button";
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   captionLayout = "label",
+  buttonVariant = "ghost",
   formatters,
   components,
   ...props
-}: React.ComponentProps<typeof DayPicker>) {
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
+}) {
   const defaultClassNames = getDefaultClassNames();
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cx("aui-calendar", className)}
+      className={cn(
+        "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
+        className,
+      )}
       captionLayout={captionLayout}
       formatters={{
-        formatMonthDropdown: date =>
+        formatMonthDropdown: (date) =>
           date.toLocaleString("default", { month: "short" }),
         ...formatters,
       }}
       classNames={{
-        root: cx("aui-calendar-root", defaultClassNames.root),
-        months: cx("aui-calendar-months", defaultClassNames.months),
-        month: cx("aui-calendar-month", defaultClassNames.month),
-        nav: cx("aui-calendar-nav", defaultClassNames.nav),
-        button_previous: cx("aui-calendar-nav-btn", defaultClassNames.button_previous),
-        button_next: cx("aui-calendar-nav-btn", defaultClassNames.button_next),
-        month_caption: cx("aui-calendar-caption", defaultClassNames.month_caption),
-        dropdowns: cx("aui-calendar-dropdowns", defaultClassNames.dropdowns),
-        dropdown_root: cx("aui-calendar-dropdown-root", defaultClassNames.dropdown_root),
-        dropdown: cx("aui-calendar-dropdown", defaultClassNames.dropdown),
-        caption_label: cx("aui-calendar-caption-label", defaultClassNames.caption_label),
-        month_grid: cx("aui-calendar-grid", defaultClassNames.month_grid),
-        weekdays: cx("aui-calendar-weekdays", defaultClassNames.weekdays),
-        weekday: cx("aui-calendar-weekday", defaultClassNames.weekday),
-        week: cx("aui-calendar-week", defaultClassNames.week),
-        week_number_header: cx("aui-calendar-week-number", defaultClassNames.week_number_header),
-        week_number: cx("aui-calendar-week-number", defaultClassNames.week_number),
-        day: cx("aui-calendar-day", defaultClassNames.day),
-        range_start: cx("aui-calendar-range-start", defaultClassNames.range_start),
-        range_middle: cx("aui-calendar-range-middle", defaultClassNames.range_middle),
-        range_end: cx("aui-calendar-range-end", defaultClassNames.range_end),
-        today: cx("aui-calendar-today", defaultClassNames.today),
-        outside: cx("aui-calendar-outside", defaultClassNames.outside),
-        disabled: cx("aui-calendar-disabled", defaultClassNames.disabled),
-        hidden: cx("aui-calendar-hidden", defaultClassNames.hidden),
+        root: cn("w-fit", defaultClassNames.root),
+        months: cn(
+          "relative flex flex-col gap-4 md:flex-row",
+          defaultClassNames.months,
+        ),
+        month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
+        nav: cn(
+          "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+          defaultClassNames.nav,
+        ),
+        button_previous: cn(
+          buttonVariants({ variant: buttonVariant }),
+          "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          defaultClassNames.button_previous,
+        ),
+        button_next: cn(
+          buttonVariants({ variant: buttonVariant }),
+          "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          defaultClassNames.button_next,
+        ),
+        month_caption: cn(
+          "flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)",
+          defaultClassNames.month_caption,
+        ),
+        dropdowns: cn(
+          "flex h-(--cell-size) w-full items-center justify-center gap-1.5 text-sm font-medium",
+          defaultClassNames.dropdowns,
+        ),
+        dropdown_root: cn(
+          "border-input has-focus:border-ring has-focus:ring-ring/50 relative rounded-md border shadow-xs has-focus:ring-[3px]",
+          defaultClassNames.dropdown_root,
+        ),
+        dropdown: cn(
+          "bg-popover absolute inset-0 opacity-0",
+          defaultClassNames.dropdown,
+        ),
+        caption_label: cn(
+          "font-medium select-none",
+          captionLayout === "label"
+            ? "text-sm"
+            : "[&>svg]:text-muted-foreground flex h-8 items-center gap-1 rounded-md ps-2 pe-1 text-sm [&>svg]:size-3.5",
+          defaultClassNames.caption_label,
+        ),
+        month_grid: "w-full border-collapse",
+        weekdays: cn("flex", defaultClassNames.weekdays),
+        weekday: cn(
+          "text-muted-foreground flex-1 rounded-md text-[0.8rem] font-normal select-none",
+          defaultClassNames.weekday,
+        ),
+        week: cn("mt-2 flex w-full", defaultClassNames.week),
+        week_number_header: cn(
+          "w-(--cell-size) select-none",
+          defaultClassNames.week_number_header,
+        ),
+        week_number: cn(
+          "text-muted-foreground text-[0.8rem] select-none",
+          defaultClassNames.week_number,
+        ),
+        day: cn(
+          "group/day relative aspect-square h-full w-full p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-e-md",
+          props.showWeekNumber
+            ? "[&:nth-child(2)[data-selected=true]_button]:rounded-s-md"
+            : "[&:first-child[data-selected=true]_button]:rounded-s-md",
+          defaultClassNames.day,
+        ),
+        range_start: cn(
+          "bg-accent rounded-s-md",
+          defaultClassNames.range_start,
+        ),
+        range_middle: cn("rounded-none", defaultClassNames.range_middle),
+        range_end: cn("bg-accent rounded-e-md", defaultClassNames.range_end),
+        today: cn(
+          "bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none",
+          defaultClassNames.today,
+        ),
+        outside: cn(
+          "text-muted-foreground aria-selected:text-muted-foreground",
+          defaultClassNames.outside,
+        ),
+        disabled: cn(
+          "text-muted-foreground opacity-50",
+          defaultClassNames.disabled,
+        ),
+        hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...rootProps }) => (
-          <div
-            data-slot="calendar"
-            ref={rootRef}
-            className={cx(className)}
-            {...rootProps}
-          />
-        ),
-        Chevron: ({ className, orientation, ...chevronProps }) => {
+        Root: ({ className, rootRef, ...props }) => {
+          return (
+            <div
+              data-slot="calendar"
+              ref={rootRef}
+              className={cn(className)}
+              {...props}
+            />
+          );
+        },
+        Chevron: ({ className, orientation, ...props }) => {
           if (orientation === "left") {
-            return <ChevronLeftIcon className={cx("aui-calendar-chevron", className)} {...chevronProps} />;
+            return (
+              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+            );
           }
 
           if (orientation === "right") {
-            return <ChevronRightIcon className={cx("aui-calendar-chevron", className)} {...chevronProps} />;
+            return (
+              <ChevronRightIcon
+                className={cn("size-4", className)}
+                {...props}
+              />
+            );
           }
 
-          return <ChevronDownIcon className={cx("aui-calendar-chevron", className)} {...chevronProps} />;
+          return (
+            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+          );
         },
         DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...weekNumberProps }) => (
-          <td {...weekNumberProps}>
-            <div className="aui-calendar-week-number-cell">{children}</div>
-          </td>
-        ),
+        WeekNumber: ({ children, ...props }) => {
+          return (
+            <td {...props}>
+              <div className="flex size-(--cell-size) items-center justify-center text-center">
+                {children}
+              </div>
+            </td>
+          );
+        },
         ...components,
       }}
       {...props}
@@ -103,16 +186,17 @@ function CalendarDayButton({
   ...props
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames();
-  const ref = React.useRef<HTMLButtonElement>(null);
 
+  const ref = React.useRef<HTMLButtonElement>(null);
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus();
   }, [modifiers.focused]);
 
   return (
-    <button
+    <Button
       ref={ref}
-      type="button"
+      variant="ghost"
+      size="icon"
       data-day={day.date.toLocaleDateString()}
       data-selected-single={
         modifiers.selected &&
@@ -123,7 +207,11 @@ function CalendarDayButton({
       data-range-start={modifiers.range_start}
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
-      className={cx("aui-calendar-day-btn", defaultClassNames.day, className)}
+      className={cn(
+        "data-[range-end=true]:bg-primary data-[range-middle=true]:bg-accent data-[range-start=true]:bg-primary data-[selected-single=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:text-accent-foreground data-[range-start=true]:text-primary-foreground data-[selected-single=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-e-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-s-md [&>span]:text-xs [&>span]:opacity-70",
+        defaultClassNames.day,
+        className,
+      )}
       {...props}
     />
   );
