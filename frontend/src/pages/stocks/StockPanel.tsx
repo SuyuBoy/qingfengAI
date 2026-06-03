@@ -34,19 +34,24 @@ export function StockPanel({
     });
   }, [sortBy, sortDir, stocks]);
 
+  const collapseButton = (className = "") => (
+    <button className={`stocks-collapse-rail${className ? ` ${className}` : ""}`} type="button"
+      title={collapsed ? "展开股票列表" : "折叠股票列表"}
+      onClick={onToggleCollapse}>
+      {collapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
+    </button>
+  );
+
   return (
     <aside className={`stocks-panel${collapsed ? " stocks-collapsed" : ""}`}>
-      <button className="stocks-collapse-rail" type="button"
-        title={collapsed ? "展开股票列表" : "折叠股票列表"}
-        onClick={onToggleCollapse}>
-        {collapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
-      </button>
+      {collapseButton("collapsed-only")}
       <div className="stocks-panel-head">
         <div><h1>股票</h1></div>
         <div className="stocks-panel-actions">
           <button className="mini-icon-btn" type="button" title="刷新" onClick={onRefresh}>
             <BarChart3 size={17} />
           </button>
+          {collapseButton()}
         </div>
       </div>
 

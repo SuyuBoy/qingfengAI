@@ -14,7 +14,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 3.75rem 1rem 1rem;
+  padding: 1rem;
   overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--surface);
@@ -22,12 +22,9 @@
 }
 
 .stocks-collapse-rail {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: var(--radius);
   background: transparent;
@@ -40,6 +37,10 @@
 .stocks-collapse-rail:hover {
   background: var(--surface-2);
   color: var(--text);
+}
+
+.stocks-collapse-rail.collapsed-only {
+  display: none;
 }
 
 .stocks-panel-actions {
@@ -55,7 +56,6 @@
 }
 
 .stocks-collapsed .stocks-collapse-rail {
-  position: static;
   display: inline-flex;
   width: 100%;
 }
@@ -71,7 +71,7 @@
 .stocks-panel-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -344,7 +344,6 @@
     height: auto;
     min-height: 0;
     max-height: 60vh;
-    padding: 3.5rem 1rem 1rem;
     border-left: 0;
     border-bottom: 1px solid var(--border);
   }
