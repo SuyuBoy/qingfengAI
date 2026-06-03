@@ -11,13 +11,15 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.13",
+    "@assistant-ui/react-markdown": "^0.14.1",
     "@klinecharts/pro": "^0.1.1",
     "klinecharts": "^9.8.0",
     "lucide-react": "^1.17.0",
     "marked": "^16.0.0",
     "radix-ui": "^1.4.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.15",

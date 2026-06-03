@@ -13,6 +13,7 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import {
   ArrowDown,
   Bug,
@@ -23,6 +24,7 @@ import {
   Square,
   X,
 } from "lucide-react";
+import remarkGfm from "remark-gfm";
 import { API_BASE, api, getToken } from "../api";
 import {
   Select,
@@ -45,6 +47,7 @@ import type {
 
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
+const markdownRemarkPlugins = [remarkGfm];
 
 type ActivityStep = { type: "think" | "tool"; text: string };
 type ThoughtPhase = "thinking" | "tool" | "done";
@@ -973,9 +976,7 @@ const PlainTextPart = memo(function PlainTextPart() {
 });
 
 const MarkdownTextPart = memo(function MarkdownTextPart() {
-  const part = useMessagePartText();
-  const html = useMemo(() => renderMarkdown(part.text || ""), [part.text]);
-  return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <MarkdownTextPrimitive remarkPlugins={markdownRemarkPlugins} className="markdown-body" />;
 });
 
 function thoughtStatusText(draft: AssistantDraft) {

@@ -18,17 +18,37 @@ export function renderMarkdown(text: string) {
   const out: string[] = [];
   let inTable = false;
   let tableRows: string[] = [];
+  let quoteRows: string[] = [];
+  const flushTable = () => {
+    if (!inTable) return;
+    out.push(stashHtml(renderMdTable(tableRows)));
+    tableRows = [];
+    inTable = false;
+  };
+  const flushQuote = () => {
+    if (!quoteRows.length) return;
+    const html = renderBlockquote(quoteRows);
+    if (html) out.push(stashHtml(html));
+    quoteRows = [];
+  };
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (line.startsWith("@@CHAT_HTML_")) {
-      if (inTable) {
-        out.push(stashHtml(renderMdTable(tableRows)));
-        tableRows = [];
-        inTable = false;
-      }
+      flushTable();
+      flushQuote();
       out.push(line);
       continue;
     }
+    if (line.startsWith(">")) {
+      flushTable();
+      quoteRows.push(line.replace(/^>\s?/, ""));
+      continue;
+    }
+    if (line === "" && quoteRows.length) {
+      quoteRows.push("");
+      continue;
+    }
+    flushQuote();
     if (line.startsWith("|") && line.endsWith("|")) {
       if (!inTable) {
         inTable = true;
@@ -36,11 +56,7 @@ export function renderMarkdown(text: string) {
       }
       tableRows.push(line);
     } else {
-      if (inTable) {
-        out.push(stashHtml(renderMdTable(tableRows)));
-        tableRows = [];
-        inTable = false;
-      }
+      flushTable();
       if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(line)) {
         out.push(stashHtml("<hr>"));
         continue;
@@ -48,7 +64,8 @@ export function renderMarkdown(text: string) {
       out.push(line);
     }
   }
-  if (inTable) out.push(stashHtml(renderMdTable(tableRows)));
+  flushTable();
+  flushQuote();
 
   return out.join("\n")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -57,7 +74,6 @@ export function renderMarkdown(text: string) {
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -68,6 +84,25 @@ export function renderMarkdown(text: string) {
     .replace(/@@CHAT_HTML_(\d+)@@/g, (_, idx) => htmlBlocks[Number(idx)] || "")
     .replace(/<br>(<(?:table|hr)\b)/g, "$1")
     .replace(/(<\/table>|<hr>)<br>/g, "$1");
+}
+
+export function renderBlockquote(rows: string[]) {
+  const groups: string[][] = [];
+  let current: string[] = [];
+  for (const row of rows) {
+    const line = row.trim();
+    if (!line) {
+      if (current.length) {
+        groups.push(current);
+        current = [];
+      }
+      continue;
+    }
+    current.push(line);
+  }
+  if (current.length) groups.push(current);
+  if (!groups.length) return "";
+  return `<blockquote>${groups.map(group => inlineMd(group.join("\n")).replace(/\n/g, "<br>")).join("<br>")}</blockquote>`;
 }
 
 export function renderMdTable(rows: string[]) {
