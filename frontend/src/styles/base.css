@@ -572,18 +572,18 @@ button {
 
 .search-dialog-primary {
   padding: 0 1rem;
-  background: var(--surface-2);
-  font-weight: 600;
 }
 
 .search-dialog-item {
   padding: 0 1rem;
 }
 
+.search-dialog-primary:hover,
 .search-dialog-item:hover {
   background: var(--surface);
 }
 
+.search-dialog-primary span,
 .search-dialog-item span {
   min-width: 0;
   overflow: hidden;
