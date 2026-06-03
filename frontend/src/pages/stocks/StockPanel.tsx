@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import type { StockSummary } from "../../types";
+import { IndexCard } from "./IndexCard";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 
@@ -8,6 +9,7 @@ export function StockPanel({
   stocks, loading, selected, sortBy, sortDir,
   onSelect, onSelectIndex, onChangeSort, onRefresh,
   collapsed, onToggleCollapse,
+  indexValue, indexChange, holdingsData, onLoadHoldings,
 }: {
   stocks: StockSummary[];
   loading: boolean;
@@ -20,6 +22,10 @@ export function StockPanel({
   onRefresh: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  indexValue: number;
+  indexChange: number;
+  holdingsData: Record<string, any[]>;
+  onLoadHoldings: () => void;
 }) {
   const sorted = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -43,6 +49,11 @@ export function StockPanel({
           </button>
         </div>
       </div>
+
+      <IndexCard
+        indexValue={indexValue} indexChange={indexChange}
+        selected={selected} holdingsData={holdingsData}
+        onSelectIndex={onSelectIndex} onLoadHoldings={onLoadHoldings} />
 
       <div className="sort-bar stock-sort-bar">
         {(["active_mentions", "mention_count", "last_mentioned"] as SortKey[]).map(key => (
