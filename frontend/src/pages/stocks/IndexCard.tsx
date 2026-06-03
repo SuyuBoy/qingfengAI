@@ -24,6 +24,7 @@ export function IndexCard({
   const [modalOpen, setModalOpen] = useState(false);
   const [holdingsDate, setHoldingsDate] = useState("");
   const [prices, setPrices] = useState<Record<string, { open: number; close: number }>>({});
+  const [names, setNames] = useState<Record<string, string>>({});
   const [calOpen, setCalOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -35,9 +36,10 @@ export function IndexCard({
 
   const loadPrices = useCallback(async (date: string) => {
     try {
-      const data = await api.get<{ prices: Record<string, { open: number; close: number }> }>(
+      const data = await api.get<{ prices: any; names: Record<string, string> }>(
         `/api/stocks/index/holdings/prices?date=${date}`);
       if (data?.prices) setPrices(data.prices);
+      if (data?.names) setNames(data.names);
     } catch {}
   }, []);
 
@@ -49,7 +51,6 @@ export function IndexCard({
     }
   }, [holdingsData, loadPrices]);
 
-  const dates = Object.keys(holdingsData).sort().reverse();
   const holding = holdingsData[holdingsDate] || [];
 
   return (
@@ -65,16 +66,8 @@ export function IndexCard({
         <div className="index-card-btns">
           <button type="button" title="查看持仓" onClick={(e) => { e.stopPropagation(); load(); }}>
             <BarChart3 size={14} /></button>
-          <button type="button" title="选日期" onClick={(e) => { e.stopPropagation(); setCalOpen(c => !c); }}>
-            <CalendarDays size={14} /></button>
         </div>
       </div>
-
-      {calOpen && (
-        <div className="date-picker-popover">
-          <Calendar mode="single" selected={parseDate(holdingsDate)} onSelect={handleCalendarSelect} />
-        </div>
-      )}
 
       {modalOpen && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
@@ -95,18 +88,19 @@ export function IndexCard({
             )}
             <div className="modal-body">
               <table className="holdings-table">
-                <thead><tr><th>代码</th><th>开盘</th><th>收盘</th><th>涨跌</th><th>权重</th></tr></thead>
+                <thead><tr><th>名称</th><th>代码</th><th>开盘</th><th>收盘</th><th>涨跌</th><th>权重</th></tr></thead>
                 <tbody>
                   {holding.map(h => {
                     const p = prices[h.o];
-                    const chg = p ? ((p.close / p.open - 1) * 100) : 0;
+                    const chg = p && p.open ? ((p.close / p.open - 1) * 100) : 0;
                     return (
                       <tr key={h.o}>
+                        <td>{names[h.o] || ""}</td>
                         <td>{h.o}</td>
-                        <td>{p ? p.open.toFixed(2) : "--"}</td>
-                        <td>{p ? p.close.toFixed(2) : "--"}</td>
+                        <td>{p?.open ? p.open.toFixed(2) : "--"}</td>
+                        <td>{p?.close ? p.close.toFixed(2) : "--"}</td>
                         <td style={{color: chg >= 0 ? '#EF5350' : '#26A69A'}}>
-                          {p ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
+                          {p?.open ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
                         <td>{(h.w * 100).toFixed(1)}%</td>
                       </tr>
                     );
