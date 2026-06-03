@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { KLineChartPro } from "@klinecharts/pro";
 import type { Datafeed, Period, SymbolInfo } from "@klinecharts/pro";
-import type { KLineData } from "klinecharts";
+import { CandleType, type KLineData } from "klinecharts";
 import { api } from "../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & { turnover?: number };
-type KLineChartProHandle = { _chartApi?: { resize?: () => void } };
+type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void };
 const INDEX_PERIOD = "1d";
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
@@ -301,9 +301,6 @@ function KLineProChart({
           const all = indexCache[cacheKey];
           if (!all.length) return [];
 
-          // Always return full range for minute data — let chart handle zoom
-          if (isMin) return all;
-
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
@@ -335,17 +332,20 @@ function KLineProChart({
         mainIndicators: ["MA"],
         subIndicators: ["VOL", "MACD"],
         datafeed,
-        styles: {
+      }) as unknown as KLineChartProHandle;
+      // 在主题 applied 之后覆盖蜡烛样式
+      requestAnimationFrame(() => {
+        chartRef.current?.setStyles?.({
           candle: {
-            type: "candle_solid",
+            type: CandleType.CandleSolid,
             bar: {
               upColor: "#EF5350", upBorderColor: "#EF5350", upWickColor: "#EF5350",
               downColor: "#26A69A", downBorderColor: "#26A69A", downWickColor: "#26A69A",
               noChangeColor: "#888888", noChangeBorderColor: "#888888", noChangeWickColor: "#888888",
             },
           },
-        },
-      }) as unknown as KLineChartProHandle;
+        });
+      });
       resizeChartDuringTransition(160);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "KLineChart Pro 初始化失败");
