@@ -1,11 +1,25 @@
 import { marked } from "marked";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, RefreshCw, Search, X } from "lucide-react";
 import { API_BASE, api } from "../api";
+import { Calendar } from "../components/ui/calendar";
 import type { DynamicItem, DynamicsResponse } from "../types";
 
 function fixImages(content: string, dynamicId: string) {
   return content.replace(/!\[img:(\d+)\]/g, (_, idx) => `![图片](${API_BASE}/api/img/${dynamicId}_${idx})`);
+}
+
+function parseDateInput(value: string) {
+  if (!value) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default function DynamicsPage() {
@@ -19,6 +33,8 @@ export default function DynamicsPage() {
   const [currentDate, setCurrentDate] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [moreLoading, setMoreLoading] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const groups = useMemo(() => {
     const grouped: Record<string, DynamicItem[]> = {};
@@ -145,9 +161,35 @@ export default function DynamicsPage() {
     }
   }, [searchMode, initialLoad]);
 
+  const handleCalendarSelect = useCallback((date?: Date) => {
+    if (!date) return;
+    setCalendarOpen(false);
+    setDate(formatDateInput(date));
+  }, [setDate]);
+
   useEffect(() => {
     initialLoad();
   }, [initialLoad]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!calendarRef.current?.contains(event.target as Node)) {
+        setCalendarOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCalendarOpen(false);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [calendarOpen]);
 
   return (
     <section className="dynamics-page">
@@ -177,18 +219,26 @@ export default function DynamicsPage() {
             <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
           )}
         </div>
-        <div className="date-picker-control" title="按日期筛选">
-          <button id="cal-btn" type="button" tabIndex={-1} aria-hidden="true">
+        <div className="date-picker-control" ref={calendarRef}>
+          <button
+            id="cal-btn"
+            type="button"
+            title="按日期筛选"
+            aria-label="按日期筛选"
+            aria-expanded={calendarOpen}
+            onClick={() => setCalendarOpen(open => !open)}
+          >
             <CalendarDays size={17} />
           </button>
-          <input
-            type="date"
-            id="date-pick"
-            className="date-pick-input"
-            aria-label="按日期筛选"
-            value={currentDate}
-            onChange={e => setDate(e.target.value)}
-          />
+          {calendarOpen && (
+            <div className="date-picker-popover">
+              <Calendar
+                mode="single"
+                selected={parseDateInput(currentDate)}
+                onSelect={handleCalendarSelect}
+              />
+            </div>
+          )}
         </div>
         <span id="cal-label" className="cal-label">{currentDate}</span>
         {currentDate && (
