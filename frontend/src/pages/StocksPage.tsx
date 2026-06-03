@@ -94,7 +94,7 @@ function toIndexKLine(series: StockIndexPoint[]): KLinePoint[] {
     return {
       timestamp: datetimeToTs(point.datetime),
       open: o, high: h, low: l, close: c,
-      volume: 0,
+      volume: Number(point.volume || 0),
     };
   }).filter(point => Number.isFinite(point.timestamp) && Number.isFinite(point.close));
 }
@@ -132,6 +132,9 @@ export default function StocksPage() {
   const [sortDir, setSortDir] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [showHoldings, setShowHoldings] = useState(false);
+  const [holdingsData, setHoldingsData] = useState<Record<string, {o:string,sc:number,w:number}[]>>({});
+  const [holdingsDate, setHoldingsDate] = useState("");
 
   const dataDays = indexSeries.length
     ? Math.ceil((datetimeToTs(indexSeries[indexSeries.length - 1].datetime) - datetimeToTs(indexSeries[0].datetime)) / 86400000)
@@ -172,6 +175,18 @@ export default function StocksPage() {
     setSelected(null);
   }, []);
 
+  const loadHoldings = useCallback(async () => {
+    try {
+      const data = await api.get<{ holdings: Record<string, {o:string,sc:number,w:number}[]> }>("/api/stocks/index/holdings");
+      if (data?.holdings) {
+        setHoldingsData(data.holdings);
+        const dates = Object.keys(data.holdings).sort().reverse();
+        if (dates.length) setHoldingsDate(dates[0]);
+      }
+    } catch { /* ignore */ }
+    setShowHoldings(true);
+  }, []);
+
   const changeSort = useCallback((key: SortKey) => {
     setSortBy(prev => { if (prev === key) setSortDir(d => -d); else setSortDir(-1); return key; });
   }, []);
@@ -209,7 +224,7 @@ export default function StocksPage() {
         <div className="index-dual">
           <button className={`index-summary${!selected ? " active" : ""}`}
             type="button" onClick={selectIndex}>
-            <span>清风指数 · 日级</span>
+            <span>清风指数</span>
             <strong>{indexSeries.length ? formatNumber(indexSeries[indexSeries.length - 1].value) : "--"}</strong>
             {indexSeries.length > 1 && (
               <small className={indexSeries[indexSeries.length - 1].value >= indexSeries[indexSeries.length - 2].value ? "up" : "down"}>
@@ -218,6 +233,32 @@ export default function StocksPage() {
               </small>
             )}
           </button>
+          <button className="holdings-btn" type="button" onClick={loadHoldings} title="查看历史持仓">
+            <BarChart3 size={15} /> 持仓
+          </button>
+          {showHoldings && (
+            <div className="holdings-panel">
+              <div className="holdings-head">
+                <select value={holdingsDate} onChange={e => setHoldingsDate(e.target.value)}>
+                  {Object.keys(holdingsData).sort().reverse().map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setShowHoldings(false)}>×</button>
+              </div>
+              <div className="holdings-list">
+                {(holdingsData[holdingsDate] || []).map((h, i) => (
+                  <div key={i} className="holdings-item">
+                    <span className="holdings-code">{h.o}</span>
+                    <span className="holdings-score" style={{color: h.sc >= 0 ? '#EF5350' : '#26A69A'}}>
+                      {h.sc > 0 ? '+' : ''}{h.sc.toFixed(1)}
+                    </span>
+                    <span className="holdings-weight">{(h.w * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="sort-bar stock-sort-bar">
@@ -365,6 +406,9 @@ function KLineProChart({
               downColor: "#26A69A", downBorderColor: "#26A69A", downWickColor: "#26A69A",
               noChangeColor: "#888888", noChangeBorderColor: "#888888", noChangeWickColor: "#888888",
             },
+          },
+          indicator: {
+            ohlc: { upColor: "#EF5350", downColor: "#26A69A", noChangeColor: "#888888" },
           },
         });
       });
