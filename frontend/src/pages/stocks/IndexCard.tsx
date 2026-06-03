@@ -1,8 +1,19 @@
-import { useState, useCallback } from "react";
-import { Calendar, BarChart3 } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { CalendarDays, BarChart3 } from "lucide-react";
 import { formatNumber } from "./stockUtils";
+import { Calendar } from "../../components/ui/calendar";
 
 interface Holding { o: string; sc: number; w: number; }
+
+function parseDate(value: string) {
+  if (!value) return undefined;
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export function IndexCard({
   indexValue, indexChange, selected, holdingsData, onSelectIndex, onLoadHoldings,
@@ -16,7 +27,8 @@ export function IndexCard({
 }) {
   const [showHoldings, setShowHoldings] = useState(false);
   const [holdingsDate, setHoldingsDate] = useState("");
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     await onLoadHoldings();
@@ -25,10 +37,25 @@ export function IndexCard({
     setShowHoldings(true);
   }, [onLoadHoldings, holdingsData]);
 
-  const pickDate = useCallback((d: string) => {
-    setHoldingsDate(d);
-    setShowCalendar(false);
-  }, []);
+  const handleCalendarSelect = useCallback((date: Date | undefined) => {
+    if (date) {
+      const d = formatDate(date);
+      if (holdingsData[d]) { setHoldingsDate(d); setShowHoldings(true); }
+      setCalOpen(false);
+    }
+  }, [holdingsData]);
+
+  useEffect(() => {
+    if (!calOpen) return;
+    const h = (e: MouseEvent) => {
+      if (calRef.current && !calRef.current.contains(e.target as Node)) setCalOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [calOpen]);
+
+  const dates = Object.keys(holdingsData).sort().reverse();
+  const holding = holdingsData[holdingsDate] || [];
 
   return (
     <div className="index-dual">
@@ -39,23 +66,17 @@ export function IndexCard({
         <small className={indexChange >= 0 ? "up" : "down"}>
           {(indexChange >= 0 ? "+" : "")}{formatNumber(indexChange)}
         </small>
+        <div className="index-card-actions" onClick={e => e.stopPropagation()}>
+          <button className="index-card-btn" type="button" title="持仓"
+            onClick={load}><BarChart3 size={14} /></button>
+          <button className="index-card-btn" type="button" title="选日期"
+            onClick={() => setCalOpen(c => !c)}><CalendarDays size={14} /></button>
+        </div>
       </button>
 
-      <button className="holdings-btn" type="button" title="查看历史持仓" onClick={load}>
-        <BarChart3 size={15} /> 持仓
-      </button>
-
-      <button className="calendar-btn" type="button" title="按日期查看持仓"
-        onClick={() => setShowCalendar(c => !c)}>
-        <Calendar size={15} />
-      </button>
-
-      {showCalendar && (
-        <div className="calendar-dropdown">
-          {Object.keys(holdingsData).sort().reverse().map(d => (
-            <button key={d} type="button" onClick={() => pickDate(d)}
-              className={d === holdingsDate ? "active" : ""}>{d}</button>
-          ))}
+      {calOpen && (
+        <div className="date-picker-popover" ref={calRef}>
+          <Calendar mode="single" selected={parseDate(holdingsDate)} onSelect={handleCalendarSelect} />
         </div>
       )}
 
@@ -63,14 +84,12 @@ export function IndexCard({
         <div className="holdings-panel">
           <div className="holdings-head">
             <select value={holdingsDate} onChange={e => setHoldingsDate(e.target.value)}>
-              {Object.keys(holdingsData).sort().reverse().map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
+              {dates.map(d => (<option key={d} value={d}>{d}</option>))}
             </select>
             <button type="button" onClick={() => setShowHoldings(false)}>×</button>
           </div>
           <div className="holdings-list">
-            {(holdingsData[holdingsDate] || []).map((h) => (
+            {holding.map((h) => (
               <div key={h.o} className="holdings-item">
                 <span className="holdings-code">{h.o}</span>
                 <span className="holdings-score" style={{ color: h.sc >= 0 ? '#EF5350' : '#26A69A' }}>

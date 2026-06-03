@@ -402,3 +402,17 @@
 }
 .calendar-dropdown button:hover { background: var(--surface-2, #333); }
 .calendar-dropdown button.active { background: var(--accent, #2563eb); color: #fff; }
+
+/* index card inline buttons */
+.index-card-actions { display: flex; gap: 2px; margin-top: 4px; }
+.index-card-btn {
+  width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--surface-1); color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.index-card-btn:hover { background: var(--surface-2); color: var(--text); }
+.date-picker-popover {
+  position: absolute; z-index: 20; top: 100%; right: 0;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+}
+.holdings-btn, .calendar-btn { display: none; }
