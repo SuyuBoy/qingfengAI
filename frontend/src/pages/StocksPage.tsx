@@ -8,7 +8,7 @@ import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & { turnover?: number };
-type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void };
+type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
 const INDEX_PERIOD = "1d";
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
