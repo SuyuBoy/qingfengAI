@@ -52,6 +52,7 @@
   outline: 0;
   background: transparent;
   color: var(--text);
+  font-size: 1rem;
 }
 
 .search-bar > button,
@@ -208,6 +209,7 @@
   color: var(--text);
   font-size: 0.94rem;
   line-height: 1.75;
+  overflow-wrap: anywhere;
 }
 
 .card .content h1,
@@ -254,31 +256,54 @@
 
 @media (max-width: 780px) {
   .dynamics-page {
-    padding: 4rem max(0.85rem, env(safe-area-inset-left)) 2rem max(0.85rem, env(safe-area-inset-right));
+    padding: 1rem max(0.8rem, env(safe-area-inset-left)) 2rem max(0.8rem, env(safe-area-inset-right));
+  }
+
+  .workspace-head {
+    min-height: 42px;
+    align-items: center;
+    margin-bottom: 0.85rem;
+    padding-left: 3rem;
+  }
+
+  .workspace-head .mini-icon-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
   }
 
   .workspace-head h1 {
-    font-size: 1.35rem;
+    font-size: 1.28rem;
+  }
+
+  .workspace-head p {
+    margin-top: 0.1rem;
+    font-size: 0.85rem;
   }
 
   .top-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
     align-items: center;
-    gap: 0.55rem;
-    padding: 0.55rem;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.45rem;
+    border-radius: 12px;
   }
 
   .search-bar {
-    flex: 1 1 calc(100% - 72px);
+    min-width: 0;
+    flex: initial;
     height: 44px;
     align-items: center;
+    gap: 0.4rem;
   }
 
   #search-btn {
-    width: 64px;
+    width: 56px;
     height: 44px;
     min-height: 44px;
+    flex: 0 0 56px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -289,16 +314,16 @@
   }
 
   .date-picker-control {
-    flex: 0 0 64px;
+    flex: initial;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
+    width: 44px;
     height: 44px;
   }
 
   .date-picker-control #cal-btn {
-    width: 64px;
+    width: 44px;
     height: 44px;
     min-height: 44px;
     display: inline-flex;
@@ -315,18 +340,46 @@
   }
 
   .cal-label {
-    flex: 1 1 calc(100% - 72px);
+    grid-column: 1 / -1;
     padding-left: 0.15rem;
+    line-height: 1.2;
   }
 
   #cal-reset {
-    flex: 0 0 64px;
-    width: 64px;
-    min-width: 64px;
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
     padding: 0;
   }
 
+  .month-group {
+    margin-bottom: 1.25rem;
+  }
+
+  .month-label {
+    margin-bottom: 0.65rem;
+    padding: 0.35rem 0;
+  }
+
   .card {
-    padding: 0.9rem;
+    margin-bottom: 0.7rem;
+    padding: 0.85rem;
+  }
+
+  .card .meta {
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .card .card-id {
+    max-width: 48%;
+  }
+
+  .card .content {
+    font-size: 0.92rem;
+    line-height: 1.68;
   }
 }
