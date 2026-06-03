@@ -1,6 +1,6 @@
 # 前端模块手册
 
-## 数据表（9 张）
+## 数据表（8 张）
 
 ### 1. bili_dynamics — B站动态
 | PK | Type |
@@ -75,15 +75,6 @@ holdings = JSON: `[{o, symbol, sc, w, open, high, low, close, volume}]`
 
 活跃股票自动下载。新激活补 50 天历史，已有股票每日增量。
 
-### 9. stock_prices_min — 个股分钟线
-| PK | Type |
-|----|------|
-| order_book_id | STRING |
-| datetime | STRING |
-
-列: open, high, low, close, volume
-
-目前未使用。分钟线指数通过 rqdatac 实时拉取。
 
 ---
 
