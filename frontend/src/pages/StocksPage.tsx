@@ -72,6 +72,19 @@ function aggregateBars(bars: KLinePoint[], multiplier: number): KLinePoint[] {
   return result;
 }
 
+function swapUpDownColors(obj: any): any {
+  if (!obj || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(swapUpDownColors);
+  const out: any = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = swapUpDownColors(v);
+  }
+  if ("upColor" in out && "downColor" in out) {
+    [out.upColor, out.downColor] = [out.downColor, out.upColor];
+  }
+  return out;
+}
+
 function datetimeToTs(datetime: string) {
   const parts = datetime.split("-");
   const date = parts.slice(0, 3).join("-");
@@ -397,19 +410,10 @@ function KLineProChart({
       }) as unknown as KLineChartProHandle;
       // 在主题 applied 之后覆盖蜡烛样式
       requestAnimationFrame(() => {
-        chartRef.current?.setStyles?.({
-          candle: {
-            type: CandleType.CandleSolid,
-            bar: {
-              upColor: "#EF5350", upBorderColor: "#EF5350", upWickColor: "#EF5350",
-              downColor: "#26A69A", downBorderColor: "#26A69A", downWickColor: "#26A69A",
-              noChangeColor: "#888888", noChangeBorderColor: "#888888", noChangeWickColor: "#888888",
-            },
-          },
-          indicator: {
-            ohlc: { upColor: "#EF5350", downColor: "#26A69A", noChangeColor: "#888888" },
-          },
-        });
+        const styles = chartRef.current?.getStyles?.() || {};
+        const swapped = swapUpDownColors(styles);
+        swapped.candle = { ...(swapped.candle || {}), type: CandleType.CandleSolid };
+        chartRef.current?.setStyles?.(swapped);
       });
       resizeChartDuringTransition(160);
     } catch (reason) {
