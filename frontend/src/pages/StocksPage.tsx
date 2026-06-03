@@ -9,12 +9,7 @@ import type { StockIndexPoint, StockPrice, StockSummary } from "../types";
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 type KLinePoint = KLineData & { turnover?: number };
 type KLineChartProHandle = { _chartApi?: { resize?: () => void } };
-type IndexPeriod = "1d" | "1w";
-
-const INDEX_PERIODS: { key: IndexPeriod; label: string }[] = [
-  { key: "1d", label: "日级" },
-  { key: "1w", label: "周级" },
-];
+const INDEX_PERIOD = "1d";
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
@@ -109,20 +104,18 @@ function getSymbolInfo(selected: StockSummary | null, periodLabel: string): Symb
 export default function StocksPage() {
   const [stocks, setStocks] = useState<StockSummary[]>([]);
   const [selected, setSelected] = useState<StockSummary | null>(null);
-  const [indexPeriod, setIndexPeriod] = useState<IndexPeriod>("1d");
-  const [indexSeries, setIndexSeries] = useState<Record<IndexPeriod, StockIndexPoint[]>>({ "1d": [], "1w": [] });
+  const [indexSeries, setIndexSeries] = useState<StockIndexPoint[]>([]);
   const [indexMeta, setIndexMeta] = useState<Record<string, number | string>>({});
   const [sortBy, setSortBy] = useState<SortKey>("active_mentions");
   const [sortDir, setSortDir] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
-  const dataDays = indexSeries[indexPeriod]?.length
-    ? Math.ceil((datetimeToTs(indexSeries[indexPeriod][indexSeries[indexPeriod].length - 1].datetime) - datetimeToTs(indexSeries[indexPeriod][0].datetime)) / 86400000)
+  const dataDays = indexSeries.length
+    ? Math.ceil((datetimeToTs(indexSeries[indexSeries.length - 1].datetime) - datetimeToTs(indexSeries[0].datetime)) / 86400000)
     : 0;
   const periods = useMemo(() => buildPeriods(dataDays), [dataDays]);
-  const symbolInfo = useMemo(() => getSymbolInfo(selected,
-    INDEX_PERIODS.find(p => p.key === indexPeriod)?.label || ""), [selected, indexPeriod]);
+  const symbolInfo = useMemo(() => getSymbolInfo(selected, "日级"), [selected]);
 
   const sortedStocks = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -140,21 +133,20 @@ export default function StocksPage() {
     setLoading(false);
   }, []);
 
-  const loadIndex = useCallback(async (period: IndexPeriod) => {
+  const loadIndex = useCallback(async () => {
     try {
       const data = await api.get<{ index: StockIndexPoint[]; meta: Record<string, number | string> }>(
-        `/api/stocks/index?period=${period}`);
-      setIndexSeries(prev => ({ ...prev, [period]: data?.index || [] }));
-      if (period === indexPeriod) setIndexMeta(data?.meta || {});
+        "/api/stocks/index?period=1d");
+      setIndexSeries(data?.index || []);
+      setIndexMeta(data?.meta || {});
     } catch { /* ignore */ }
-  }, [indexPeriod]);
+  }, []);
 
   const selectStock = useCallback((stock: StockSummary) => {
     setSelected(stock);
   }, []);
 
-  const selectIndex = useCallback((period: IndexPeriod) => {
-    setIndexPeriod(period);
+  const selectIndex = useCallback(() => {
     setSelected(null);
   }, []);
 
@@ -163,7 +155,7 @@ export default function StocksPage() {
   }, []);
 
   useEffect(() => { loadStocks(); }, [loadStocks]);
-  useEffect(() => { loadIndex("1d"); loadIndex("1w"); }, []);
+  useEffect(() => { loadIndex(); }, []);
 
   return (
     <section className={`stocks-page${panelCollapsed ? " stocks-collapsed" : ""}`}>
@@ -171,9 +163,8 @@ export default function StocksPage() {
         {selected
           ? <KLineProChart key={`stock:${selected.order_book_id}`} symbol={symbolInfo} isIndex={false}
               layoutKey={panelCollapsed ? "collapsed" : "expanded"} orderBookId={selected.order_book_id} periods={periods} />
-          : <KLineProChart key={`index:${indexPeriod}`} symbol={symbolInfo} isIndex={true}
-              layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={INDEX_CHART_PERIODS}
-              indexPeriod={indexPeriod} />
+          : <KLineProChart key="index" symbol={symbolInfo} isIndex={true}
+              layoutKey={panelCollapsed ? "collapsed" : "expanded"} periods={INDEX_CHART_PERIODS} />
         }
       </div>
 
@@ -192,24 +183,19 @@ export default function StocksPage() {
           </div>
         </div>
 
-        {/* 双指数卡片 */}
+        {/* 指数卡片 */}
         <div className="index-dual">
-          {INDEX_PERIODS.map(({ key, label }) => {
-            const series = indexSeries[key];
-            const latest = series.length ? series[series.length - 1].value : null;
-            const prev = series.length > 1 ? series[series.length - 2].value : null;
-            const chg = latest != null && prev != null ? latest - prev : null;
-            const active = indexPeriod === key && !selected;
-            return (
-              <button key={key} className={`index-summary${active ? " active" : ""}`}
-                type="button" onClick={() => selectIndex(key)}>
-                <span>清风指数 · {label}</span>
-                <strong>{latest != null ? formatNumber(latest) : "--"}</strong>
-                {chg != null && <small className={chg >= 0 ? "up" : "down"}>
-                  {chg >= 0 ? "+" : ""}{formatNumber(chg)}</small>}
-              </button>
-            );
-          })}
+          <button className={`index-summary${!selected ? " active" : ""}`}
+            type="button" onClick={selectIndex}>
+            <span>清风指数 · 日级</span>
+            <strong>{indexSeries.length ? formatNumber(indexSeries[indexSeries.length - 1].value) : "--"}</strong>
+            {indexSeries.length > 1 && (
+              <small className={indexSeries[indexSeries.length - 1].value >= indexSeries[indexSeries.length - 2].value ? "up" : "down"}>
+                {(indexSeries[indexSeries.length - 1].value >= indexSeries[indexSeries.length - 2].value ? "+" : "") +
+                  formatNumber(indexSeries[indexSeries.length - 1].value - indexSeries[indexSeries.length - 2].value)}
+              </small>
+            )}
+          </button>
         </div>
 
         <div className="sort-bar stock-sort-bar">
@@ -240,11 +226,10 @@ export default function StocksPage() {
 }
 
 function KLineProChart({
-  symbol, isIndex, orderBookId, layoutKey, periods, indexPeriod,
+  symbol, isIndex, orderBookId, layoutKey, periods,
 }: {
   symbol: SymbolInfo; isIndex: boolean;
   orderBookId?: string; layoutKey: string; periods: Period[];
-  indexPeriod?: IndexPeriod;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
@@ -294,7 +279,6 @@ function KLineProChart({
 
     let datafeed: Datafeed;
     if (isIndex) {
-      const ip = indexPeriod || "1d";
       const indexCache: Record<string, KLinePoint[]> = {};
       datafeed = {
         searchSymbols: (search?: string) => {
@@ -304,19 +288,18 @@ function KLineProChart({
         },
         getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
           const isMin = period.timespan === "minute";
-          const cacheKey = isMin ? `min_${ip}` : ip;
+          const cacheKey = isMin ? "min_1d" : "1d";
 
           if (!indexCache[cacheKey]) {
             const data = isMin
-              ? await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index/ohlc?period=${ip}`)
-              : await api.get<{ index: StockIndexPoint[] }>(`/api/stocks/index?period=${ip}`);
+              ? await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index/ohlc?period=1d")
+              : await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
             indexCache[cacheKey] = toIndexKLine(data?.index || []);
           }
 
           const all = indexCache[cacheKey];
           if (!all.length) return [];
 
-          // 按图表请求范围过滤，避免全量返回导致循环
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
