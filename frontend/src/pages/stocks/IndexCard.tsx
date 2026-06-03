@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { CalendarDays, BarChart3 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { CalendarDays, BarChart3, X } from "lucide-react";
 import { formatNumber } from "./stockUtils";
 import { Calendar } from "../../components/ui/calendar";
+import { api } from "../../api";
 
 interface Holding { o: string; sc: number; w: number; }
 
@@ -20,34 +21,33 @@ export function IndexCard({
   indexValue: number; indexChange: number; selected: null | any;
   holdingsData: Record<string, Holding[]>; onSelectIndex: () => void; onLoadHoldings: () => void;
 }) {
-  const [showHoldings, setShowHoldings] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [holdingsDate, setHoldingsDate] = useState("");
+  const [prices, setPrices] = useState<Record<string, { open: number; close: number }>>({});
   const [calOpen, setCalOpen] = useState(false);
-  const calRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     await onLoadHoldings();
     const ds = Object.keys(holdingsData).sort().reverse();
-    if (ds.length) setHoldingsDate(ds[0]);
-    setShowHoldings(true);
+    if (ds.length) { setHoldingsDate(ds[0]); loadPrices(ds[0]); }
+    setModalOpen(true);
   }, [onLoadHoldings, holdingsData]);
+
+  const loadPrices = useCallback(async (date: string) => {
+    try {
+      const data = await api.get<{ prices: Record<string, { open: number; close: number }> }>(
+        `/api/stocks/index/holdings/prices?date=${date}`);
+      if (data?.prices) setPrices(data.prices);
+    } catch {}
+  }, []);
 
   const handleCalendarSelect = useCallback((date: Date | undefined) => {
     if (date) {
       const d = formatDate(date);
-      if (holdingsData[d]) { setHoldingsDate(d); setShowHoldings(true); }
+      if (holdingsData[d]) { setHoldingsDate(d); loadPrices(d); }
       setCalOpen(false);
     }
-  }, [holdingsData]);
-
-  useEffect(() => {
-    if (!calOpen) return;
-    const h = (e: MouseEvent) => {
-      if (calRef.current && !calRef.current.contains(e.target as Node)) setCalOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [calOpen]);
+  }, [holdingsData, loadPrices]);
 
   const dates = Object.keys(holdingsData).sort().reverse();
   const holding = holdingsData[holdingsDate] || [];
@@ -63,42 +63,57 @@ export function IndexCard({
           </small>
         </div>
         <div className="index-card-btns">
-          <button type="button" title="查看持仓"
-            onClick={(e) => { e.stopPropagation(); load(); }}>
+          <button type="button" title="查看持仓" onClick={(e) => { e.stopPropagation(); load(); }}>
             <BarChart3 size={14} /></button>
-          <button type="button" title="选日期"
-            onClick={(e) => { e.stopPropagation(); setCalOpen(c => !c); }}>
+          <button type="button" title="选日期" onClick={(e) => { e.stopPropagation(); setCalOpen(c => !c); }}>
             <CalendarDays size={14} /></button>
         </div>
       </div>
 
       {calOpen && (
-        <div className="date-picker-popover" ref={calRef}>
+        <div className="date-picker-popover">
           <Calendar mode="single" selected={parseDate(holdingsDate)} onSelect={handleCalendarSelect} />
         </div>
       )}
 
-      {showHoldings && (
-        <div className="holdings-panel">
-          <div className="holdings-head">
-            <select value={holdingsDate} onChange={e => setHoldingsDate(e.target.value)}>
-              {dates.map(d => (<option key={d} value={d}>{d}</option>))}
-            </select>
-            <button type="button" onClick={() => setShowHoldings(false)}>×</button>
-          </div>
-          <div className="holdings-list">
-            <div className="holdings-header">
-              <span>代码</span><span>评分</span><span>权重</span>
-            </div>
-            {holding.map((h) => (
-              <div key={h.o} className="holdings-item">
-                <span className="holdings-code">{h.o}</span>
-                <span className="holdings-score" style={{ color: h.sc >= 0 ? '#EF5350' : '#26A69A' }}>
-                  {h.sc > 0 ? '+' : ''}{h.sc.toFixed(1)}
+      {modalOpen && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
+          <div className="modal-box">
+            <div className="modal-header">
+              <div>
+                <h3>{holdingsDate} 持仓</h3>
+                <span className="modal-meta" style={{cursor:"pointer"}} onClick={() => setCalOpen(c => !c)}>
+                  <CalendarDays size={12} style={{verticalAlign:-1,marginRight:4}} />切换日期
                 </span>
-                <span className="holdings-weight">{(h.w * 100).toFixed(1)}%</span>
               </div>
-            ))}
+              <button className="modal-close" onClick={() => setModalOpen(false)}><X size={18} /></button>
+            </div>
+            {calOpen && (
+              <div style={{padding:"0.5rem 1.15rem"}}>
+                <Calendar mode="single" selected={parseDate(holdingsDate)} onSelect={handleCalendarSelect} />
+              </div>
+            )}
+            <div className="modal-body">
+              <table className="holdings-table">
+                <thead><tr><th>代码</th><th>开盘</th><th>收盘</th><th>涨跌</th><th>权重</th></tr></thead>
+                <tbody>
+                  {holding.map(h => {
+                    const p = prices[h.o];
+                    const chg = p ? ((p.close / p.open - 1) * 100) : 0;
+                    return (
+                      <tr key={h.o}>
+                        <td>{h.o}</td>
+                        <td>{p ? p.open.toFixed(2) : "--"}</td>
+                        <td>{p ? p.close.toFixed(2) : "--"}</td>
+                        <td style={{color: chg >= 0 ? '#EF5350' : '#26A69A'}}>
+                          {p ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
+                        <td>{(h.w * 100).toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
