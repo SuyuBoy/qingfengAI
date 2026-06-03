@@ -48,11 +48,13 @@
   min-width: 0;
   flex: 1;
   height: 38px;
+  padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--text);
   font-size: 1rem;
+  line-height: 38px;
 }
 
 .search-bar > button,
@@ -297,6 +299,11 @@
     height: 44px;
     align-items: center;
     gap: 0.4rem;
+  }
+
+  .search-bar input[type="text"] {
+    height: 44px;
+    line-height: 44px;
   }
 
   #search-btn {
