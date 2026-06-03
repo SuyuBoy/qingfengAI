@@ -295,10 +295,14 @@ function KLineProChart({
               ? await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index/ohlc?period=1d")
               : await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
             indexCache[cacheKey] = toIndexKLine(data?.index || []);
+            console.log(`[kline] ${cacheKey}: loaded ${indexCache[cacheKey].length} bars, first=${indexCache[cacheKey][0]?.timestamp}, last=${indexCache[cacheKey][indexCache[cacheKey].length-1]?.timestamp}`);
           }
 
           const all = indexCache[cacheKey];
           if (!all.length) return [];
+
+          // Always return full range for minute data — let chart handle zoom
+          if (isMin) return all;
 
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
@@ -331,6 +335,16 @@ function KLineProChart({
         mainIndicators: ["MA"],
         subIndicators: ["VOL", "MACD"],
         datafeed,
+        styles: {
+          candle: {
+            type: "candle_solid",
+            bar: {
+              upColor: "#EF5350", upBorderColor: "#EF5350", upWickColor: "#EF5350",
+              downColor: "#26A69A", downBorderColor: "#26A69A", downWickColor: "#26A69A",
+              noChangeColor: "#888888", noChangeBorderColor: "#888888", noChangeWickColor: "#888888",
+            },
+          },
+        },
       }) as unknown as KLineChartProHandle;
       resizeChartDuringTransition(160);
     } catch (reason) {
