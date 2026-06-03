@@ -361,9 +361,8 @@ function KLineProChart({
             console.log(`[kline] ${cacheKey}: loaded ${indexCache[cacheKey].length} bars, first=${indexCache[cacheKey][0]?.timestamp}, last=${indexCache[cacheKey][indexCache[cacheKey].length-1]?.timestamp}`);
           }
 
-          const all = indexCache[cacheKey];
+          const all = aggregateBars(indexCache[cacheKey], period.multiplier);
           if (!all.length) return [];
-          if (isMin) return aggregateBars(all, period.multiplier);
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
