@@ -339,8 +339,8 @@
 
   .search-bar {
     min-width: 0;
-    height: 100%;
-    align-self: stretch;
+    height: auto;
+    align-self: center;
     align-items: center;
     gap: 0.45rem;
   }
