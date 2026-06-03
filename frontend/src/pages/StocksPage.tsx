@@ -50,6 +50,28 @@ function formatNumber(value: number) {
   return Number.isFinite(value) ? value.toFixed(2) : "--";
 }
 
+function aggregateBars(bars: KLinePoint[], multiplier: number): KLinePoint[] {
+  if (multiplier <= 1) return bars;
+  const result: KLinePoint[] = [];
+  let group: KLinePoint[] = [];
+  for (const bar of bars) {
+    group.push(bar);
+    if (group.length >= multiplier) {
+      result.push({
+        timestamp: group[0].timestamp,
+        open: group[0].open,
+        high: Math.max(...group.map(b => b.high)),
+        low: Math.min(...group.map(b => b.low)),
+        close: group[group.length - 1].close,
+        volume: group.reduce((s, b) => s + (b.volume || 0), 0),
+        turnover: group.reduce((s, b) => s + (b.turnover || 0), 0),
+      });
+      group = [];
+    }
+  }
+  return result;
+}
+
 function datetimeToTs(datetime: string) {
   const parts = datetime.split("-");
   const date = parts.slice(0, 3).join("-");
@@ -300,8 +322,7 @@ function KLineProChart({
 
           const all = indexCache[cacheKey];
           if (!all.length) return [];
-          // 分钟线返回全部数据，图表自由滚动；日线按请求范围过滤
-          if (isMin) return all;
+          if (isMin) return aggregateBars(all, period.multiplier);
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
