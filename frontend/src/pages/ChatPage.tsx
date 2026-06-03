@@ -94,6 +94,34 @@ function stripRuntimeFields(messages: UiChatMessage[]): ChatMessage[] {
   return messages.map(({ stream, ...message }) => message);
 }
 
+function isDisplayableAssistant(message: ChatMessage) {
+  return message.role === "assistant" && !message.tool_calls?.length && Boolean(message.content?.trim());
+}
+
+function isVisibleMessage(message: UiChatMessage) {
+  if (message.role === "user") return true;
+  if (message.role !== "assistant") return false;
+  if (message.stream) return true;
+  return isDisplayableAssistant(message);
+}
+
+function attachReasoningToLastAssistant(messages: UiChatMessage[], reasoning: string) {
+  const reasoningContent = reasoning.trim();
+  if (!reasoningContent) return messages;
+  let idx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (isDisplayableAssistant(messages[i])) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx < 0) return messages;
+  return messages.map((message, i) => {
+    if (i !== idx || message.reasoning_content) return message;
+    return { ...message, reasoning_content: reasoningContent };
+  });
+}
+
 function titleFromMessages(messages: ChatMessage[]) {
   const title = messages.find(m => m.role === "user")?.content?.slice(0, 30) || "新对话";
   return title.length >= 30 ? `${title}...` : title;
@@ -384,6 +412,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     let finalMessages = outboundMessages;
     let content = "";
     let reasoning = "";
+    let reasoningContent = "";
     let steps: AssistantDraft["steps"] = [];
     let currentCardId: string | null = null;
     let receivedDoneMessages = false;
@@ -467,6 +496,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               if (cardIdx >= 0) accumulatedCards[cardIdx] = { ...accumulatedCards[cardIdx], articles };
             } else if (obj.reasoning) {
               reasoning += obj.reasoning;
+              reasoningContent += obj.reasoning;
             } else if (obj.delta) {
               flushReasoning();
               content += obj.delta;
@@ -492,10 +522,18 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       flushStreamState();
 
       if (!receivedDoneMessages && content) {
-        finalMessages = [...finalMessages, { id: makeId(), role: "assistant", content }];
+        finalMessages = [...finalMessages, {
+          id: makeId(),
+          role: "assistant",
+          content,
+          ...(reasoningContent.trim() ? { reasoning_content: reasoningContent.trim() } : {}),
+        }];
       }
       if (deletedSessionIdsRef.current.has(sessionId)) return;
-      const cleanFinalMessages = normalizeMessages(stripRuntimeFields(finalMessages));
+      const cleanFinalMessages = attachReasoningToLastAssistant(
+        normalizeMessages(stripRuntimeFields(finalMessages)),
+        reasoningContent,
+      );
       setMessages(cleanFinalMessages);
       setCards(accumulatedCards);
       setDebugLog(accumulatedDebugLog);
@@ -528,7 +566,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   }, [debug, effort, flushStreamState, maxRounds, model, pastedImages, persistActiveSession, scheduleFlush]);
 
   const visibleMessages = useMemo(
-    () => messages.filter(message => message.role === "user" || message.role === "assistant"),
+    () => messages.filter(isVisibleMessage),
     [messages],
   );
 
@@ -893,11 +931,13 @@ const UserMessage = memo(function UserMessage() {
 
 const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { onOpenActivity: () => void }) {
   const original = useAuiState(state => getExternalStoreMessages<UiChatMessage>(state.message)[0]);
+  const storedReasoning = original?.reasoning_content;
   return (
     <MessagePrimitive.Root className={`aui-message assistant${original?.stream?.typing ? " typing" : ""}${original?.stream?.error ? " error" : ""}`}>
       <div className="aui-message-role">AI</div>
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
+        {!original?.stream && storedReasoning && <StoredThoughts reasoning={storedReasoning} />}
         <MessagePrimitive.Parts>
           {({ part }) => part.type === "text" ? <MarkdownTextPart /> : null}
         </MessagePrimitive.Parts>
@@ -940,6 +980,17 @@ const StreamThoughts = memo(function StreamThoughts({ draft, onOpenActivity }: {
         </div>
       </details>
     </div>
+  );
+});
+
+const StoredThoughts = memo(function StoredThoughts({ reasoning }: { reasoning: string }) {
+  return (
+    <details className="msg-think stored-think">
+      <summary>思考过程</summary>
+      <div className="think-steps">
+        <div className="think-step">{reasoning}</div>
+      </div>
+    </details>
   );
 });
 
