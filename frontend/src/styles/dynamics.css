@@ -101,6 +101,8 @@
   top: calc(100% + 0.45rem);
   right: 0;
   z-index: 30;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--background);
@@ -125,6 +127,28 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
+}
+
+.dynamics-page .date-picker-popover [data-slot="calendar"] {
+  width: 100%;
+  padding: 0.75rem;
+  --cell-size: 2.35rem;
+}
+
+.dynamics-page .date-picker-popover .rdp-months,
+.dynamics-page .date-picker-popover .rdp-month,
+.dynamics-page .date-picker-popover .rdp-month_grid {
+  width: 100%;
+}
+
+.dynamics-page .date-picker-popover button[data-selected-single="true"] {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.dynamics-page .date-picker-popover button[data-selected-single="true"]:hover {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
 }
 
 :root[data-theme="dark"] .dynamics-page .date-picker-popover {
@@ -359,18 +383,6 @@
     max-width: calc(100vw - 2rem);
     transform: translateX(-50%);
     z-index: 180;
-  }
-
-  .dynamics-page .date-picker-popover [data-slot="calendar"] {
-    width: 100%;
-    padding: 0.75rem;
-    --cell-size: 2.35rem;
-  }
-
-  .dynamics-page .date-picker-popover .rdp-months,
-  .dynamics-page .date-picker-popover .rdp-month,
-  .dynamics-page .date-picker-popover .rdp-month_grid {
-    width: 100%;
   }
 
   .cal-label {
