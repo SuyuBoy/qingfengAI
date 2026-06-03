@@ -44,27 +44,38 @@ frontend/
 
 ---
 
-## 入口与构建
+## 部署流程
 
-### `index.html`
+### GitHub Actions 自动构建（推荐）
 
-根入口是 Vite 构建后的 React 页面：
+本仓库配置了 `.github/workflows/react-root.yml`，推送 `frontend/**` 源码后自动：
 
-- 加载 Google Sign-In SDK
-- 声明 `window.__API_BASE__`
-- 引用根目录 `assets/` 下的构建产物
-- `<div id="root"></div>` 作为 React 挂载点
+1. `npm ci` 安装依赖
+2. `npm run build:github-root` 构建到根目录
+3. 自动 commit + push 构建产物
 
-### `frontend/package.json`
+**不要手动提交构建产物（`index.html`、`assets/`）**，让 GitHub Actions 负责。只提交 `frontend/src/` 下的源码改动。
 
-关键脚本：
+### 本地验证构建
 
-| 脚本 | 说明 |
-|---|---|
-| `npm run build` | TypeScript 检查 + Vite 构建到 `frontend/dist/` |
-| `npm run build:github-root` | TypeScript 检查 + Vite 构建到仓库根目录 |
+如需本地验证：
 
-每次修改 React 源码后，需要执行 `npm run build:github-root` 更新根目录构建产物。
+```bash
+cd page/frontend
+npm run build:github-root
+```
+
+但不要 commit 构建产物。验证完后 `git checkout -- index.html assets/` 恢复。
+
+### Git 推送注意事项
+
+本机 git 的 HTTPS TLS 握手可能不稳定，推送失败时用：
+
+```bash
+GIT_SSL_NO_VERIFY=1 git push origin main
+```
+
+不要用 `git push -f`，始终先 `git pull --rebase`。
 
 ---
 
@@ -108,11 +119,21 @@ frontend/
 
 ### `frontend/src/pages/StocksPage.tsx`
 
+壳组件（~117 行），负责状态管理 + 布局骨架。子组件在 `stocks/` 目录下：
+
+| 文件 | 职责 |
+|------|------|
+| `StockPanel.tsx` | 右侧侧边栏：排序、股票列表、折叠 |
+| `IndexCard.tsx` | 指数卡片 + 日历弹窗 + 持仓面板 |
+| `ChartContainer.tsx` | K 线容器：datafeed 构建、图表生命周期 |
+| `stockUtils.ts` | 工具函数：K 线转换、周期聚合、颜色交换 |
+
 - 加载活跃股票列表 `/api/stocks/active`
 - 加载清风指数 `/api/stocks/index`
 - 加载个股价格 `/api/stocks/prices/:code`
+- 加载历史持仓 `/api/stocks/index/holdings`
 - 运行时从根目录 `js/klinecharts.umd.js` 加载 KLineChart
-- 支持指数参数、排序、个股选择、缩放拖拽和十字光标
+- 支持指数参数、排序、个股选择、缩放拖拽、十字光标和日历选日期
 
 ---
 
