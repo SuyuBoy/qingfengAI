@@ -300,7 +300,8 @@ function KLineProChart({
 
           const all = indexCache[cacheKey];
           if (!all.length) return [];
-
+          // 分钟线返回全部数据，图表自由滚动；日线按请求范围过滤
+          if (isMin) return all;
           if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
             return all.filter(p => p.timestamp >= from && p.timestamp <= to);
           }
