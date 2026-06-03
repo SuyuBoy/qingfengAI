@@ -46,10 +46,12 @@ import type {
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
 
+type ActivityStep = { type: "think" | "tool"; text: string };
+
 interface AssistantDraft {
   content: string;
   reasoning: string;
-  steps: Array<{ type: "think" | "tool"; text: string }>;
+  steps: ActivityStep[];
   typing: boolean;
   error?: string;
 }
@@ -187,6 +189,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [messages, setMessages] = useState<UiChatMessage[]>(initial.messages);
   const [streaming, setStreaming] = useState(false);
   const [cards, setCards] = useState<ToolCardData[]>([]);
+  const [activitySteps, setActivitySteps] = useState<ActivityStep[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pastedImages, setPastedImages] = useState<string[]>([]);
   const [model, setModel] = useState("deepseek-v4-flash");
@@ -208,6 +211,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const deletedSessionIdsRef = useRef(new Set<string>());
   const rafRef = useRef<number>(0);
   const localCardsRef = useRef<ToolCardData[]>([]);
+  const localActivityStepsRef = useRef<ActivityStep[]>([]);
   const localDebugLogRef = useRef<DebugLogEntry[]>([]);
 
   useEffect(() => {
@@ -241,7 +245,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           : message,
       ));
     }
-    if (localCardsRef.current.length) setCards([...localCardsRef.current]);
+    setCards([...localCardsRef.current]);
+    setActivitySteps([...localActivityStepsRef.current]);
     if (localDebugLogRef.current.length) setDebugLog([...localDebugLogRef.current]);
     rafRef.current = 0;
   }, []);
@@ -283,7 +288,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setActiveSessionId(null);
     setStoredActiveId(null);
     setCards([]);
+    setActivitySteps([]);
     localCardsRef.current = [];
+    localActivityStepsRef.current = [];
     setCacheStats({ hit: 0, miss: 0 });
     setDebugLog([]);
     localDebugLogRef.current = [];
@@ -305,7 +312,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setActiveSessionId(id);
     setStoredActiveId(id);
     setCards([]);
+    setActivitySteps([]);
     localCardsRef.current = [];
+    localActivityStepsRef.current = [];
   }, []);
 
   const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -402,8 +411,10 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     streamMessageIdRef.current = assistantId;
     draftAccRef.current = assistantMessage.stream || null;
     localCardsRef.current = [];
+    localActivityStepsRef.current = [];
     localDebugLogRef.current = [];
     setCards([]);
+    setActivitySteps([]);
     setDebugLog([]);
     setStreaming(true);
     const abortController = new AbortController();
@@ -413,7 +424,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     let content = "";
     let reasoning = "";
     let reasoningContent = "";
-    let steps: AssistantDraft["steps"] = [];
+    let steps: ActivityStep[] = [];
     let currentCardId: string | null = null;
     let receivedDoneMessages = false;
     const accumulatedCards: ToolCardData[] = [];
@@ -426,8 +437,10 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     };
 
     const syncDraftAcc = () => {
-      draftAccRef.current = { content, reasoning, steps, typing: !content };
+      const activeSteps = reasoning ? [...steps, { type: "think" as const, text: escapeHtml(reasoning) }] : steps;
+      draftAccRef.current = { content, reasoning, steps: activeSteps, typing: !content };
       localCardsRef.current = accumulatedCards;
+      localActivityStepsRef.current = activeSteps;
       localDebugLogRef.current = accumulatedDebugLog;
       scheduleFlush();
     };
@@ -489,7 +502,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
               const id = makeId();
               currentCardId = id;
               steps = [...steps, { type: "tool", text: `${obj.tool ? "工具" : "缓存"} ${escapeHtml(name)}: ${escapeHtml(query)}` }];
-              accumulatedCards.unshift({ id, name, query, cached: Boolean(obj.cached), articles: [] });
+              accumulatedCards.push({ id, name, query, cached: Boolean(obj.cached), articles: [] });
             } else if (obj.articles) {
               const articles = (obj.articles || []) as ArticleSummary[];
               const cardIdx = accumulatedCards.findIndex(c => c.id === currentCardId);
@@ -514,6 +527,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       flushReasoning();
       draftAccRef.current = { content, reasoning: "", steps, typing: false };
       localCardsRef.current = accumulatedCards;
+      localActivityStepsRef.current = steps;
       localDebugLogRef.current = accumulatedDebugLog;
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -604,7 +618,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             onRemoveImage={removePastedImage}
           />
         </div>
-        <ToolSidebar cards={cards} onCollapse={collapseSidebar} onReadArticle={openArticle} />
+        <ToolSidebar steps={activitySteps} cards={cards} onCollapse={collapseSidebar} onReadArticle={openArticle} />
       </div>
       {articleId && <ArticleModal articleId={articleId} onClose={closeArticle} />}
       {debugOpen && <DebugModal messages={window.__debugMessages || stripRuntimeFields(messages)} debugLog={debugLog} onClose={closeDebug} />}
@@ -931,13 +945,11 @@ const UserMessage = memo(function UserMessage() {
 
 const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { onOpenActivity: () => void }) {
   const original = useAuiState(state => getExternalStoreMessages<UiChatMessage>(state.message)[0]);
-  const storedReasoning = original?.reasoning_content;
   return (
     <MessagePrimitive.Root className={`aui-message assistant${original?.stream?.typing ? " typing" : ""}${original?.stream?.error ? " error" : ""}`}>
       <div className="aui-message-role">AI</div>
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
-        {!original?.stream && storedReasoning && <StoredThoughts reasoning={storedReasoning} />}
         <MessagePrimitive.Parts>
           {({ part }) => part.type === "text" ? <MarkdownTextPart /> : null}
         </MessagePrimitive.Parts>
@@ -962,43 +974,22 @@ const StreamThoughts = memo(function StreamThoughts({ draft, onOpenActivity }: {
   const toolCount = draft.steps.filter(step => step.type === "tool").length;
   return (
     <div className="msg-think">
-      {draft.reasoning && <div className="think-preview">{draft.reasoning}</div>}
       <button className="thinking-status" type="button" onClick={onOpenActivity}>
         {draft.typing ? "正在思考" : "思考完成"}
         {toolCount ? <span> · {toolCount} 次工具调用</span> : null}
       </button>
-      <details className="think-inline-detail">
-        <summary>展开思考过程</summary>
-        <div className="think-steps">
-        {draft.steps.map((step, index) => (
-          <div
-            className={step.type === "tool" ? "think-tool" : "think-step"}
-            key={`${step.type}-${index}`}
-            dangerouslySetInnerHTML={{ __html: step.text }}
-          />
-        ))}
-        </div>
-      </details>
+      {draft.reasoning && <div className="think-preview">{draft.reasoning}</div>}
     </div>
   );
 });
 
-const StoredThoughts = memo(function StoredThoughts({ reasoning }: { reasoning: string }) {
-  return (
-    <details className="msg-think stored-think">
-      <summary>思考过程</summary>
-      <div className="think-steps">
-        <div className="think-step">{reasoning}</div>
-      </div>
-    </details>
-  );
-});
-
-const ToolSidebar = memo(function ToolSidebar({ cards, onCollapse, onReadArticle }: {
+const ToolSidebar = memo(function ToolSidebar({ steps, cards, onCollapse, onReadArticle }: {
+  steps: ActivityStep[];
   cards: ToolCardData[];
   onCollapse: () => void;
   onReadArticle: (id: string) => void;
 }) {
+  let toolIndex = 0;
   return (
     <aside className="chat-sidebar tool-sidebar">
       <div className="tool-sidebar-title">
@@ -1007,28 +998,37 @@ const ToolSidebar = memo(function ToolSidebar({ cards, onCollapse, onReadArticle
       </div>
       <div className="tool-activity-section">
         <div className="tool-activity-title">思考</div>
-        <div className="tool-activity-subtitle">{cards.length ? "已记录工具调用过程" : "等待工具调用..."}</div>
+        <div className="tool-activity-subtitle">{steps.length ? "正在记录模型思考与工具调用" : "等待工具调用..."}</div>
       </div>
-      {cards.map(card => (
-        <div className="tool-card" key={card.id}>
-          <div className="tool-card-head">
-            <span className="tool-card-name">{card.name}</span>
-          </div>
-          <div className="tool-card-query">搜索："{card.query}"</div>
-          <div className="tool-card-articles">
-            {card.cached && !card.articles.length ? (
-              <div className="tool-sidebar-empty compact">缓存命中</div>
-            ) : card.articles.map(article => (
-              <div className="article-item" key={article.id}>
-                <div className="article-item-date">{article.date}</div>
-                <div className="article-item-title">{article.title || "(无标题)"}</div>
-                {article.snippet && <div className="article-item-snippet">{cleanSnippet(article.snippet)}</div>}
-                <button className="article-item-more" onClick={() => onReadArticle(article.id)}>阅读全文</button>
+      {steps.map((step, index) => {
+        const card = step.type === "tool" ? cards[toolIndex++] : null;
+        return (
+          <div className={`activity-step ${step.type === "tool" ? "activity-tool" : "activity-think"}`} key={`${step.type}-${index}`}>
+            <div className="activity-step-label">{step.type === "tool" ? "工具调用" : "模型思考"}</div>
+            <div className="activity-step-body" dangerouslySetInnerHTML={{ __html: step.text }} />
+            {card && (
+              <div className="tool-card">
+                <div className="tool-card-head">
+                  <span className="tool-card-name">{card.name}</span>
+                </div>
+                <div className="tool-card-query">搜索："{card.query}"</div>
+                <div className="tool-card-articles">
+                  {card.cached && !card.articles.length ? (
+                    <div className="tool-sidebar-empty compact">缓存命中</div>
+                  ) : card.articles.map(article => (
+                    <div className="article-item" key={article.id}>
+                      <div className="article-item-date">{article.date}</div>
+                      <div className="article-item-title">{article.title || "(无标题)"}</div>
+                      {article.snippet && <div className="article-item-snippet">{cleanSnippet(article.snippet)}</div>}
+                      <button className="article-item-more" onClick={() => onReadArticle(article.id)}>阅读全文</button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </aside>
   );
 });
