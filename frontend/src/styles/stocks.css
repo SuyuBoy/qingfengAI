@@ -272,6 +272,8 @@
   font-weight: bold !important;
   color: rgba(128, 128, 128, 0.18) !important;
   letter-spacing: 4px;
+  text-align: center;
+  line-height: 1.6;
   pointer-events: none;
 }
 
