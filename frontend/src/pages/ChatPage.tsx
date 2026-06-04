@@ -708,6 +708,7 @@ const AssistantThread = memo(function AssistantThread({
   onRemoveImage: (idx: number) => void;
 }) {
   return (
+    <>
     <ThreadPrimitive.Root className={`aui-thread-root${isEmpty ? " is-empty" : ""}`}>
       <ThreadPrimitive.Viewport className="aui-thread-viewport" turnAnchor="top">
         <div className="aui-thread-inner">
@@ -750,6 +751,7 @@ const AssistantThread = memo(function AssistantThread({
         免责声明：内容来源于互联网公开信息搜集，仅供参考交流，不构成任何投资建议。市场有风险，决策需独立。
       </div>
     )}
+  </>
   );
 });
 
