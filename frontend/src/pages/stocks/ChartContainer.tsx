@@ -41,20 +41,19 @@ export function ChartContainer({
         const cacheKey = isMin ? "minute" : "day";
 
         if (cacheKey === "minute") {
-          // 分钟线：按 5 天窗口缓存，防重复请求
-          const endDate = Number.isFinite(to) ? new Date(to) : new Date();
-          const startDate = Number.isFinite(from) ? new Date(from) : new Date(endDate.getTime() - 7 * 86400000);
-          const windowKey = `${startDate.toISOString().slice(0, 10)}_${endDate.toISOString().slice(0, 10)}`;
-          if (!minuteCache[windowKey]) {
+          if (!minuteCache["_loaded"]) {
+            const d = new Date();
+            const toDate = d.toISOString().slice(0, 10);
+            d.setDate(d.getDate() - 7);
             const params = new URLSearchParams();
-            params.set("from", startDate.toISOString().slice(0, 10));
-            params.set("to", endDate.toISOString().slice(0, 10));
+            params.set("from", d.toISOString().slice(0, 10));
+            params.set("to", toDate);
             const data = await api.get<{ index: StockIndexPoint[] }>(
               `/api/stocks/index/ohlc?${params.toString()}`,
             );
-            minuteCache[windowKey] = toIndexKLine(data?.index || []);
+            minuteCache["_loaded"] = toIndexKLine(data?.index || []);
           }
-          return aggregateBars(minuteCache[windowKey], period.multiplier);
+          return aggregateBars(minuteCache["_loaded"], period.multiplier);
         }
 
         if (!indexCache[cacheKey]) {
