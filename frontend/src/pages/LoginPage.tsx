@@ -68,7 +68,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="login-box">
-      <h1>B站动态存档</h1>
+      <h1>清风 AI</h1>
       <p>请使用 Google 账号登录</p>
       <div className={`error-msg${error ? " show" : ""}`} id="login-error">{error}</div>
       {hasGoogle ? (
