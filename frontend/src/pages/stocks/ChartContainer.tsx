@@ -13,18 +13,30 @@ type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s
 // ---- 模块级缓存：前端持有全部分钟线，自己聚合 ----
 let _minuteBars: KLinePoint[] | null = null;
 let _minuteLoaded = false;
-let _subscribeCb: ((bar: any) => void) | null = null;  // 图表实时推送回调
+let _subscribeCb: ((bar: any) => void) | null = null;
+let _lastPeriodDate = "";  // 最后一条的 period_date，如 "2026-06-04-14-55"
 
-function isTradingTime(): boolean {
+function toPeriodDate(ts: number): string {
+  // timestamp → "2026-06-04-14-55"
+  const d = new Date(ts);
+  const bj = new Date(d.getTime() + 8 * 3600000);
+  const y = bj.getUTCFullYear();
+  const mo = String(bj.getUTCMonth() + 1).padStart(2, "0");
+  const da = String(bj.getUTCDate()).padStart(2, "0");
+  const h = String(bj.getUTCHours()).padStart(2, "0");
+  const mi = String(bj.getUTCMinutes()).padStart(2, "0");
+  return `${y}-${mo}-${da}-${h}-${mi}`;
+}
+
+function msUntilNextPoll(): number {
+  // 下个整10分钟的 +2 分钟
   const now = new Date();
   const bj = new Date(now.getTime() + 8 * 3600000);
-  const h = bj.getUTCHours();
   const m = bj.getUTCMinutes();
-  const wd = bj.getUTCDay();
-  if (wd === 0 || wd === 6) return false;
-  if (h < 9 || (h === 9 && m < 30)) return false;
-  if (h > 15 || (h === 15 && m > 0)) return false;
-  return true;
+  const next10 = (Math.floor(m / 10) + 1) * 10;
+  const target = new Date(bj);
+  target.setUTCMinutes(next10 + 2, 0, 0);
+  return target.getTime() - now.getTime();
 }
 
 async function loadMinuteBars(): Promise<KLinePoint[]> {
@@ -39,35 +51,47 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
   const bars = toIndexKLine(data?.index || []);
   _minuteBars = bars;
   _minuteLoaded = true;
+  if (bars.length > 0) {
+    _lastPeriodDate = toPeriodDate(bars[bars.length - 1].timestamp);
+  }
 
-  if (isTradingTime()) {
-    setTimeout(pollMinuteUpdates, 120000);
+  const bs = new Date(Date.now() + 8 * 3600000);
+  const isTrading = bs.getUTCDay() !== 0 && bs.getUTCDay() !== 6
+    && !(bs.getUTCHours() < 9 || (bs.getUTCHours() === 9 && bs.getUTCMinutes() < 30))
+    && !(bs.getUTCHours() >= 15 && bs.getUTCMinutes() > 0);
+  if (isTrading) {
+    setTimeout(pollMinuteUpdates, msUntilNextPoll());
   }
   return bars;
 }
 
 async function pollMinuteUpdates() {
-  if (!isTradingTime() || !_minuteBars || _minuteBars.length === 0) return;
+  const now = new Date();
+  const bj = new Date(now.getTime() + 8 * 3600000);
+  const isTrading = bj.getUTCDay() !== 0 && bj.getUTCDay() !== 6
+    && !(bj.getUTCHours() < 9 || (bj.getUTCHours() === 9 && bj.getUTCMinutes() < 30))
+    && !(bj.getUTCHours() >= 15 && bj.getUTCMinutes() > 0);
 
-  const lastTs = _minuteBars[_minuteBars.length - 1].timestamp;
-  const fromDate = new Date(lastTs).toISOString().slice(0, 10);
-  const data = await api.get<{ index: StockIndexPoint[] }>(
-    `/api/stocks/index/ohlc?from=${fromDate}&to=${fromDate}`,
-  );
-  const newBars = toIndexKLine(data?.index || []);
-
-  const trulyNew = newBars.filter(b => b.timestamp > lastTs);
-  if (trulyNew.length > 0) {
-    _minuteBars = [..._minuteBars, ...trulyNew];
-    if (_subscribeCb) {
-      for (const bar of trulyNew) {
-        _subscribeCb(bar);
+  if (isTrading && _lastPeriodDate) {
+    try {
+      const data = await api.get<{ index: StockIndexPoint[] }>(
+        `/api/stocks/index/ohlc?last=${_lastPeriodDate}`,
+      );
+      const newBars = toIndexKLine(data?.index || []);
+      if (newBars.length > 0 && _minuteBars) {
+        _minuteBars = [..._minuteBars, ...newBars];
+        _lastPeriodDate = toPeriodDate(newBars[newBars.length - 1].timestamp);
+        if (_subscribeCb) {
+          for (const bar of newBars) {
+            _subscribeCb(bar);
+          }
+        }
       }
-    }
+    } catch (_) {}
   }
 
-  if (isTradingTime()) {
-    setTimeout(pollMinuteUpdates, 120000);
+  if (isTrading) {
+    setTimeout(pollMinuteUpdates, msUntilNextPoll());
   }
 }
 
