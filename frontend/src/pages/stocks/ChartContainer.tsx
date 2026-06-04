@@ -40,14 +40,23 @@ export function ChartContainer({
         const isWeek = period.timespan === "week";
         const cacheKey = isMin ? "minute" : "day";
 
+        if (cacheKey === "minute") {
+          // 分钟线：按图表时间范围请求后端，不缓存全量
+          const params = new URLSearchParams();
+          const endDate = Number.isFinite(to) ? new Date(to) : new Date();
+          const startDate = Number.isFinite(from) ? new Date(from) : new Date(endDate.getTime() - 7 * 86400000);
+          params.set("from", startDate.toISOString().slice(0, 10));
+          params.set("to", endDate.toISOString().slice(0, 10));
+          const data = await api.get<{ index: StockIndexPoint[] }>(
+            `/api/stocks/index/ohlc?${params.toString()}`,
+          );
+          const bars = toIndexKLine(data?.index || []);
+          return aggregateBars(bars, period.multiplier);
+        }
+
         if (!indexCache[cacheKey]) {
-          if (cacheKey === "minute") {
-            const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index/ohlc");
-            indexCache[cacheKey] = toIndexKLine(data?.index || []);
-          } else {
-            const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
-            indexCache[cacheKey] = toIndexKLine(data?.index || []);
-          }
+          const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
+          indexCache[cacheKey] = toIndexKLine(data?.index || []);
         }
 
         const mult = isWeek ? 5 : period.multiplier;
