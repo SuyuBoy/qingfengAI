@@ -41,7 +41,7 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
   _minuteLoaded = true;
 
   if (isTradingTime()) {
-    setTimeout(pollMinuteUpdates, 60000);
+    setTimeout(pollMinuteUpdates, 120000);
   }
   return bars;
 }
@@ -49,7 +49,6 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
 async function pollMinuteUpdates() {
   if (!isTradingTime() || !_minuteBars || _minuteBars.length === 0) return;
 
-  // 从上次最后一根 bar 的日期开始拉
   const lastTs = _minuteBars[_minuteBars.length - 1].timestamp;
   const fromDate = new Date(lastTs).toISOString().slice(0, 10);
   const data = await api.get<{ index: StockIndexPoint[] }>(
@@ -57,11 +56,9 @@ async function pollMinuteUpdates() {
   );
   const newBars = toIndexKLine(data?.index || []);
 
-  // 只保留比最后已知更新的 bar
   const trulyNew = newBars.filter(b => b.timestamp > lastTs);
   if (trulyNew.length > 0) {
     _minuteBars = [..._minuteBars, ...trulyNew];
-    // 推送到图表
     if (_subscribeCb) {
       for (const bar of trulyNew) {
         _subscribeCb(bar);
@@ -70,7 +67,7 @@ async function pollMinuteUpdates() {
   }
 
   if (isTradingTime()) {
-    setTimeout(pollMinuteUpdates, 60000);
+    setTimeout(pollMinuteUpdates, 120000);
   }
 }
 
