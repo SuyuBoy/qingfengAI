@@ -47,26 +47,24 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
 }
 
 async function pollMinuteUpdates() {
-  if (!isTradingTime() || !_minuteBars) return;
+  if (!isTradingTime() || !_minuteBars || _minuteBars.length === 0) return;
 
-  const d = new Date();
-  const today = d.toISOString().slice(0, 10);
+  // 从上次最后一根 bar 的日期开始拉
+  const lastTs = _minuteBars[_minuteBars.length - 1].timestamp;
+  const fromDate = new Date(lastTs).toISOString().slice(0, 10);
   const data = await api.get<{ index: StockIndexPoint[] }>(
-    `/api/stocks/index/ohlc?from=${today}&to=${today}`,
+    `/api/stocks/index/ohlc?from=${fromDate}&to=${fromDate}`,
   );
   const newBars = toIndexKLine(data?.index || []);
 
-  if (newBars.length > 0) {
-    // 合并：替换今天的数据，保留历史
-    const todayStart = new Date(`${today}T00:00:00+08:00`).getTime();
-    const filtered = _minuteBars.filter(b => b.timestamp < todayStart);
-    _minuteBars = [...filtered, ...newBars].sort((a, b) => a.timestamp - b.timestamp);
-
-    // 推送增量到图表
+  // 只保留比最后已知更新的 bar
+  const trulyNew = newBars.filter(b => b.timestamp > lastTs);
+  if (trulyNew.length > 0) {
+    _minuteBars = [..._minuteBars, ...trulyNew];
+    // 推送到图表
     if (_subscribeCb) {
-      const lastKnown = _minuteBars.length - newBars.length - 1;
-      for (let i = Math.max(0, lastKnown); i < _minuteBars.length; i++) {
-        _subscribeCb(_minuteBars[i]);
+      for (const bar of trulyNew) {
+        _subscribeCb(bar);
       }
     }
   }
