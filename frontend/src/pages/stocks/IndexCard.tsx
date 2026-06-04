@@ -72,7 +72,7 @@ export function IndexCard({
             )}
             <div className="modal-body">
               <table className="holdings-table">
-                <thead><tr><th>名称</th><th>代码</th><th>评分</th><th>开</th><th>收</th><th>涨跌</th><th>权重</th></tr></thead>
+                <thead><tr><th>名称</th><th>代码</th><th>评分</th><th>开</th><th>收</th><th>涨跌</th></tr></thead>
                 <tbody>
                   {holding.map(h => {
                     const chg = h.open ? ((h.close! / h.open - 1) * 100) : 0;
@@ -86,7 +86,6 @@ export function IndexCard({
                         <td>{h.close != null ? h.close.toFixed(2) : "--"}</td>
                         <td style={{color: chg >= 0 ? '#EF5350' : '#26A69A'}}>
                           {h.open != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%` : "--"}</td>
-                        <td>{(h.w * 100).toFixed(1)}%</td>
                       </tr>
                     );
                   })}
