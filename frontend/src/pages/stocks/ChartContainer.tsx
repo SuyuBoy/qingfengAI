@@ -28,6 +28,7 @@ export function ChartContainer({
 
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
+    const minuteCache: Record<string, KLinePoint[]> = {};
 
     const datafeed: Datafeed = isIndex ? {
       searchSymbols: (search?: string) => {
@@ -40,17 +41,20 @@ export function ChartContainer({
         const cacheKey = isMin ? "minute" : "day";
 
         if (cacheKey === "minute") {
-          // 分钟线：按图表时间范围请求后端，不缓存全量
-          const params = new URLSearchParams();
+          // 分钟线：按 5 天窗口缓存，防重复请求
           const endDate = Number.isFinite(to) ? new Date(to) : new Date();
           const startDate = Number.isFinite(from) ? new Date(from) : new Date(endDate.getTime() - 7 * 86400000);
-          params.set("from", startDate.toISOString().slice(0, 10));
-          params.set("to", endDate.toISOString().slice(0, 10));
-          const data = await api.get<{ index: StockIndexPoint[] }>(
-            `/api/stocks/index/ohlc?${params.toString()}`,
-          );
-          const bars = toIndexKLine(data?.index || []);
-          return aggregateBars(bars, period.multiplier);
+          const windowKey = `${startDate.toISOString().slice(0, 10)}_${endDate.toISOString().slice(0, 10)}`;
+          if (!minuteCache[windowKey]) {
+            const params = new URLSearchParams();
+            params.set("from", startDate.toISOString().slice(0, 10));
+            params.set("to", endDate.toISOString().slice(0, 10));
+            const data = await api.get<{ index: StockIndexPoint[] }>(
+              `/api/stocks/index/ohlc?${params.toString()}`,
+            );
+            minuteCache[windowKey] = toIndexKLine(data?.index || []);
+          }
+          return aggregateBars(minuteCache[windowKey], period.multiplier);
         }
 
         if (!indexCache[cacheKey]) {
