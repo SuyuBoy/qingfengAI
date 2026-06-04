@@ -95,11 +95,16 @@ export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanel
     <div className="modal-overlay holdings-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-box holdings-modal">
         <div className="modal-header holdings-modal-header">
-          <div>
+          <div className="holdings-title-row">
             <h3>{selectedDate || "暂无日期"} 持仓评分</h3>
-            <button className="holdings-date-trigger" type="button" onClick={() => setCalendarOpen(open => !open)}>
-              <CalendarDays size={13} />
-              <span>切换日期</span>
+            <button
+              className="holdings-date-trigger"
+              type="button"
+              title="切换日期"
+              aria-label="切换日期"
+              onClick={() => setCalendarOpen(open => !open)}
+            >
+              <CalendarDays size={15} />
             </button>
           </div>
           <button className="modal-close" type="button" onClick={onClose} title="关闭">

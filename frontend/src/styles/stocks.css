@@ -402,23 +402,34 @@
 }
 
 .holdings-modal-header h3 {
+  margin: 0;
   font-size: 1.08rem;
+}
+
+.holdings-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
 .holdings-date-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.2rem;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   padding: 0;
   border: 0;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.78rem;
 }
 
 .holdings-date-trigger:hover {
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -514,13 +525,25 @@
 
 .holdings-score-table th:first-child,
 .holdings-score-table td:first-child {
-  width: 34%;
+  width: 38%;
   text-align: left;
 }
 
 .holdings-score-table th:nth-child(2),
 .holdings-score-table td:nth-child(2) {
-  width: 14%;
+  width: 12%;
+}
+
+.holdings-score-table th:nth-child(3),
+.holdings-score-table td:nth-child(3),
+.holdings-score-table th:nth-child(4),
+.holdings-score-table td:nth-child(4) {
+  width: 17%;
+}
+
+.holdings-score-table th:nth-child(5),
+.holdings-score-table td:nth-child(5) {
+  width: 16%;
 }
 
 .holdings-score-table th {
