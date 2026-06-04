@@ -106,21 +106,20 @@ export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanel
             >
               <CalendarDays size={15} />
             </button>
+            {calendarOpen && (
+              <div className="holdings-calendar-panel">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate ? new Date(`${selectedDate}T00:00:00+08:00`) : undefined}
+                  onSelect={handleCalendarSelect}
+                />
+              </div>
+            )}
           </div>
           <button className="modal-close" type="button" onClick={onClose} title="关闭">
             <X size={18} />
           </button>
         </div>
-
-        {calendarOpen && (
-          <div className="holdings-calendar-panel">
-            <Calendar
-              mode="single"
-              selected={selectedDate ? new Date(`${selectedDate}T00:00:00+08:00`) : undefined}
-              onSelect={handleCalendarSelect}
-            />
-          </div>
-        )}
 
         <div className="modal-body holdings-modal-body">
           {holdings.length === 0 ? (

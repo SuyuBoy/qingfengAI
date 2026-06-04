@@ -407,6 +407,7 @@
 }
 
 .holdings-title-row {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -434,8 +435,17 @@
 }
 
 .holdings-calendar-panel {
-  padding: 0.55rem 1.15rem 0.75rem;
-  border-bottom: 1px solid var(--border);
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  z-index: 40;
+  width: 320px;
+  max-width: min(320px, calc(100vw - 2rem));
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  box-shadow: var(--shadow);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -479,8 +489,7 @@
 }
 
 .holdings-calendar-panel [data-slot="calendar"] {
-  width: 320px;
-  max-width: 100%;
+  width: 100%;
   padding: 0.25rem;
   --cell-size: 2.15rem;
 }
