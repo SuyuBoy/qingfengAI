@@ -10,6 +10,67 @@ const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
 type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
 
+// ---- 模块级缓存：前端持有全部分钟线，自己聚合 ----
+let _minuteBars: KLinePoint[] | null = null;
+let _minuteLoaded = false;
+let _minuteLastDate = "";  // 缓存覆盖的最新日期
+
+function isTradingTime(): boolean {
+  const now = new Date();
+  const bj = new Date(now.getTime() + 8 * 3600000);
+  const h = bj.getUTCHours();
+  const m = bj.getUTCMinutes();
+  const wd = bj.getUTCDay();
+  if (wd === 0 || wd === 6) return false;
+  if (h < 9 || (h === 9 && m < 30)) return false;
+  if (h > 15 || (h === 15 && m > 0)) return false;
+  return true;
+}
+
+async function loadMinuteBars(): Promise<KLinePoint[]> {
+  const d = new Date();
+  const toDate = d.toISOString().slice(0, 10);
+  d.setDate(d.getDate() - 7);
+  const fromDate = d.toISOString().slice(0, 10);
+
+  const data = await api.get<{ index: StockIndexPoint[] }>(
+    `/api/stocks/index/ohlc?from=${fromDate}&to=${toDate}`,
+  );
+  const bars = toIndexKLine(data?.index || []);
+  _minuteBars = bars;
+  _minuteLoaded = true;
+  _minuteLastDate = toDate;
+
+  // 交易时段轮询增量
+  if (isTradingTime()) {
+    setTimeout(pollMinuteUpdates, 60000);
+  }
+  return bars;
+}
+
+async function pollMinuteUpdates() {
+  if (!isTradingTime()) return;
+
+  const d = new Date();
+  const today = d.toISOString().slice(0, 10);
+  // 只请求今天的增量
+  const data = await api.get<{ index: StockIndexPoint[] }>(
+    `/api/stocks/index/ohlc?from=${today}&to=${today}`,
+  );
+  const newBars = toIndexKLine(data?.index || []);
+
+  if (newBars.length > 0 && _minuteBars) {
+    // 合并：替换今天的数据，保留历史
+    const todayStart = new Date(`${today}T00:00:00+08:00`).getTime();
+    const filtered = _minuteBars.filter(b => b.timestamp < todayStart);
+    _minuteBars = [...filtered, ...newBars].sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  if (isTradingTime()) {
+    setTimeout(pollMinuteUpdates, 60000);
+  }
+}
+
 export function ChartContainer({
   symbol, isIndex, orderBookId, periods, layoutKey,
 }: {
@@ -28,7 +89,6 @@ export function ChartContainer({
 
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
-    const minuteCache: Record<string, KLinePoint[]> = {};
 
     const datafeed: Datafeed = isIndex ? {
       searchSymbols: (search?: string) => {
@@ -36,35 +96,24 @@ export function ChartContainer({
         const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
         return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
       },
-      getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
-        const isMin = period.timespan === "minute";
-        const cacheKey = isMin ? "minute" : "day";
-
-        if (cacheKey === "minute") {
-          if (!minuteCache["_all"]) {
-            const d = new Date();
-            const toDate = d.toISOString().slice(0, 10);
-            d.setDate(d.getDate() - 7);
-            const params = new URLSearchParams();
-            params.set("from", d.toISOString().slice(0, 10));
-            params.set("to", toDate);
-            const data = await api.get<{ index: StockIndexPoint[] }>(
-              `/api/stocks/index/ohlc?${params.toString()}`,
-            );
-            minuteCache["_all"] = toIndexKLine(data?.index || []);
+      getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
+        if (period.timespan === "minute") {
+          if (!_minuteLoaded) {
+            await loadMinuteBars();
           }
-          return aggregateBars(minuteCache["_all"], period.multiplier);
+          return aggregateBars(_minuteBars || [], period.multiplier);
         }
 
+        // 日线：加载一次缓存
+        const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
           indexCache[cacheKey] = toIndexKLine(data?.index || []);
         }
-
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
-        if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
-          return all.filter((p: any) => p.timestamp >= from && p.timestamp <= to);
+        if (Number.isFinite(_from) && Number.isFinite(_to) && _to > _from) {
+          return all.filter((p: any) => p.timestamp >= _from && p.timestamp <= _to);
         }
         return all;
       },
