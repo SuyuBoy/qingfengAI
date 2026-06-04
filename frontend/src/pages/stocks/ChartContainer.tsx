@@ -199,7 +199,7 @@ export function ChartContainer({
 
     try {
       chartRef.current = new KLineChartPro({
-        container, locale: "zh-CN", theme, watermark: "",
+        container, locale: "zh-CN", theme, watermark: "清风指数 · AI驱动 · 不代表投资建议",
         symbol, period: defaultPeriod, periods, timezone: "Asia/Shanghai",
         mainIndicators: ["MA"], subIndicators: ["VOL", "MACD"], datafeed,
       }) as unknown as KLineChartProHandle;

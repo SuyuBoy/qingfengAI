@@ -713,6 +713,9 @@ const AssistantThread = memo(function AssistantThread({
         <div className="aui-thread-inner">
           <AuiIf condition={(state) => state.thread.isEmpty}>
             <div className="chat-empty">向 AI 助手提问，基于清风文章库检索回答</div>
+            <div className="chat-disclaimer">
+              免责声明：内容来源于互联网公开信息搜集，仅供参考交流，不构成任何投资建议。市场有风险，决策需独立。
+            </div>
           </AuiIf>
           <div className="aui-message-list">
             <ThreadPrimitive.Messages>{() => <ThreadMessage onOpenActivity={onOpenActivity} />}</ThreadPrimitive.Messages>
