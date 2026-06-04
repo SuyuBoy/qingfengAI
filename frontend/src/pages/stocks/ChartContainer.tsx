@@ -15,6 +15,8 @@ let _minuteBars: KLinePoint[] | null = null;
 let _minuteLoaded = false;
 let _subscribeCb: ((bar: any) => void) | null = null;
 let _lastPeriodDate = "";  // 最后一条的 period_date，如 "2026-06-04-14-55"
+let _minutePollTimer: ReturnType<typeof setTimeout> | null = null;
+let _minutePollStopped = false;
 
 function toPeriodDate(ts: number): string {
   // timestamp → "2026-06-04-14-55"
@@ -55,17 +57,30 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
     _lastPeriodDate = toPeriodDate(bars[bars.length - 1].timestamp);
   }
 
+  _minutePollStopped = false;
   const bs = new Date(Date.now() + 8 * 3600000);
   const isTrading = bs.getUTCDay() !== 0 && bs.getUTCDay() !== 6
     && !(bs.getUTCHours() < 9 || (bs.getUTCHours() === 9 && bs.getUTCMinutes() < 30))
     && !(bs.getUTCHours() >= 15 && bs.getUTCMinutes() > 0);
   if (isTrading) {
-    setTimeout(pollMinuteUpdates, msUntilNextPoll());
+    _minutePollTimer = setTimeout(pollMinuteUpdates, msUntilNextPoll());
   }
   return bars;
 }
 
+function cancelMinutePoll() {
+  _minutePollStopped = true;
+  if (_minutePollTimer !== null) {
+    clearTimeout(_minutePollTimer);
+    _minutePollTimer = null;
+  }
+  _subscribeCb = null;
+  _minuteLoaded = false;
+}
+
 async function pollMinuteUpdates() {
+  if (_minutePollStopped) return;
+
   const now = new Date();
   const bj = new Date(now.getTime() + 8 * 3600000);
   const isTrading = bj.getUTCDay() !== 0 && bj.getUTCDay() !== 6
@@ -77,6 +92,7 @@ async function pollMinuteUpdates() {
       const data = await api.get<{ index: StockIndexPoint[] }>(
         `/api/stocks/index/ohlc?last=${_lastPeriodDate}`,
       );
+      if (_minutePollStopped) return;
       const newBars = toIndexKLine(data?.index || []);
       if (newBars.length > 0 && _minuteBars) {
         _minuteBars = [..._minuteBars, ...newBars];
@@ -90,8 +106,8 @@ async function pollMinuteUpdates() {
     } catch (_) {}
   }
 
-  if (isTrading) {
-    setTimeout(pollMinuteUpdates, msUntilNextPoll());
+  if (!_minutePollStopped && isTrading) {
+    _minutePollTimer = setTimeout(pollMinuteUpdates, msUntilNextPoll());
   }
 }
 
@@ -186,6 +202,7 @@ export function ChartContainer({
     obs.observe(container);
 
     return () => {
+      if (isIndex) cancelMinutePoll();
       obs.disconnect();
       chartRef.current = null;
       container.innerHTML = "";
