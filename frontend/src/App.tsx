@@ -424,7 +424,7 @@ function LockPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
       <h1>清风 AI</h1>
       <p className="lock-mark">锁定</p>
       <p>{user.email}</p>
-      <p className="lock-desc">尚未解锁，请联系管理员</p>
+      <p className="lock-desc">尚未解锁，请在 B站私信联系管理员获取访问权限</p>
       <button className="auth-secondary-btn" onClick={onLogout}>切换账号</button>
     </div>
   );
