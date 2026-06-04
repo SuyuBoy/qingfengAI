@@ -37,7 +37,6 @@ export function ChartContainer({
       },
       getHistoryKLineData: async (_s: SymbolInfo, period: Period, from: number, to: number) => {
         const isMin = period.timespan === "minute";
-        const isWeek = period.timespan === "week";
         const cacheKey = isMin ? "minute" : "day";
 
         if (cacheKey === "minute") {
@@ -59,8 +58,7 @@ export function ChartContainer({
           indexCache[cacheKey] = toIndexKLine(data?.index || []);
         }
 
-        const mult = isWeek ? 5 : period.multiplier;
-        const all = aggregateBars(indexCache[cacheKey], mult);
+        const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
         if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
           return all.filter((p: any) => p.timestamp >= from && p.timestamp <= to);

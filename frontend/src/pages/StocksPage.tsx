@@ -12,7 +12,6 @@ const INDEX_CHART_PERIODS = [
   { multiplier: 15, timespan: "minute", text: "15m" },
   { multiplier: 30, timespan: "minute", text: "30m" },
   { multiplier: 1, timespan: "day", text: "D" },
-  { multiplier: 1, timespan: "week", text: "W" },
 ];
 
 function toPeriods(stock: StockSummary | null): any[] {
@@ -24,7 +23,6 @@ function toPeriods(stock: StockSummary | null): any[] {
     periods.push({ multiplier: 5, timespan: "minute", text: "5m" });
   }
   periods.push({ multiplier: 1, timespan: "day", text: "D" });
-  if (days > 30) periods.push({ multiplier: 1, timespan: "week", text: "W" });
   return periods;
 }
 
