@@ -7,23 +7,11 @@ import { ChartContainer } from "./stocks/ChartContainer";
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 
 const INDEX_CHART_PERIODS = [
-  { multiplier: 1, timespan: "minute", text: "1m" },
-  { multiplier: 5, timespan: "minute", text: "5m" },
-  { multiplier: 15, timespan: "minute", text: "15m" },
-  { multiplier: 30, timespan: "minute", text: "30m" },
   { multiplier: 1, timespan: "day", text: "D" },
 ];
 
-function toPeriods(stock: StockSummary | null): any[] {
-  if (!stock) return INDEX_CHART_PERIODS;
-  const days = Math.ceil((Date.now() - new Date(stock.active_from || "2026-01-01").getTime()) / 86400000);
-  const periods: any[] = [];
-  if (days <= 3) {
-    periods.push({ multiplier: 1, timespan: "minute", text: "1m" });
-    periods.push({ multiplier: 5, timespan: "minute", text: "5m" });
-  }
-  periods.push({ multiplier: 1, timespan: "day", text: "D" });
-  return periods;
+function toPeriods(_stock: StockSummary | null): any[] {
+  return INDEX_CHART_PERIODS;
 }
 
 function toSymbolInfo(selected: StockSummary | null): any {
