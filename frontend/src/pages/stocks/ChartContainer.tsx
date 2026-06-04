@@ -13,7 +13,7 @@ type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s
 // ---- 模块级缓存：前端持有全部分钟线，自己聚合 ----
 let _minuteBars: KLinePoint[] | null = null;
 let _minuteLoaded = false;
-let _minuteLastDate = "";  // 缓存覆盖的最新日期
+let _subscribeCb: ((bar: any) => void) | null = null;  // 图表实时推送回调
 
 function isTradingTime(): boolean {
   const now = new Date();
@@ -39,9 +39,7 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
   const bars = toIndexKLine(data?.index || []);
   _minuteBars = bars;
   _minuteLoaded = true;
-  _minuteLastDate = toDate;
 
-  // 交易时段轮询增量
   if (isTradingTime()) {
     setTimeout(pollMinuteUpdates, 60000);
   }
@@ -49,21 +47,28 @@ async function loadMinuteBars(): Promise<KLinePoint[]> {
 }
 
 async function pollMinuteUpdates() {
-  if (!isTradingTime()) return;
+  if (!isTradingTime() || !_minuteBars) return;
 
   const d = new Date();
   const today = d.toISOString().slice(0, 10);
-  // 只请求今天的增量
   const data = await api.get<{ index: StockIndexPoint[] }>(
     `/api/stocks/index/ohlc?from=${today}&to=${today}`,
   );
   const newBars = toIndexKLine(data?.index || []);
 
-  if (newBars.length > 0 && _minuteBars) {
+  if (newBars.length > 0) {
     // 合并：替换今天的数据，保留历史
     const todayStart = new Date(`${today}T00:00:00+08:00`).getTime();
     const filtered = _minuteBars.filter(b => b.timestamp < todayStart);
     _minuteBars = [...filtered, ...newBars].sort((a, b) => a.timestamp - b.timestamp);
+
+    // 推送增量到图表
+    if (_subscribeCb) {
+      const lastKnown = _minuteBars.length - newBars.length - 1;
+      for (let i = Math.max(0, lastKnown); i < _minuteBars.length; i++) {
+        _subscribeCb(_minuteBars[i]);
+      }
+    }
   }
 
   if (isTradingTime()) {
@@ -117,7 +122,8 @@ export function ChartContainer({
         }
         return all;
       },
-      subscribe: () => {}, unsubscribe: () => {},
+      subscribe: (_s: SymbolInfo, _p: Period, cb: any) => { _subscribeCb = cb; },
+      unsubscribe: () => { _subscribeCb = null; },
     } : {
       searchSymbols: (search?: string) => {
         const t = (search || "").trim().toLowerCase();
