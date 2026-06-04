@@ -25,10 +25,11 @@ function toTc(code: string): string {
 }
 
 function isTradingHours(): boolean {
+  // 交易时段 9:30-15:15，覆盖收盘竞价窗口
   const bj = new Date(Date.now() + 8 * 3600000);
   return bj.getUTCDay() !== 0 && bj.getUTCDay() !== 6
     && !(bj.getUTCHours() < 9 || (bj.getUTCHours() === 9 && bj.getUTCMinutes() < 30))
-    && bj.getUTCHours() < 15;
+    && !(bj.getUTCHours() >= 15 && bj.getUTCMinutes() >= 15);
 }
 
 function stopDailyPoll() {
@@ -68,12 +69,10 @@ async function loadWeights(): Promise<void> {
   }
 }
 
-async function pollTencentDaily() {
-  if (_dailyPollStopped) return;
-  if (!isTradingHours()) return;
-
+/** 从腾讯日K加权计算今日指数 OHLC，返回 KLinePoint 或 null。 */
+async function computeTodayBar(): Promise<KLinePoint | null> {
   await loadWeights();
-  if (!_weightsCache || !_dailySubscribeCb) return;
+  if (!_weightsCache) return null;
 
   const { holdings, base_value } = _weightsCache;
   const results = await Promise.all(
@@ -88,21 +87,31 @@ async function pollTencentDaily() {
   let oSum = 0, hSum = 0, lSum = 0, cSum = 0, tw = 0;
   for (const r of results) {
     if (!r || r.w <= 0) continue;
-    oSum += r.open * r.w;
-    hSum += r.high * r.w;
-    lSum += r.low * r.w;
-    cSum += r.close * r.w;
+    oSum += r.open * r.w; hSum += r.high * r.w;
+    lSum += r.low * r.w; cSum += r.close * r.w;
     tw += r.w;
   }
 
   if (tw > 0 && base_value > 0) {
     const norm = (v: number) => parseFloat(((v / tw) / base_value * 1000).toFixed(2));
-    _dailySubscribeCb({
-      timestamp: Date.now(),
+    const bj = new Date(Date.now() + 8 * 3600000);
+    const today = bj.toISOString().slice(0, 10);
+    return {
+      timestamp: new Date(`${today}T00:00:00+08:00`).getTime(),
       open: norm(oSum), high: norm(hSum), low: norm(lSum), close: norm(cSum),
       volume: 0,
-    });
+    };
   }
+  return null;
+}
+
+async function pollTencentDaily() {
+  if (_dailyPollStopped) return;
+  if (!isTradingHours()) return;
+  if (!_dailySubscribeCb) return;
+
+  const bar = await computeTodayBar();
+  if (bar) _dailySubscribeCb(bar);
 
   if (!_dailyPollStopped && isTradingHours()) {
     _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
@@ -145,7 +154,17 @@ export function ChartContainer({
         const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
-          indexCache[cacheKey] = toIndexKLine(data?.index || []);
+          const bars = toIndexKLine(data?.index || []);
+          // 后端还没固化今日日K → 前端从腾讯查
+          const bj = new Date(Date.now() + 8 * 3600000);
+          const today = bj.toISOString().slice(0, 10);
+          const lastTs = bars.length > 0 ? bars[bars.length - 1].timestamp : 0;
+          const lastDate = new Date(lastTs).toISOString().slice(0, 10);
+          if (lastDate < today && isTradingHours()) {
+            const todayBar = await computeTodayBar();
+            if (todayBar) bars.push(todayBar);
+          }
+          indexCache[cacheKey] = bars;
         }
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
