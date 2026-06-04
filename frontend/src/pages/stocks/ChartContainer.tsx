@@ -25,11 +25,11 @@ function toTc(code: string): string {
 }
 
 function isTradingHours(): boolean {
-  // 交易时段 9:30-15:15，覆盖收盘竞价窗口
+  // 连续竞价 9:30-15:00
   const bj = new Date(Date.now() + 8 * 3600000);
   return bj.getUTCDay() !== 0 && bj.getUTCDay() !== 6
     && !(bj.getUTCHours() < 9 || (bj.getUTCHours() === 9 && bj.getUTCMinutes() < 30))
-    && !(bj.getUTCHours() >= 15 && bj.getUTCMinutes() >= 15);
+    && bj.getUTCHours() < 15;
 }
 
 function stopDailyPoll() {
