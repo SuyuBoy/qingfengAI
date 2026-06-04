@@ -10,10 +10,19 @@ const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
 type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
 
-// ---- 日K盘中更新 ----
+// ---- 日K盘中更新 (直接查腾讯) ----
 let _dailySubscribeCb: ((bar: any) => void) | null = null;
 let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _dailyPollStopped = false;
+let _weightsCache: { holdings: any[]; base_value: number } | null = null;
+
+const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
+function toTc(code: string): string {
+  for (const [suf, pre] of Object.entries(EX_MAP)) {
+    if (code.endsWith(suf)) return pre + code.slice(0, 6);
+  }
+  return code;
+}
 
 function isTradingHours(): boolean {
   const bj = new Date(Date.now() + 8 * 3600000);
@@ -31,27 +40,80 @@ function stopDailyPoll() {
   _dailySubscribeCb = null;
 }
 
-async function pollDailyUpdate() {
+async function fetchTcBar(tc: string): Promise<any | null> {
+  try {
+    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${tc},day,,,1,qfq`;
+    const resp = await fetch(url);
+    const text = await resp.text();
+    let jsonStr = text.trim();
+    if (jsonStr.startsWith("kline_day=")) jsonStr = jsonStr.slice(11);
+    const data = JSON.parse(jsonStr);
+    const bars = data?.data?.[tc]?.qfqday || data?.data?.[tc]?.day || [];
+    if (!bars.length) return null;
+    const last = bars[bars.length - 1];
+    if (last.length < 6) return null;
+    return {
+      open: parseFloat(last[1]), close: parseFloat(last[2]),
+      high: parseFloat(last[3]), low: parseFloat(last[4]),
+      volume: parseFloat(last[5]),
+    };
+  } catch { return null; }
+}
+
+async function loadWeights(): Promise<void> {
+  if (_weightsCache) return;
+  const data = await api.get<{ holdings: any[]; base_value: number }>("/api/stocks/index/weights");
+  if (data?.holdings?.length) {
+    _weightsCache = { holdings: data.holdings, base_value: data.base_value };
+  }
+}
+
+async function pollTencentDaily() {
   if (_dailyPollStopped) return;
   if (!isTradingHours()) return;
 
-  try {
-    const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
-    const bars = toIndexKLine(data?.index || []);
-    if (bars.length > 0 && _dailySubscribeCb) {
-      _dailySubscribeCb(bars[0]);
-    }
-  } catch (_) {}
+  await loadWeights();
+  if (!_weightsCache || !_dailySubscribeCb) return;
+
+  const { holdings, base_value } = _weightsCache;
+  const results = await Promise.all(
+    holdings.map(async (h: any) => {
+      const code = h.o;
+      if (!code) return null;
+      const bar = await fetchTcBar(toTc(code));
+      return bar ? { ...bar, w: parseFloat(h.w || "0") } : null;
+    }),
+  );
+
+  let oSum = 0, hSum = 0, lSum = 0, cSum = 0, tw = 0;
+  for (const r of results) {
+    if (!r || r.w <= 0) continue;
+    oSum += r.open * r.w;
+    hSum += r.high * r.w;
+    lSum += r.low * r.w;
+    cSum += r.close * r.w;
+    tw += r.w;
+  }
+
+  if (tw > 0 && base_value > 0) {
+    const norm = (v: number) => parseFloat(((v / tw) / base_value * 1000).toFixed(2));
+    _dailySubscribeCb({
+      timestamp: Date.now(),
+      open: norm(oSum), high: norm(hSum), low: norm(lSum), close: norm(cSum),
+      volume: 0,
+    });
+  }
 
   if (!_dailyPollStopped && isTradingHours()) {
-    _dailyPollTimer = setTimeout(pollDailyUpdate, 60_000);
+    _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
   }
 }
 
 function startDailyPoll() {
   if (_dailyPollTimer !== null) return;
   _dailyPollStopped = false;
-  _dailyPollTimer = setTimeout(pollDailyUpdate, 60_000);
+  _weightsCache = null;  // 每次重新加载最新权重
+  _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
 }
 
 export function ChartContainer({
