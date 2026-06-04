@@ -266,6 +266,15 @@
   min-height: 0;
 }
 
+.klinecharts-pro-watermark {
+  font-family: "SimHei", "Heiti SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 28px !important;
+  font-weight: bold !important;
+  color: rgba(128, 128, 128, 0.18) !important;
+  letter-spacing: 4px;
+  pointer-events: none;
+}
+
 .stock-pro-chart .klinecharts-pro-period-bar {
   min-width: 0;
   flex-wrap: nowrap;
