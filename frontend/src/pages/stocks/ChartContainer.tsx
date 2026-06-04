@@ -41,8 +41,7 @@ export function ChartContainer({
         const cacheKey = isMin ? "minute" : "day";
 
         if (cacheKey === "minute") {
-          const key = `${period.multiplier}`;
-          if (!minuteCache[key]) {
+          if (!minuteCache["_all"]) {
             const d = new Date();
             const toDate = d.toISOString().slice(0, 10);
             d.setDate(d.getDate() - 7);
@@ -52,13 +51,9 @@ export function ChartContainer({
             const data = await api.get<{ index: StockIndexPoint[] }>(
               `/api/stocks/index/ohlc?${params.toString()}`,
             );
-            minuteCache[key] = toIndexKLine(data?.index || []);
+            minuteCache["_all"] = toIndexKLine(data?.index || []);
           }
-          const all = aggregateBars(minuteCache[key], period.multiplier);
-          if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
-            return all.filter((p: any) => p.timestamp >= from && p.timestamp <= to);
-          }
-          return all;
+          return aggregateBars(minuteCache["_all"], period.multiplier);
         }
 
         if (!indexCache[cacheKey]) {
