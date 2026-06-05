@@ -23,9 +23,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import type { PluggableList } from "unified";
+import { marked } from "marked";
 import { API_BASE, api, getToken } from "../api";
 import {
   Select,
@@ -49,7 +47,6 @@ import type {
 
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
-const markdownRemarkPlugins: PluggableList = [[remarkGfm, { singleTilde: false }]];
 
 function normalizeChatMarkdown(text: string) {
   return text
@@ -1077,13 +1074,11 @@ const PlainTextPart = memo(function PlainTextPart() {
 });
 
 const MarkdownTextPart = memo(function MarkdownTextPart({ text }: { text: string }) {
-  return (
-    <div className="markdown-body">
-      <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
-        {normalizeChatMarkdown(text)}
-      </ReactMarkdown>
-    </div>
+  const html = useMemo(
+    () => marked.parse(normalizeChatMarkdown(text), { gfm: true, breaks: false }) as string,
+    [text],
   );
+  return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
 function thoughtStatusText(draft: AssistantDraft) {
