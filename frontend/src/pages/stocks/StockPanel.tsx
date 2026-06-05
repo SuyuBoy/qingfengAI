@@ -42,7 +42,7 @@ export function StockPanel({
         {collapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
       </span>
       <span className="stocks-collapse-icon stocks-collapse-icon-mobile">
-        {collapsed ? <ChevronUp size={21} /> : <ChevronDown size={21} />}
+        {collapsed ? <ChevronDown size={21} /> : <ChevronUp size={21} />}
       </span>
     </button>
   );
@@ -50,42 +50,44 @@ export function StockPanel({
   return (
     <aside className={`stocks-panel${collapsed ? " stocks-collapsed" : ""}`}>
       {collapseButton("collapsed-only")}
-      <div className="stocks-panel-head">
-        <div><h1>股票</h1></div>
-        <div className="stocks-panel-actions">
-          <button className="mini-icon-btn" type="button" title="刷新" onClick={onRefresh}>
-            <RefreshCw size={17} />
-          </button>
-          {collapseButton()}
+      <div className="stocks-panel-body">
+        <div className="stocks-panel-head">
+          <div><h1>股票</h1></div>
+          <div className="stocks-panel-actions">
+            <button className="mini-icon-btn" type="button" title="刷新" onClick={onRefresh}>
+              <RefreshCw size={17} />
+            </button>
+            {collapseButton()}
+          </div>
         </div>
-      </div>
 
-      <IndexCard
-        indexValue={indexValue} indexChange={indexChange}
-        selected={selected} holdingsData={holdingsData}
-        onSelectIndex={onSelectIndex} onLoadHoldings={onLoadHoldings} />
+        <IndexCard
+          indexValue={indexValue} indexChange={indexChange}
+          selected={selected} holdingsData={holdingsData}
+          onSelectIndex={onSelectIndex} onLoadHoldings={onLoadHoldings} />
 
-      <div className="sort-bar stock-sort-bar">
-        {(["active_mentions", "mention_count", "last_mentioned"] as SortKey[]).map(key => (
-          <button className={`sort-btn${sortBy === key ? " active" : ""}`} type="button" key={key}
-            onClick={() => onChangeSort(key)}>
-            {key === "active_mentions" ? "活跃" : key === "mention_count" ? "总提及" : "最新"}
-            {sortBy === key ? (sortDir > 0 ? " ↑" : " ↓") : ""}
-          </button>
-        ))}
-      </div>
+        <div className="sort-bar stock-sort-bar">
+          {(["active_mentions", "mention_count", "last_mentioned"] as SortKey[]).map(key => (
+            <button className={`sort-btn${sortBy === key ? " active" : ""}`} type="button" key={key}
+              onClick={() => onChangeSort(key)}>
+              {key === "active_mentions" ? "活跃" : key === "mention_count" ? "总提及" : "最新"}
+              {sortBy === key ? (sortDir > 0 ? " ↑" : " ↓") : ""}
+            </button>
+          ))}
+        </div>
 
-      <div className="stock-list">
-        {loading && <div className="loading compact">加载中...</div>}
-        {!loading && sorted.map(stock => (
-          <button key={stock.order_book_id}
-            className={`stock-row${selected?.order_book_id === stock.order_book_id ? " selected" : ""}`}
-            type="button" onClick={() => onSelect(stock)}>
-            <span className="stock-symbol">{stock.symbol}</span>
-            <span className="stock-code">{stock.order_book_id}</span>
-            <span className="stock-meta">活跃 {stock.active_mentions} / 总 {stock.mention_count}</span>
-          </button>
-        ))}
+        <div className="stock-list">
+          {loading && <div className="loading compact">加载中...</div>}
+          {!loading && sorted.map(stock => (
+            <button key={stock.order_book_id}
+              className={`stock-row${selected?.order_book_id === stock.order_book_id ? " selected" : ""}`}
+              type="button" onClick={() => onSelect(stock)}>
+              <span className="stock-symbol">{stock.symbol}</span>
+              <span className="stock-code">{stock.order_book_id}</span>
+              <span className="stock-meta">活跃 {stock.active_mentions} / 总 {stock.mention_count}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </aside>
   );

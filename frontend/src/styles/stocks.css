@@ -18,7 +18,7 @@
   overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--surface);
-  transition: flex-basis 0.24s ease, width 0.24s ease, padding 0.18s ease;
+  transition: flex-basis 0.24s ease, width 0.24s ease, max-height 0.3s ease, padding 0.22s ease;
 }
 
 .stocks-collapse-rail {
@@ -59,6 +59,13 @@
   gap: 0.25rem;
 }
 
+.stocks-panel-body {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .stocks-collapsed .stocks-panel {
   flex-basis: 48px;
   width: 48px;
@@ -70,11 +77,7 @@
   width: 100%;
 }
 
-.stocks-collapsed .stocks-panel-head,
-.stocks-collapsed .index-summary,
-.stocks-collapsed .index-params,
-.stocks-collapsed .stock-sort-bar,
-.stocks-collapsed .stock-list {
+.stocks-collapsed .stocks-panel-body {
   display: none;
 }
 
@@ -367,17 +370,36 @@
     max-height: 60vh;
     border-left: 0;
     border-bottom: 1px solid var(--border);
+    transition: max-height 0.36s cubic-bezier(0.22, 1, 0.36, 1), padding 0.28s ease, border-color 0.28s ease;
   }
 
   .stocks-collapsed .stocks-panel {
     flex-basis: 52px;
     width: 100%;
-    max-height: none;
+    max-height: 52px;
     min-height: 52px;
+    padding: 0.35rem 1rem;
   }
 
   .stocks-collapsed .stocks-collapse-rail {
     height: 40px;
+  }
+
+  .stocks-panel-body {
+    overflow: hidden;
+    max-height: calc(60vh - 2rem);
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.22s ease 0.08s, transform 0.28s ease 0.04s, max-height 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .stocks-collapsed .stocks-panel-body {
+    display: flex;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: opacity 0.14s ease, transform 0.18s ease, max-height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .stocks-collapse-icon-desktop {
