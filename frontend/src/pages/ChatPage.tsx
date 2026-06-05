@@ -161,6 +161,52 @@ function attachReasoningToLastAssistant(messages: UiChatMessage[], reasoning: st
   });
 }
 
+function pickAssistantContent(stored: string, streamed: string) {
+  if (!streamed) return stored;
+  if (!stored) return streamed;
+  if (stored === streamed) return stored;
+  if (streamed.startsWith(stored)) return streamed;
+  if (stored.startsWith(streamed)) return stored;
+  return streamed.length >= stored.length ? streamed : stored;
+}
+
+function mergeStreamedAssistantContent(
+  messages: UiChatMessage[],
+  streamedContent: string,
+  reasoningContent: string,
+  fallbackId: string,
+) {
+  const normalized = normalizeMessages(stripRuntimeFields(messages));
+  if (!streamedContent) return normalized;
+
+  let idx = -1;
+  for (let i = normalized.length - 1; i >= 0; i -= 1) {
+    if (isDisplayableAssistant(normalized[i])) {
+      idx = i;
+      break;
+    }
+  }
+
+  if (idx < 0) {
+    return [...normalized, {
+      id: fallbackId,
+      role: "assistant" as const,
+      content: streamedContent,
+      ...(reasoningContent.trim() ? { reasoning_content: reasoningContent.trim() } : {}),
+    }];
+  }
+
+  return normalized.map((message, i) => {
+    if (i !== idx) return message;
+    const content = pickAssistantContent(message.content || "", streamedContent);
+    return {
+      ...message,
+      content,
+      ...(message.reasoning_content || !reasoningContent.trim() ? {} : { reasoning_content: reasoningContent.trim() }),
+    };
+  });
+}
+
 function titleFromMessages(messages: ChatMessage[]) {
   const title = messages.find(m => m.role === "user")?.content?.slice(0, 30) || "新对话";
   return title.length >= 30 ? `${title}...` : title;
@@ -470,7 +516,6 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     let steps: ActivityStep[] = [];
     let phase: ThoughtPhase = "thinking";
     let currentCardId: string | null = null;
-    let receivedDoneMessages = false;
     const accumulatedCards: ToolCardData[] = [];
     const accumulatedDebugLog: DebugLogEntry[] = [];
 
@@ -489,10 +534,8 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       scheduleFlush();
     };
 
-    const handleSseLine = (rawLine: string) => {
-      const line = rawLine.trimEnd();
-      if (!line.startsWith("data: ")) return;
-      const dataStr = line.slice(6).trim();
+    const handleSseData = (data: string) => {
+      const dataStr = data.trim();
       if (!dataStr || dataStr === "[DONE]") return;
 
       try {
@@ -536,7 +579,6 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           flushReasoning();
           content += obj.delta;
         } else if (obj.done && obj.messages) {
-          receivedDoneMessages = true;
           finalMessages = normalizeMessages([...finalMessages, ...(obj.messages as ChatMessage[])]);
         }
         syncDraftAcc();
@@ -571,6 +613,24 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let eventData: string[] = [];
+
+      const flushSseEvent = () => {
+        if (!eventData.length) return;
+        handleSseData(eventData.join("\n"));
+        eventData = [];
+      };
+
+      const handleSseLine = (rawLine: string) => {
+        const line = rawLine.replace(/\r$/, "");
+        if (!line) {
+          flushSseEvent();
+          return;
+        }
+        if (line.startsWith("data:")) {
+          eventData.push(line.slice(5).replace(/^ /, ""));
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -583,7 +643,13 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
         }
       }
       buffer += decoder.decode();
-      if (buffer.trim()) handleSseLine(buffer);
+      if (buffer) {
+        const lines = buffer.split("\n");
+        for (const line of lines) {
+          handleSseLine(line);
+        }
+      }
+      flushSseEvent();
 
       flushReasoning();
       phase = "done";
@@ -597,17 +663,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       }
       flushStreamState();
 
-      if (!receivedDoneMessages && content) {
-        finalMessages = [...finalMessages, {
-          id: makeId(),
-          role: "assistant",
-          content,
-          ...(reasoningContent.trim() ? { reasoning_content: reasoningContent.trim() } : {}),
-        }];
-      }
       if (deletedSessionIdsRef.current.has(sessionId)) return;
       const cleanFinalMessages = attachReasoningToLastAssistant(
-        normalizeMessages(stripRuntimeFields(finalMessages)),
+        mergeStreamedAssistantContent(finalMessages, content, reasoningContent, assistantId),
         reasoningContent,
       );
       setMessages(cleanFinalMessages);
