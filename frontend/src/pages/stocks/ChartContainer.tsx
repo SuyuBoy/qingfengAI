@@ -3,7 +3,7 @@ import { KLineChartPro } from "@klinecharts/pro";
 import { CandleType } from "klinecharts";
 import type { Datafeed, Period, SymbolInfo } from "@klinecharts/pro";
 import { api } from "../../api";
-import type { StockIndexPoint, StockPrice } from "../../types";
+import type { StockIndexPoint, StockPrice, StockSummary } from "../../types";
 import { toIndexKLine, toStockKLine, aggregateBars, swapUpDownColors, type KLinePoint } from "./stockUtils";
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
@@ -88,10 +88,10 @@ async function doPoll() {
 }
 
 export function ChartContainer({
-  symbol, isIndex, orderBookId, periods, layoutKey,
+  symbol, periods, layoutKey, stocks,
 }: {
-  symbol: SymbolInfo; isIndex: boolean;
-  orderBookId?: string; periods: Period[]; layoutKey: string;
+  symbol: SymbolInfo; periods: Period[]; layoutKey: string;
+  stocks: StockSummary[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
@@ -118,14 +118,54 @@ export function ChartContainer({
 
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
+    const stockSymbols = stocks.map(stock => ({
+      ticker: stock.order_book_id,
+      shortName: stock.symbol,
+      name: stock.industry_name || stock.symbol,
+      market: "stocks",
+      pricePrecision: 2,
+      volumePrecision: 0,
+    }));
+    const searchableSymbols = stockSymbols.length ? stockSymbols : (symbol.ticker === "QF_INDEX" ? [] : [symbol]);
+    const matchSymbol = (item: SymbolInfo, search: string) => {
+      const t = search.trim().toLowerCase();
+      if (!t) return true;
+      return `${item.ticker} ${item.shortName || ""} ${item.name || ""} ${item.exchange || ""}`.toLowerCase().includes(t);
+    };
 
-    const datafeed: Datafeed = isIndex ? {
+    const patchSearchModalText = () => {
+      container.querySelectorAll(".klinecharts-pro-modal .title-container").forEach(title => {
+        if (title.textContent?.includes("商品搜索")) {
+          for (const node of Array.from(title.childNodes)) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent?.includes("商品搜索")) {
+              node.textContent = node.textContent.replace("商品搜索", "股票搜索");
+            }
+          }
+        }
+      });
+      container.querySelectorAll<HTMLInputElement>(".klinecharts-pro-symbol-search-modal-input input").forEach(input => {
+        if (input.placeholder === "商品代码") input.placeholder = "股票代码";
+      });
+    };
+
+    const datafeed: Datafeed = {
       searchSymbols: (search?: string) => {
-        const t = (search || "").trim().toLowerCase();
-        const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
-        return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
+        return Promise.resolve(searchableSymbols.filter(item => matchSymbol(item, search || "")));
       },
-      getHistoryKLineData: async (_s: SymbolInfo, period: Period, _from: number, _to: number) => {
+      getHistoryKLineData: async (target: SymbolInfo, period: Period, from: number, to: number) => {
+        if (target.ticker !== "QF_INDEX") {
+          const params = new URLSearchParams();
+          if (Number.isFinite(from)) params.set("start", new Date(from).toISOString().slice(0, 10));
+          if (Number.isFinite(to)) params.set("end", new Date(to).toISOString().slice(0, 10));
+          const qs = params.toString();
+          const data = await api.get<{ prices: StockPrice[] }>(
+            `/api/stocks/prices/${encodeURIComponent(target.ticker)}${qs ? "?" + qs : ""}`,
+          );
+          const bars = toStockKLine(data?.prices || []);
+          scheduleResize();
+          return bars;
+        }
+
         const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
@@ -136,36 +176,21 @@ export function ChartContainer({
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
         scheduleResize();
-        if (Number.isFinite(_from) && Number.isFinite(_to) && _to > _from) {
-          return all.filter((p: any) => p.timestamp >= _from && p.timestamp <= _to);
+        if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
+          return all.filter((p: any) => p.timestamp >= from && p.timestamp <= to);
         }
         return all;
       },
-      subscribe: (_s: SymbolInfo, _p: Period, cb: any) => {
+      subscribe: (target: SymbolInfo, _p: Period, cb: any) => {
+        if (target.ticker !== "QF_INDEX") {
+          cancelDailyPoll();
+          return;
+        }
         _subscribeCb = cb;
         _weightsCache = null;  // 每次挂载重新拉权重
         if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
       },
       unsubscribe: () => { cancelDailyPoll(); },
-    } : {
-      searchSymbols: (search?: string) => {
-        const t = (search || "").trim().toLowerCase();
-        const h = `${symbol.ticker} ${symbol.shortName || ""}`.toLowerCase();
-        return Promise.resolve(!t || h.includes(t) ? [symbol] : []);
-      },
-      getHistoryKLineData: async (_s: SymbolInfo, _p: Period, from: number, to: number) => {
-        const params = new URLSearchParams();
-        if (Number.isFinite(from)) params.set("start", new Date(from).toISOString().slice(0, 10));
-        if (Number.isFinite(to)) params.set("end", new Date(to).toISOString().slice(0, 10));
-        const qs = params.toString();
-        const data = await api.get<{ prices: StockPrice[] }>(
-          `/api/stocks/prices/${encodeURIComponent(orderBookId || symbol.ticker)}${qs ? "?" + qs : ""}`,
-        );
-        const bars = toStockKLine(data?.prices || []);
-        scheduleResize();
-        return bars;
-      },
-      subscribe: () => {}, unsubscribe: () => {},
     };
 
     try {
@@ -196,10 +221,14 @@ export function ChartContainer({
     obs.observe(container);
     window.addEventListener("orientationchange", resizeChart);
     window.visualViewport?.addEventListener("resize", resizeChart);
+    const modalObserver = new MutationObserver(patchSearchModalText);
+    modalObserver.observe(container, { childList: true, subtree: true });
+    patchSearchModalText();
 
     return () => {
       cancelDailyPoll();
       obs.disconnect();
+      modalObserver.disconnect();
       window.removeEventListener("orientationchange", resizeChart);
       window.visualViewport?.removeEventListener("resize", resizeChart);
       rafIds.forEach(id => cancelAnimationFrame(id));
@@ -208,7 +237,7 @@ export function ChartContainer({
       chartRef.current = null;
       container.innerHTML = "";
     };
-  }, [symbol.ticker, isIndex, orderBookId]);
+  }, [symbol.ticker, stocks]);
 
   useEffect(() => {
     [0, 80, 180, 300, 460].forEach(delay => scheduleResizeRef.current(delay));

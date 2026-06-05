@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart3, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react";
 import type { StockSummary } from "../../types";
 import { IndexCard } from "./IndexCard";
 
@@ -38,7 +38,12 @@ export function StockPanel({
     <button className={`stocks-collapse-rail${className ? ` ${className}` : ""}`} type="button"
       title={collapsed ? "展开股票列表" : "折叠股票列表"}
       onClick={onToggleCollapse}>
-      {collapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
+      <span className="stocks-collapse-icon stocks-collapse-icon-desktop">
+        {collapsed ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
+      </span>
+      <span className="stocks-collapse-icon stocks-collapse-icon-mobile">
+        {collapsed ? <ChevronUp size={21} /> : <ChevronDown size={21} />}
+      </span>
     </button>
   );
 
@@ -49,7 +54,7 @@ export function StockPanel({
         <div><h1>股票</h1></div>
         <div className="stocks-panel-actions">
           <button className="mini-icon-btn" type="button" title="刷新" onClick={onRefresh}>
-            <BarChart3 size={17} />
+            <RefreshCw size={17} />
           </button>
           {collapseButton()}
         </div>

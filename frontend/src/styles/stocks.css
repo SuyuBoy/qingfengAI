@@ -39,6 +39,16 @@
   color: var(--text);
 }
 
+.stocks-collapse-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stocks-collapse-icon-mobile {
+  display: none;
+}
+
 .stocks-collapse-rail.collapsed-only {
   display: none;
 }
@@ -368,6 +378,14 @@
 
   .stocks-collapsed .stocks-collapse-rail {
     height: 40px;
+  }
+
+  .stocks-collapse-icon-desktop {
+    display: none;
+  }
+
+  .stocks-collapse-icon-mobile {
+    display: inline-flex;
   }
 
   .stock-chart-panel {
