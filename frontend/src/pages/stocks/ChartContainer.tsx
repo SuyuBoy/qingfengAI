@@ -95,6 +95,7 @@ export function ChartContainer({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
+  const scheduleResizeRef = useRef<(delay?: number) => void>(() => {});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -113,6 +114,7 @@ export function ChartContainer({
       }
       rafIds.push(requestAnimationFrame(resizeChart));
     };
+    scheduleResizeRef.current = scheduleResize;
 
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
@@ -202,10 +204,15 @@ export function ChartContainer({
       window.visualViewport?.removeEventListener("resize", resizeChart);
       rafIds.forEach(id => cancelAnimationFrame(id));
       resizeTimers.forEach(timer => clearTimeout(timer));
+      scheduleResizeRef.current = () => {};
       chartRef.current = null;
       container.innerHTML = "";
     };
-  }, [symbol.ticker, isIndex, orderBookId, layoutKey]);
+  }, [symbol.ticker, isIndex, orderBookId]);
+
+  useEffect(() => {
+    [0, 80, 180, 300, 460].forEach(delay => scheduleResizeRef.current(delay));
+  }, [layoutKey]);
 
   return <div className="stock-pro-chart">
     <div className="stock-pro-chart-inner" ref={containerRef} />
