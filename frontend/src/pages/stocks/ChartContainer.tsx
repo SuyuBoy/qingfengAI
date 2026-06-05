@@ -94,6 +94,11 @@ async function pollTencentDaily() {
   if (_dailyPollStopped) return;
   if (!isTradingHours()) return;
   if (!_dailySubscribeCb) return;
+  // 图表还没加载到今日数据，等下一轮
+  if (_todayOpen == null) {
+    _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
+    return;
+  }
 
   const close = await computeTodayClose();
   if (close != null && close > 0 && Number.isFinite(close)) {
