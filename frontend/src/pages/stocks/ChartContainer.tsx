@@ -103,6 +103,17 @@ export function ChartContainer({
     setError("");
     container.innerHTML = "";
 
+    const rafIds: number[] = [];
+    const resizeTimers: ReturnType<typeof setTimeout>[] = [];
+    const resizeChart = () => chartRef.current?._chartApi?.resize?.();
+    const scheduleResize = (delay = 0) => {
+      if (delay > 0) {
+        resizeTimers.push(setTimeout(resizeChart, delay));
+        return;
+      }
+      rafIds.push(requestAnimationFrame(resizeChart));
+    };
+
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
 
@@ -122,6 +133,7 @@ export function ChartContainer({
         }
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
+        scheduleResize();
         if (Number.isFinite(_from) && Number.isFinite(_to) && _to > _from) {
           return all.filter((p: any) => p.timestamp >= _from && p.timestamp <= _to);
         }
@@ -147,7 +159,9 @@ export function ChartContainer({
         const data = await api.get<{ prices: StockPrice[] }>(
           `/api/stocks/prices/${encodeURIComponent(orderBookId || symbol.ticker)}${qs ? "?" + qs : ""}`,
         );
-        return toStockKLine(data?.prices || []);
+        const bars = toStockKLine(data?.prices || []);
+        scheduleResize();
+        return bars;
       },
       subscribe: () => {}, unsubscribe: () => {},
     };
@@ -164,20 +178,30 @@ export function ChartContainer({
         const swapped = swapUpDownColors(styles);
         swapped.candle = { ...(swapped.candle || {}), type: CandleType.CandleSolid };
         chartRef.current?.setStyles?.(swapped);
+        resizeChart();
+        scheduleResize();
       });
+      scheduleResize(120);
+      scheduleResize(360);
     } catch (reason: any) {
       setError(reason?.message || "图表初始化失败");
     }
 
     const obs = new ResizeObserver(() => {
-      chartRef.current?._chartApi?.resize?.();
+      scheduleResize();
     });
     if (container.parentElement) obs.observe(container.parentElement);
     obs.observe(container);
+    window.addEventListener("orientationchange", resizeChart);
+    window.visualViewport?.addEventListener("resize", resizeChart);
 
     return () => {
       cancelDailyPoll();
       obs.disconnect();
+      window.removeEventListener("orientationchange", resizeChart);
+      window.visualViewport?.removeEventListener("resize", resizeChart);
+      rafIds.forEach(id => cancelAnimationFrame(id));
+      resizeTimers.forEach(timer => clearTimeout(timer));
       chartRef.current = null;
       container.innerHTML = "";
     };

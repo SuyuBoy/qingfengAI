@@ -371,12 +371,15 @@
   }
 
   .stock-chart-panel {
+    flex: 0 0 auto;
+    width: 100%;
     height: auto;
     min-height: 680px;
     overflow: visible;
   }
 
   .stock-pro-chart {
+    width: 100%;
     height: 680px;
   }
 }
