@@ -50,9 +50,6 @@ import type {
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
 const markdownRemarkPlugins: PluggableList = [[remarkGfm, { singleTilde: false }]];
-const markdownComponents = {
-  br: () => null,
-};
 
 function normalizeChatMarkdown(text: string) {
   return text
@@ -1061,13 +1058,14 @@ const UserMessage = memo(function UserMessage() {
 
 const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { onOpenActivity: () => void }) {
   const original = useAuiState(state => getExternalStoreMessages<UiChatMessage>(state.message)[0]);
+  const content = original?.stream ? original.stream.content : original?.content || "";
   return (
     <MessagePrimitive.Root className={`aui-message assistant${original?.stream?.typing ? " typing" : ""}${original?.stream?.error ? " error" : ""}`}>
       <div className="aui-message-role">AI</div>
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
         {!original?.stream && original?.reasoning_content && <CompletedThoughts onOpenActivity={onOpenActivity} />}
-        <MessagePrimitive.Parts components={assistantMessagePartComponents} />
+        <MarkdownTextPart text={content} />
       </div>
     </MessagePrimitive.Root>
   );
@@ -1081,19 +1079,12 @@ const PlainTextPart = memo(function PlainTextPart() {
 const MarkdownTextPart = memo(function MarkdownTextPart({ text }: { text: string }) {
   return (
     <div className="markdown-body">
-      <ReactMarkdown
-        remarkPlugins={markdownRemarkPlugins}
-        components={markdownComponents}
-      >
+      <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
         {normalizeChatMarkdown(text)}
       </ReactMarkdown>
     </div>
   );
 });
-
-const assistantMessagePartComponents = {
-  Text: MarkdownTextPart,
-};
 
 function thoughtStatusText(draft: AssistantDraft) {
   if (draft.error) return "思考中断";
