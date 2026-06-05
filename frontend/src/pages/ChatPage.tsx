@@ -55,34 +55,11 @@ const markdownComponents = {
 };
 
 function normalizeChatMarkdown(text: string) {
-  const lines = text
+  return text
     .replace(/\r\n?/g, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
-    .split("\n");
-  const normalized: string[] = [];
-  let inFence = false;
-
-  for (const line of lines) {
-    if (/^\s*```/.test(line)) {
-      inFence = !inFence;
-      normalized.push(line);
-      continue;
-    }
-
-    if (inFence) {
-      normalized.push(line);
-      continue;
-    }
-
-    if (!line.trim()) {
-      normalized.push("");
-      continue;
-    }
-
-    normalized.push(line.trimEnd().replace(/\\$/, ""));
-  }
-
-  return normalized.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    .replace(/\\\n/g, "\n")
+    .trim();
 }
 
 type ActivityStep = { type: "think" | "tool"; text: string };
@@ -1090,9 +1067,7 @@ const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { on
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
         {!original?.stream && original?.reasoning_content && <CompletedThoughts onOpenActivity={onOpenActivity} />}
-        <MessagePrimitive.Parts>
-          {({ part }) => part.type === "text" ? <MarkdownTextPart /> : null}
-        </MessagePrimitive.Parts>
+        <MessagePrimitive.Parts components={assistantMessagePartComponents} />
       </div>
     </MessagePrimitive.Root>
   );
@@ -1113,6 +1088,10 @@ const MarkdownTextPart = memo(function MarkdownTextPart() {
     />
   );
 });
+
+const assistantMessagePartComponents = {
+  Text: MarkdownTextPart,
+};
 
 function thoughtStatusText(draft: AssistantDraft) {
   if (draft.error) return "思考中断";
