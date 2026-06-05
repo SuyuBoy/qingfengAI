@@ -73,6 +73,28 @@ export default function StocksPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // 盘中实时更新卡片数值
+  useEffect(() => {
+    const onRealtime = (e: Event) => {
+      const bar = (e as CustomEvent).detail;
+      if (!bar?.close) return;
+      setIndexSeries(prev => {
+        if (!prev.length) return prev;
+        const last = prev[prev.length - 1];
+        return [...prev.slice(0, -1), {
+          ...last,
+          value: bar.close,
+          close: bar.close,
+          high: bar.high ?? last.high,
+          low: bar.low ?? last.low,
+          volume: bar.volume ?? last.volume,
+        }];
+      });
+    };
+    window.addEventListener("index-realtime", onRealtime);
+    return () => window.removeEventListener("index-realtime", onRealtime);
+  }, []);
+
   const periods = toPeriods(selected);
   const symbolInfo = toSymbolInfo(selected);
 

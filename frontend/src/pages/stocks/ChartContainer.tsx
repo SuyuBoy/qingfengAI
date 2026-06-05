@@ -100,6 +100,7 @@ async function computeTodayBar(): Promise<KLinePoint | null> {
       timestamp: new Date(`${today}T00:00:00+08:00`).getTime(),
       open: norm(oSum), high: norm(hSum), low: norm(lSum), close: norm(cSum),
       volume: 0,
+      _realtime: true,  // 标记为实时计算，方便外部区分
     };
   }
   return null;
@@ -111,7 +112,15 @@ async function pollTencentDaily() {
   if (!_dailySubscribeCb) return;
 
   const bar = await computeTodayBar();
-  if (bar) _dailySubscribeCb(bar);
+  if (bar) {
+    // 推送时去掉 open，只更新盘中变化的 H/L/C/V，避免跳空
+    _dailySubscribeCb({
+      timestamp: bar.timestamp, high: bar.high, low: bar.low,
+      close: bar.close, volume: bar.volume,
+    });
+    // 通知外部组件（卡片）
+    window.dispatchEvent(new CustomEvent("index-realtime", { detail: bar }));
+  }
 
   if (!_dailyPollStopped && isTradingHours()) {
     _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
