@@ -239,6 +239,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>({
     balance: user.quota_balance ?? 0,
     cap: user.quota_cap ?? 0,
+    refill_rate: user.quota_refill_rate ?? 0,
   });
   const [articleId, setArticleId] = useState<string | null>(null);
 
@@ -511,6 +512,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           setQuotaInfo({
             balance: obj.quota.balance,
             cap: obj.quota.cap,
+            refill_rate: obj.quota.refill_rate || 0,
           });
         } else if (obj.tool || obj.cached) {
           flushReasoning();
@@ -1160,25 +1162,42 @@ const CacheRing = memo(function CacheRing({ stats }: { stats: DsCacheStats }) {
 
 const QuotaRing = memo(function QuotaRing({ info, isAdmin }: { info: QuotaInfo; isAdmin: boolean }) {
   if (isAdmin || !info.cap) return null;
-  const ratio = Math.min(info.balance / info.cap, 1);
+  const drained = info.balance <= 0;
+  const ratio = drained ? 0 : Math.min(info.balance / info.cap, 1);
   const pct = Math.round(ratio * 100);
   const circum = 2 * Math.PI * 8;
   const dashLen = (pct / 100) * circum;
   const low = ratio < 0.2;
-  const color = low ? "#f0a030" : "#4a90d9";
+  const color = drained ? "#e04040" : low ? "#f0a030" : "#4a90d9";
   const fmt = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1000)}K`;
+  const recoveryMin = drained && info.refill_rate > 0
+    ? Math.ceil((Math.abs(info.balance) / info.refill_rate) * 60)
+    : 0;
+  const recoveryText = recoveryMin > 0
+    ? recoveryMin >= 60 ? `${Math.ceil(recoveryMin / 60)}h` : `${recoveryMin}min`
+    : "";
   return (
-    <div className="cache-ring" title={`剩余额度 ${fmt(info.balance)} / ${fmt(info.cap)}`}>
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-        <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border)" strokeWidth="3" />
-        <circle
-          cx="10" cy="10" r="8" fill="none" stroke={color} strokeWidth="3"
-          strokeDasharray={`${dashLen} ${circum}`}
-          strokeLinecap="butt"
-          transform="rotate(-90 10 10)"
-        />
-      </svg>
-      <span className="cache-ring-label">{fmt(info.balance)}</span>
+    <div className="cache-ring" title={drained
+      ? `限额不足，约 ${recoveryText} 后恢复`
+      : `剩余额度 ${fmt(info.balance)} / ${fmt(info.cap)}`}>
+      {drained ? (
+        <span style={{ color: "#e04040", fontWeight: 500, fontSize: ".75rem" }}>
+          限额不足{recoveryText ? ` ${recoveryText}` : ""}
+        </span>
+      ) : (
+        <>
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border)" strokeWidth="3" />
+            <circle
+              cx="10" cy="10" r="8" fill="none" stroke={color} strokeWidth="3"
+              strokeDasharray={`${dashLen} ${circum}`}
+              strokeLinecap="butt"
+              transform="rotate(-90 10 10)"
+            />
+          </svg>
+          <span className="cache-ring-label">{fmt(info.balance)}</span>
+        </>
+      )}
     </div>
   );
 });

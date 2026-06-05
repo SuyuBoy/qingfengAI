@@ -6,11 +6,13 @@ export interface CurrentUser {
   is_admin?: boolean;
   quota_balance?: number;
   quota_cap?: number;
+  quota_refill_rate?: number;
 }
 
 export interface QuotaInfo {
   balance: number;
   cap: number;
+  refill_rate: number;
 }
 
 export interface DynamicItem {
