@@ -1,9 +1,16 @@
-export type UserRole = "unpaid" | "paid" | "admin" | string;
+export type UserRole = "unpaid" | "plus" | "pro" | "admin" | string;
 
 export interface CurrentUser {
   email: string;
   role: UserRole;
   is_admin?: boolean;
+  quota_balance?: number;
+  quota_cap?: number;
+}
+
+export interface QuotaInfo {
+  balance: number;
+  cap: number;
 }
 
 export interface DynamicItem {

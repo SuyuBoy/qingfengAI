@@ -42,6 +42,7 @@ import type {
   DebugLogEntry,
   DsCacheStats,
   DynamicItem,
+  QuotaInfo,
   ToolCardData,
 } from "../types";
 
@@ -235,6 +236,10 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLog, setDebugLog] = useState<DebugLogEntry[]>(window.__debugLog || []);
   const [cacheStats, setCacheStats] = useState<DsCacheStats>({ hit: 0, miss: 0 });
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo>({
+    balance: user.quota_balance ?? 0,
+    cap: user.quota_cap ?? 0,
+  });
   const [articleId, setArticleId] = useState<string | null>(null);
 
   const messagesRef = useRef(messages);
@@ -502,6 +507,11 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             hit: obj.ds_usage.prompt_cache_hit_tokens || 0,
             miss: obj.ds_usage.prompt_cache_miss_tokens || 0,
           });
+        } else if (obj.quota) {
+          setQuotaInfo({
+            balance: obj.quota.balance,
+            cap: obj.quota.cap,
+          });
         } else if (obj.tool || obj.cached) {
           flushReasoning();
           phase = "tool";
@@ -657,6 +667,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             maxRounds={maxRounds}
             debug={debug}
             cacheStats={cacheStats}
+            quotaInfo={quotaInfo}
             isAdmin={Boolean(user.is_admin)}
             onModelChange={setModel}
             onEffortChange={setEffort}
@@ -686,6 +697,7 @@ const AssistantThread = memo(function AssistantThread({
   maxRounds,
   debug,
   cacheStats,
+  quotaInfo,
   isAdmin,
   onModelChange,
   onEffortChange,
@@ -705,6 +717,7 @@ const AssistantThread = memo(function AssistantThread({
   maxRounds: number;
   debug: boolean;
   cacheStats: DsCacheStats;
+  quotaInfo: QuotaInfo;
   isAdmin: boolean;
   onModelChange: (value: string) => void;
   onEffortChange: (value: string) => void;
@@ -741,6 +754,7 @@ const AssistantThread = memo(function AssistantThread({
               maxRounds={maxRounds}
               debug={debug}
               cacheStats={cacheStats}
+              quotaInfo={quotaInfo}
               isAdmin={isAdmin}
               onModelChange={onModelChange}
               onEffortChange={onEffortChange}
@@ -772,6 +786,7 @@ const Composer = memo(function Composer({
   maxRounds,
   debug,
   cacheStats,
+  quotaInfo,
   isAdmin,
   onModelChange,
   onEffortChange,
@@ -789,6 +804,7 @@ const Composer = memo(function Composer({
   maxRounds: number;
   debug: boolean;
   cacheStats: DsCacheStats;
+  quotaInfo: QuotaInfo;
   isAdmin: boolean;
   onModelChange: (value: string) => void;
   onEffortChange: (value: string) => void;
@@ -916,6 +932,7 @@ const Composer = memo(function Composer({
               图片可点击按钮选择，也可直接粘贴到输入框。
             </div>
             <CacheRing stats={cacheStats} />
+            <QuotaRing info={quotaInfo} isAdmin={isAdmin} />
             {isAdmin && (
               <>
                 <label className="composer-menu-row switch-row">
@@ -1137,6 +1154,31 @@ const CacheRing = memo(function CacheRing({ stats }: { stats: DsCacheStats }) {
         />
       </svg>
       <span className="cache-ring-label">{rate}%</span>
+    </div>
+  );
+});
+
+const QuotaRing = memo(function QuotaRing({ info, isAdmin }: { info: QuotaInfo; isAdmin: boolean }) {
+  if (isAdmin || !info.cap) return null;
+  const ratio = Math.min(info.balance / info.cap, 1);
+  const pct = Math.round(ratio * 100);
+  const circum = 2 * Math.PI * 8;
+  const dashLen = (pct / 100) * circum;
+  const low = ratio < 0.2;
+  const color = low ? "#f0a030" : "#4a90d9";
+  const fmt = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1000)}K`;
+  return (
+    <div className="cache-ring" title={`剩余额度 ${fmt(info.balance)} / ${fmt(info.cap)}`}>
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="8" fill="none" stroke="var(--border)" strokeWidth="3" />
+        <circle
+          cx="10" cy="10" r="8" fill="none" stroke={color} strokeWidth="3"
+          strokeDasharray={`${dashLen} ${circum}`}
+          strokeLinecap="butt"
+          transform="rotate(-90 10 10)"
+        />
+      </svg>
+      <span className="cache-ring-label">{fmt(info.balance)}</span>
     </div>
   );
 });

@@ -343,7 +343,7 @@ export default function App() {
             <span className="avatar">{user.email.slice(0, 1).toUpperCase()}</span>
             <span className="account-main">
               <span>{user.email}</span>
-              <small>{user.is_admin ? "Admin" : "Plus"}</small>
+              <small>{user.is_admin ? "Admin" : user.role === "pro" ? "Pro" : "Plus"}</small>
             </span>
             <LogOut size={17} />
           </button>
