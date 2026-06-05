@@ -10,21 +10,19 @@ const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
 type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
 
-// ---- 日K盘中更新 (只算 close，不动 O/H/L) ----
-let _dailySubscribeCb: ((bar: any) => void) | null = null;
-let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
-let _dailyPollStopped = false;
+// ---- 日K盘中更新 ----
+// 后端已固化的最后一根 bar 作为"锚"，轮询只覆盖 close
+let _backendLastBar: KLinePoint | null = null;
+let _subscribeCb: ((bar: any) => void) | null = null;
+let _pollTimer: ReturnType<typeof setTimeout> | null = null;
 let _weightsCache: { holdings: any[]; base_value: number } | null = null;
-let _todayOpen: number | null = null;
-let _todayHigh: number | null = null;
-let _todayLow: number | null = null;
 
 const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
-function toTc(code: string): string {
+function toTc(c: string): string {
   for (const [suf, pre] of Object.entries(EX_MAP)) {
-    if (code.endsWith(suf)) return pre + code.slice(0, 6);
+    if (c.endsWith(suf)) return pre + c.slice(0, 6);
   }
-  return code;
+  return c;
 }
 
 function isTradingHours(): boolean {
@@ -34,99 +32,59 @@ function isTradingHours(): boolean {
     && bj.getUTCHours() < 15;
 }
 
-function stopDailyPoll() {
-  _dailyPollStopped = true;
-  if (_dailyPollTimer !== null) {
-    clearTimeout(_dailyPollTimer);
-    _dailyPollTimer = null;
-  }
-  _dailySubscribeCb = null;
-  _todayOpen = null;
-  _todayHigh = null;
-  _todayLow = null;
+function cancelDailyPoll() {
+  _subscribeCb = null;
+  _backendLastBar = null;
+  if (_pollTimer !== null) { clearTimeout(_pollTimer); _pollTimer = null; }
 }
 
-async function loadWeights(): Promise<void> {
-  if (_weightsCache) return;
-  const data = await api.get<{ holdings: any[]; base_value: number }>("/api/stocks/index/weights");
-  if (data?.holdings?.length) {
-    _weightsCache = { holdings: data.holdings, base_value: data.base_value };
+// 从腾讯个股日K加权算当前指数 close
+async function computeIndexClose(): Promise<number | null> {
+  if (!_weightsCache) {
+    const data = await api.get<{ holdings: any[]; base_value: number }>("/api/stocks/index/weights");
+    if (data?.holdings?.length) _weightsCache = { holdings: data.holdings, base_value: data.base_value };
   }
-}
-
-/** 从腾讯日K的 close 加权计算当前指数值，只返回 close。 */
-async function computeTodayClose(): Promise<number | null> {
-  await loadWeights();
   if (!_weightsCache) return null;
 
   const { holdings, base_value } = _weightsCache;
-  const results = await Promise.all(
-    holdings.map(async (h: any) => {
-      const code = h.o;
-      if (!code) return null;
-      const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${toTc(code)},day,,,1,qfq`;
-      try {
-        const resp = await fetch(url);
-        const text = await resp.text();
-        let jsonStr = text.trim();
-        if (jsonStr.startsWith("kline_day=")) jsonStr = jsonStr.slice(11);
-        const data = JSON.parse(jsonStr);
-        const bars = data?.data?.[toTc(code)]?.qfqday || data?.data?.[toTc(code)]?.day || [];
-        if (!bars.length) return null;
-        const last = bars[bars.length - 1];
-        if (last.length < 6) return null;
-        return { close: parseFloat(last[2]), w: parseFloat(h.w || "0") };
-      } catch { return null; }
-    }),
-  );
+  const results = await Promise.all(holdings.map(async (h: any) => {
+    const code = h.o; if (!code) return null;
+    try {
+      const resp = await fetch(`https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${toTc(code)},day,,,1,qfq`);
+      const text = await resp.text();
+      let jsonStr = text.trim();
+      if (jsonStr.startsWith("kline_day=")) jsonStr = jsonStr.slice(11);
+      const bars = JSON.parse(jsonStr)?.data?.[toTc(code)]?.qfqday || JSON.parse(jsonStr)?.data?.[toTc(code)]?.day || [];
+      if (!bars.length) return null;
+      const l = bars[bars.length - 1];
+      return l.length >= 6 ? { c: parseFloat(l[2]), w: parseFloat(h.w || "0") } : null;
+    } catch { return null; }
+  }));
 
   let cSum = 0, tw = 0;
-  for (const r of results) {
-    if (!r || r.w <= 0) continue;
-    cSum += r.close * r.w; tw += r.w;
-  }
-
-  const value = tw > 0 && base_value > 0 ? parseFloat(((cSum / tw) / base_value * 1000).toFixed(2)) : 0;
-  return value > 0 && Number.isFinite(value) ? value : null;
+  for (const r of results) { if (r && r.w > 0) { cSum += r.c * r.w; tw += r.w; } }
+  if (tw <= 0 || base_value <= 0) return null;
+  const v = parseFloat(((cSum / tw) / base_value * 1000).toFixed(2));
+  return v > 0 && Number.isFinite(v) ? v : null;
 }
 
-async function pollTencentDaily() {
-  if (_dailyPollStopped) return;
-  if (!isTradingHours()) return;
-  if (!_dailySubscribeCb) return;
-  // 图表还没加载到今日数据，等下一轮
-  if (_todayOpen == null) {
-    _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
-    return;
-  }
-
-  const close = await computeTodayClose();
-  if (close != null && close > 0 && Number.isFinite(close)) {
-    if (_todayHigh == null || close > _todayHigh) _todayHigh = close;
-    if (_todayLow == null || close < _todayLow) _todayLow = close;
-    const bj = new Date(Date.now() + 8 * 3600000);
-    const today = bj.toISOString().slice(0, 10);
-    const ts = new Date(`${today}T00:00:00+08:00`).getTime();
-    _dailySubscribeCb({
-      timestamp: ts,
-      open: _todayOpen ?? close,
-      high: _todayHigh,
-      low: _todayLow,
-      close,
+async function doPoll() {
+  if (!isTradingHours() || !_subscribeCb || !_backendLastBar) return;
+  const c = await computeIndexClose();
+  if (c != null && c > 0 && Number.isFinite(c)) {
+    // 以后端 bar 为锚：O 不动，H/L 只在 close 超出时扩展
+    const b = _backendLastBar;
+    _subscribeCb({
+      timestamp: b.timestamp,
+      open: b.open,
+      high: Math.max(b.high, c),
+      low: Math.min(b.low, c),
+      close: c,
+      volume: b.volume,
     });
-    window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close } }));
+    window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close: c } }));
   }
-
-  if (!_dailyPollStopped && isTradingHours()) {
-    _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
-  }
-}
-
-function startDailyPoll() {
-  if (_dailyPollTimer !== null) return;
-  _dailyPollStopped = false;
-  _weightsCache = null;
-  _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
+  if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
 }
 
 export function ChartContainer({
@@ -159,17 +117,7 @@ export function ChartContainer({
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
           const bars = toIndexKLine(data?.index || []);
-          // 记住今日 open，盘中推送时复用
-          const bj = new Date(Date.now() + 8 * 3600000);
-          const today = bj.toISOString().slice(0, 10);
-          const lastTs = bars.length > 0 ? bars[bars.length - 1].timestamp : 0;
-          const lastDate = new Date(lastTs).toISOString().slice(0, 10);
-          if (lastDate >= today) {
-            const lastBar = bars[bars.length - 1];
-            _todayOpen = lastBar.open;
-            _todayHigh = lastBar.high;
-            _todayLow = lastBar.low;
-          }
+          if (bars.length) _backendLastBar = bars[bars.length - 1];
           indexCache[cacheKey] = bars;
         }
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
@@ -180,10 +128,11 @@ export function ChartContainer({
         return all;
       },
       subscribe: (_s: SymbolInfo, _p: Period, cb: any) => {
-        _dailySubscribeCb = cb;
-        if (isTradingHours()) startDailyPoll();
+        _subscribeCb = cb;
+        _weightsCache = null;  // 每次挂载重新拉权重
+        if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
       },
-      unsubscribe: () => { stopDailyPoll(); },
+      unsubscribe: () => { cancelDailyPoll(); },
     } : {
       searchSymbols: (search?: string) => {
         const t = (search || "").trim().toLowerCase();
@@ -227,7 +176,7 @@ export function ChartContainer({
     obs.observe(container);
 
     return () => {
-      stopDailyPoll();
+      cancelDailyPoll();
       obs.disconnect();
       chartRef.current = null;
       container.innerHTML = "";
