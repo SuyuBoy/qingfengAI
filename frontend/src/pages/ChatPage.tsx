@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import remarkGfm from "remark-gfm";
+import type { PluggableList } from "unified";
 import { API_BASE, api, getToken } from "../api";
 import {
   Select,
@@ -48,7 +49,7 @@ import type {
 
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
-const markdownRemarkPlugins = [remarkGfm];
+const markdownRemarkPlugins: PluggableList = [[remarkGfm, { singleTilde: false }]];
 const markdownComponents = {
   br: () => null,
 };
@@ -73,12 +74,15 @@ function normalizeChatMarkdown(text: string) {
       continue;
     }
 
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      normalized.push("");
+      continue;
+    }
 
     normalized.push(line.trimEnd().replace(/\\$/, ""));
   }
 
-  return normalized.join("\n").trim();
+  return normalized.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 type ActivityStep = { type: "think" | "tool"; text: string };
