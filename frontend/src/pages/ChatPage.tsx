@@ -13,7 +13,6 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import {
   ArrowDown,
   Bug,
@@ -24,6 +23,7 @@ import {
   Square,
   X,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { PluggableList } from "unified";
 import { API_BASE, api, getToken } from "../api";
@@ -1078,14 +1078,16 @@ const PlainTextPart = memo(function PlainTextPart() {
   return <span>{part.text}</span>;
 });
 
-const MarkdownTextPart = memo(function MarkdownTextPart() {
+const MarkdownTextPart = memo(function MarkdownTextPart({ text }: { text: string }) {
   return (
-    <MarkdownTextPrimitive
-      remarkPlugins={markdownRemarkPlugins}
-      components={markdownComponents}
-      preprocess={normalizeChatMarkdown}
-      className="markdown-body"
-    />
+    <div className="markdown-body">
+      <ReactMarkdown
+        remarkPlugins={markdownRemarkPlugins}
+        components={markdownComponents}
+      >
+        {normalizeChatMarkdown(text)}
+      </ReactMarkdown>
+    </div>
   );
 });
 
