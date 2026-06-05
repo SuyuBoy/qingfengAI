@@ -86,10 +86,8 @@ async function computeTodayClose(): Promise<number | null> {
     cSum += r.close * r.w; tw += r.w;
   }
 
-  if (tw > 0 && base_value > 0) {
-    return parseFloat(((cSum / tw) / base_value * 1000).toFixed(2));
-  }
-  return null;
+  const value = tw > 0 && base_value > 0 ? parseFloat(((cSum / tw) / base_value * 1000).toFixed(2)) : 0;
+  return value > 0 && Number.isFinite(value) ? value : null;
 }
 
 async function pollTencentDaily() {
@@ -98,17 +96,17 @@ async function pollTencentDaily() {
   if (!_dailySubscribeCb) return;
 
   const close = await computeTodayClose();
-  if (close != null) {
-    if (_todayHigh != null && close > _todayHigh) _todayHigh = close;
-    if (_todayLow != null && close < _todayLow) _todayLow = close;
+  if (close != null && close > 0 && Number.isFinite(close)) {
+    if (_todayHigh == null || close > _todayHigh) _todayHigh = close;
+    if (_todayLow == null || close < _todayLow) _todayLow = close;
     const bj = new Date(Date.now() + 8 * 3600000);
     const today = bj.toISOString().slice(0, 10);
     const ts = new Date(`${today}T00:00:00+08:00`).getTime();
     _dailySubscribeCb({
       timestamp: ts,
       open: _todayOpen ?? close,
-      high: _todayHigh ?? close,
-      low: _todayLow ?? close,
+      high: _todayHigh,
+      low: _todayLow,
       close,
     });
     window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close } }));
