@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BarChart3,
+  BookOpen,
   LogOut,
   Menu,
   MessageSquare,
@@ -26,6 +27,7 @@ import type { ChatSession, CurrentUser } from "./types";
 const SESSIONS_KEY = "chat_sessions";
 const ACTIVE_KEY = "chat_active_session";
 const THEME_KEY = "qf_theme";
+const HELP_DYNAMIC_ID = "00001";
 
 type ThemeMode = "light" | "dark";
 type SessionMenuState = { id: string; top: number; left: number };
@@ -270,6 +272,10 @@ export default function App() {
             <TrendingUp size={19} />
             <span>动态</span>
           </button>
+          <button className={`sidebar-nav-item${route === "/help" ? " active" : ""}`} type="button" onClick={() => setRoute("/help")}>
+            <BookOpen size={19} />
+            <span>帮助文档</span>
+          </button>
           <button className={`sidebar-nav-item${route === "/stocks" ? " active" : ""}`} type="button" onClick={() => setRoute("/stocks")}>
             <BarChart3 size={19} />
             <span>股票</span>
@@ -345,7 +351,15 @@ export default function App() {
       </aside>
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="关闭侧边栏" onClick={() => setSidebarOpen(false)} />}
       <main className="app-main" id="app">
-        {route === "/stocks" ? <StocksPage /> : route === "/dynamics" ? <DynamicsPage /> : <ChatPage user={user} />}
+        {route === "/stocks" ? (
+          <StocksPage />
+        ) : route === "/dynamics" ? (
+          <DynamicsPage />
+        ) : route === "/help" ? (
+          <DynamicsPage dynamicId={HELP_DYNAMIC_ID} title="帮助文档" description="清风 AI 使用说明" />
+        ) : (
+          <ChatPage user={user} />
+        )}
       </main>
       {searchOpen && (
         <SearchDialog

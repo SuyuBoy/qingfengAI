@@ -22,7 +22,17 @@ function formatDateInput(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function DynamicsPage() {
+type DynamicsPageProps = {
+  dynamicId?: string;
+  title?: string;
+  description?: string;
+};
+
+export default function DynamicsPage({
+  dynamicId,
+  title = "动态",
+  description = "清风文章库检索与归档",
+}: DynamicsPageProps = {}) {
   const [keyword, setKeyword] = useState("");
   const [items, setItems] = useState<DynamicItem[]>([]);
   const [cursor, setCursor] = useState("");
@@ -46,7 +56,33 @@ export default function DynamicsPage() {
     return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
   }, [items]);
 
+  const loadDynamic = useCallback(async (id: string) => {
+    setLoading(true);
+    setError("");
+    setItems([]);
+    setCursor("");
+    setHasMore(false);
+    setSearchMode(false);
+    setCurrentDate("");
+    setExpanded(new Set());
+    try {
+      const item = await api.get<DynamicItem>(`/api/dynamics/${encodeURIComponent(id)}`);
+      if (!item) return;
+      setItems([item]);
+      setExpanded(new Set([item.dynamic_id]));
+    } catch (e) {
+      setError(`加载失败：${e instanceof Error ? e.message : "未知错误"}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const initialLoad = useCallback(async () => {
+    if (dynamicId) {
+      await loadDynamic(dynamicId);
+      return;
+    }
+
     setLoading(true);
     setError("");
     setItems([]);
@@ -65,7 +101,7 @@ export default function DynamicsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dynamicId, loadDynamic]);
 
   const loadMore = useCallback(async () => {
     setMoreLoading(true);
@@ -117,6 +153,7 @@ export default function DynamicsPage() {
   }, [keyword]);
 
   const setDate = useCallback(async (date: string) => {
+    if (dynamicId) return;
     setCurrentDate(date);
     if (!date) {
       initialLoad();
@@ -137,7 +174,7 @@ export default function DynamicsPage() {
     } finally {
       setLoading(false);
     }
-  }, [initialLoad]);
+  }, [dynamicId, initialLoad]);
 
   const clearSearch = useCallback(() => {
     setKeyword("");
@@ -153,12 +190,8 @@ export default function DynamicsPage() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    if (searchMode) {
-      setKeyword("");
-      initialLoad();
-    } else {
-      initialLoad();
-    }
+    if (searchMode) setKeyword("");
+    initialLoad();
   }, [searchMode, initialLoad]);
 
   const handleCalendarSelect = useCallback((date?: Date) => {
@@ -195,58 +228,60 @@ export default function DynamicsPage() {
     <section className="dynamics-page">
       <div className="workspace-head">
         <div>
-          <h1>动态</h1>
-          <p>清风文章库检索与归档</p>
+          <h1>{title}</h1>
+          <p>{description}</p>
         </div>
         <button className="mini-icon-btn" title="刷新" type="button" onClick={handleRefresh}>
           <RefreshCw size={17} />
         </button>
       </div>
 
-      <div className="top-row">
-        <div className="search-bar">
-          <Search size={18} />
-          <input
-            type="text"
-            id="search-kw"
-            placeholder="关键词 / 文章ID..."
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") doSearch(); }}
-          />
-          <button id="search-btn" onClick={doSearch}>搜索</button>
-          {searchMode && (
-            <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
-          )}
-        </div>
-        <div className="filter-actions">
-          <div className="date-picker-control" ref={calendarRef}>
-            <button
-              id="cal-btn"
-              type="button"
-              title="按日期筛选"
-              aria-label="按日期筛选"
-              aria-expanded={calendarOpen}
-              onClick={() => setCalendarOpen(open => !open)}
-            >
-              <CalendarDays size={17} />
-            </button>
-            {calendarOpen && (
-              <div className="date-picker-popover">
-                <Calendar
-                  mode="single"
-                  selected={parseDateInput(currentDate)}
-                  onSelect={handleCalendarSelect}
-                />
-              </div>
+      {!dynamicId && (
+        <div className="top-row">
+          <div className="search-bar">
+            <Search size={18} />
+            <input
+              type="text"
+              id="search-kw"
+              placeholder="关键词 / 文章ID..."
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") doSearch(); }}
+            />
+            <button id="search-btn" onClick={doSearch}>搜索</button>
+            {searchMode && (
+              <button id="search-clear-btn" className="clear-btn icon-only" title="清空" onClick={clearSearch}><X size={16} /></button>
             )}
           </div>
-          <span id="cal-label" className="cal-label">{currentDate}</span>
-          {currentDate && (
-            <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
-          )}
+          <div className="filter-actions">
+            <div className="date-picker-control" ref={calendarRef}>
+              <button
+                id="cal-btn"
+                type="button"
+                title="按日期筛选"
+                aria-label="按日期筛选"
+                aria-expanded={calendarOpen}
+                onClick={() => setCalendarOpen(open => !open)}
+              >
+                <CalendarDays size={17} />
+              </button>
+              {calendarOpen && (
+                <div className="date-picker-popover">
+                  <Calendar
+                    mode="single"
+                    selected={parseDateInput(currentDate)}
+                    onSelect={handleCalendarSelect}
+                  />
+                </div>
+              )}
+            </div>
+            <span id="cal-label" className="cal-label">{currentDate}</span>
+            {currentDate && (
+              <button id="cal-reset" className="clear-btn" onClick={resetDate}>重置</button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div id="card-list">
         {loading ? <div className="loading">加载中...</div> : null}
