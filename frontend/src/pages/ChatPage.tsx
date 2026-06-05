@@ -300,6 +300,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const persistActiveSession = useCallback((sessionId: string | null, nextMessages: UiChatMessage[], currentSessions?: ChatSession[]) => {
     const storedMessages = stripRuntimeFields(nextMessages);
     if (!sessionId || !storedMessages.length) return;
+    if (deletedSessionIdsRef.current.has(sessionId)) return;
     const base = currentSessions || sessionsRef.current;
     const idx = base.findIndex(s => s.id === sessionId);
     const entry: ChatSession = {
