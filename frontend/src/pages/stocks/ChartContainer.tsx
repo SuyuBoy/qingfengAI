@@ -15,6 +15,7 @@ let _dailySubscribeCb: ((bar: any) => void) | null = null;
 let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _dailyPollStopped = false;
 let _weightsCache: { holdings: any[]; base_value: number } | null = null;
+let _hasTodayBar = false;  // 后端已有今日日K，跳过腾讯轮询
 
 const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
 function toTc(code: string): string {
@@ -163,6 +164,8 @@ export function ChartContainer({
           if (lastDate < today && isTradingHours()) {
             const todayBar = await computeTodayBar();
             if (todayBar) bars.push(todayBar);
+          } else {
+            _hasTodayBar = lastDate >= today;
           }
           indexCache[cacheKey] = bars;
         }
@@ -175,7 +178,7 @@ export function ChartContainer({
       },
       subscribe: (_s: SymbolInfo, _p: Period, cb: any) => {
         _dailySubscribeCb = cb;
-        if (isTradingHours()) startDailyPoll();
+        if (!_hasTodayBar && isTradingHours()) startDailyPoll();
       },
       unsubscribe: () => { stopDailyPoll(); },
     } : {
