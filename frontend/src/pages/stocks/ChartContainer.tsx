@@ -10,11 +10,12 @@ const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
 type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
 
-// ---- 日K盘中更新 (直接查腾讯) ----
+// ---- 日K盘中更新 (只算 close，不动 O/H/L) ----
 let _dailySubscribeCb: ((bar: any) => void) | null = null;
 let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _dailyPollStopped = false;
 let _weightsCache: { holdings: any[]; base_value: number } | null = null;
+let _todayOpen: number | null = null;  // 图表加载时后端固化的今日开盘价
 
 const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
 function toTc(code: string): string {
@@ -25,7 +26,6 @@ function toTc(code: string): string {
 }
 
 function isTradingHours(): boolean {
-  // 连续竞价 9:30-15:00
   const bj = new Date(Date.now() + 8 * 3600000);
   return bj.getUTCDay() !== 0 && bj.getUTCDay() !== 6
     && !(bj.getUTCHours() < 9 || (bj.getUTCHours() === 9 && bj.getUTCMinutes() < 30))
@@ -39,26 +39,7 @@ function stopDailyPoll() {
     _dailyPollTimer = null;
   }
   _dailySubscribeCb = null;
-}
-
-async function fetchTcBar(tc: string): Promise<any | null> {
-  try {
-    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${tc},day,,,1,qfq`;
-    const resp = await fetch(url);
-    const text = await resp.text();
-    let jsonStr = text.trim();
-    if (jsonStr.startsWith("kline_day=")) jsonStr = jsonStr.slice(11);
-    const data = JSON.parse(jsonStr);
-    const bars = data?.data?.[tc]?.qfqday || data?.data?.[tc]?.day || [];
-    if (!bars.length) return null;
-    const last = bars[bars.length - 1];
-    if (last.length < 6) return null;
-    return {
-      open: parseFloat(last[1]), close: parseFloat(last[2]),
-      high: parseFloat(last[3]), low: parseFloat(last[4]),
-      volume: parseFloat(last[5]),
-    };
-  } catch { return null; }
+  _todayOpen = null;
 }
 
 async function loadWeights(): Promise<void> {
@@ -69,8 +50,8 @@ async function loadWeights(): Promise<void> {
   }
 }
 
-/** 从腾讯日K加权计算今日指数 OHLC，返回 KLinePoint 或 null。 */
-async function computeTodayBar(): Promise<KLinePoint | null> {
+/** 从腾讯日K的 close 加权计算当前指数值，只返回 close。 */
+async function computeTodayClose(): Promise<number | null> {
   await loadWeights();
   if (!_weightsCache) return null;
 
@@ -79,29 +60,30 @@ async function computeTodayBar(): Promise<KLinePoint | null> {
     holdings.map(async (h: any) => {
       const code = h.o;
       if (!code) return null;
-      const bar = await fetchTcBar(toTc(code));
-      return bar ? { ...bar, w: parseFloat(h.w || "0") } : null;
+      const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${toTc(code)},day,,,1,qfq`;
+      try {
+        const resp = await fetch(url);
+        const text = await resp.text();
+        let jsonStr = text.trim();
+        if (jsonStr.startsWith("kline_day=")) jsonStr = jsonStr.slice(11);
+        const data = JSON.parse(jsonStr);
+        const bars = data?.data?.[toTc(code)]?.qfqday || data?.data?.[toTc(code)]?.day || [];
+        if (!bars.length) return null;
+        const last = bars[bars.length - 1];
+        if (last.length < 6) return null;
+        return { close: parseFloat(last[2]), w: parseFloat(h.w || "0") };
+      } catch { return null; }
     }),
   );
 
-  let oSum = 0, hSum = 0, lSum = 0, cSum = 0, tw = 0;
+  let cSum = 0, tw = 0;
   for (const r of results) {
     if (!r || r.w <= 0) continue;
-    oSum += r.open * r.w; hSum += r.high * r.w;
-    lSum += r.low * r.w; cSum += r.close * r.w;
-    tw += r.w;
+    cSum += r.close * r.w; tw += r.w;
   }
 
   if (tw > 0 && base_value > 0) {
-    const norm = (v: number) => parseFloat(((v / tw) / base_value * 1000).toFixed(2));
-    const bj = new Date(Date.now() + 8 * 3600000);
-    const today = bj.toISOString().slice(0, 10);
-    return {
-      timestamp: new Date(`${today}T00:00:00+08:00`).getTime(),
-      open: norm(oSum), high: norm(hSum), low: norm(lSum), close: norm(cSum),
-      volume: 0,
-      _realtime: true,  // 标记为实时计算，方便外部区分
-    };
+    return parseFloat(((cSum / tw) / base_value * 1000).toFixed(2));
   }
   return null;
 }
@@ -111,15 +93,18 @@ async function pollTencentDaily() {
   if (!isTradingHours()) return;
   if (!_dailySubscribeCb) return;
 
-  const bar = await computeTodayBar();
-  if (bar) {
-    // 推送时去掉 open，只更新盘中变化的 H/L/C/V，避免跳空
+  const close = await computeTodayClose();
+  if (close != null) {
+    const bj = new Date(Date.now() + 8 * 3600000);
+    const today = bj.toISOString().slice(0, 10);
+    const ts = new Date(`${today}T00:00:00+08:00`).getTime();
+    // 推送完整 bar：open 用后端固化的值，close 是实时计算的
     _dailySubscribeCb({
-      timestamp: bar.timestamp, high: bar.high, low: bar.low,
-      close: bar.close, volume: bar.volume,
+      timestamp: ts,
+      open: _todayOpen ?? close,  // 尚未加载到 open 时兜底
+      close,
     });
-    // 通知外部组件（卡片）
-    window.dispatchEvent(new CustomEvent("index-realtime", { detail: bar }));
+    window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close } }));
   }
 
   if (!_dailyPollStopped && isTradingHours()) {
@@ -130,7 +115,7 @@ async function pollTencentDaily() {
 function startDailyPoll() {
   if (_dailyPollTimer !== null) return;
   _dailyPollStopped = false;
-  _weightsCache = null;  // 每次重新加载最新权重
+  _weightsCache = null;
   _dailyPollTimer = setTimeout(pollTencentDaily, 60_000);
 }
 
@@ -163,7 +148,16 @@ export function ChartContainer({
         const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
-          indexCache[cacheKey] = toIndexKLine(data?.index || []);
+          const bars = toIndexKLine(data?.index || []);
+          // 记住今日 open，盘中推送时复用
+          const bj = new Date(Date.now() + 8 * 3600000);
+          const today = bj.toISOString().slice(0, 10);
+          const lastTs = bars.length > 0 ? bars[bars.length - 1].timestamp : 0;
+          const lastDate = new Date(lastTs).toISOString().slice(0, 10);
+          if (lastDate >= today) {
+            _todayOpen = bars[bars.length - 1].open;
+          }
+          indexCache[cacheKey] = bars;
         }
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
