@@ -15,7 +15,6 @@ let _dailySubscribeCb: ((bar: any) => void) | null = null;
 let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _dailyPollStopped = false;
 let _weightsCache: { holdings: any[]; base_value: number } | null = null;
-let _hasTodayBar = false;  // 后端已有今日日K，跳过腾讯轮询
 
 const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
 function toTc(code: string): string {
@@ -155,19 +154,7 @@ export function ChartContainer({
         const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
           const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
-          const bars = toIndexKLine(data?.index || []);
-          // 后端还没固化今日日K → 前端从腾讯查
-          const bj = new Date(Date.now() + 8 * 3600000);
-          const today = bj.toISOString().slice(0, 10);
-          const lastTs = bars.length > 0 ? bars[bars.length - 1].timestamp : 0;
-          const lastDate = new Date(lastTs).toISOString().slice(0, 10);
-          if (lastDate < today && isTradingHours()) {
-            const todayBar = await computeTodayBar();
-            if (todayBar) bars.push(todayBar);
-          } else {
-            _hasTodayBar = lastDate >= today;
-          }
-          indexCache[cacheKey] = bars;
+          indexCache[cacheKey] = toIndexKLine(data?.index || []);
         }
         const all = aggregateBars(indexCache[cacheKey], period.multiplier);
         if (!all.length) return [];
@@ -178,7 +165,7 @@ export function ChartContainer({
       },
       subscribe: (_s: SymbolInfo, _p: Period, cb: any) => {
         _dailySubscribeCb = cb;
-        if (!_hasTodayBar && isTradingHours()) startDailyPoll();
+        if (isTradingHours()) startDailyPoll();
       },
       unsubscribe: () => { stopDailyPoll(); },
     } : {
