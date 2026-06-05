@@ -15,7 +15,9 @@ let _dailySubscribeCb: ((bar: any) => void) | null = null;
 let _dailyPollTimer: ReturnType<typeof setTimeout> | null = null;
 let _dailyPollStopped = false;
 let _weightsCache: { holdings: any[]; base_value: number } | null = null;
-let _todayOpen: number | null = null;  // 图表加载时后端固化的今日开盘价
+let _todayOpen: number | null = null;
+let _todayHigh: number | null = null;
+let _todayLow: number | null = null;
 
 const EX_MAP: Record<string, string> = { ".XSHG": "sh", ".XSHE": "sz" };
 function toTc(code: string): string {
@@ -40,6 +42,8 @@ function stopDailyPoll() {
   }
   _dailySubscribeCb = null;
   _todayOpen = null;
+  _todayHigh = null;
+  _todayLow = null;
 }
 
 async function loadWeights(): Promise<void> {
@@ -95,13 +99,16 @@ async function pollTencentDaily() {
 
   const close = await computeTodayClose();
   if (close != null) {
+    if (_todayHigh != null && close > _todayHigh) _todayHigh = close;
+    if (_todayLow != null && close < _todayLow) _todayLow = close;
     const bj = new Date(Date.now() + 8 * 3600000);
     const today = bj.toISOString().slice(0, 10);
     const ts = new Date(`${today}T00:00:00+08:00`).getTime();
-    // 推送完整 bar：open 用后端固化的值，close 是实时计算的
     _dailySubscribeCb({
       timestamp: ts,
-      open: _todayOpen ?? close,  // 尚未加载到 open 时兜底
+      open: _todayOpen ?? close,
+      high: _todayHigh ?? close,
+      low: _todayLow ?? close,
       close,
     });
     window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close } }));
@@ -155,7 +162,10 @@ export function ChartContainer({
           const lastTs = bars.length > 0 ? bars[bars.length - 1].timestamp : 0;
           const lastDate = new Date(lastTs).toISOString().slice(0, 10);
           if (lastDate >= today) {
-            _todayOpen = bars[bars.length - 1].open;
+            const lastBar = bars[bars.length - 1];
+            _todayOpen = lastBar.open;
+            _todayHigh = lastBar.high;
+            _todayLow = lastBar.low;
           }
           indexCache[cacheKey] = bars;
         }
