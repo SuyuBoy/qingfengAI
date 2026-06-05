@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { KLineChartPro } from "@klinecharts/pro";
-import { CandleType } from "klinecharts";
+import { CandleType, DomPosition, init as initKLineChart } from "klinecharts";
 import type { Datafeed, Period, SymbolInfo } from "@klinecharts/pro";
+import type { Chart as KLineChart } from "klinecharts";
 import { api } from "../../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../../types";
 import { toIndexKLine, toStockKLine, aggregateBars, swapUpDownColors, type KLinePoint } from "./stockUtils";
@@ -9,6 +10,7 @@ import { toIndexKLine, toStockKLine, aggregateBars, swapUpDownColors, type KLine
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
 type KLineChartProHandle = { setStyles?: (s: any) => void; getStyles?: () => any };
+type InnerKLineChart = KLineChart & { resize?: () => void };
 
 // ---- 日K盘中更新 ----
 // 后端已固化的最后一根 bar 作为"锚"，轮询只覆盖 close
@@ -95,6 +97,7 @@ export function ChartContainer({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
+  const innerChartRef = useRef<InnerKLineChart | null>(null);
   const scheduleResizeRef = useRef<(delay?: number) => void>(() => {});
   const [error, setError] = useState("");
 
@@ -106,7 +109,34 @@ export function ChartContainer({
 
     const rafIds: number[] = [];
     const resizeTimers: ReturnType<typeof setTimeout>[] = [];
-    const resizeChart = () => window.dispatchEvent(new Event("resize"));
+    const getInnerChart = () => {
+      if (innerChartRef.current) return innerChartRef.current;
+      const chartDom = container.querySelector<HTMLElement>("[k-line-chart-id]");
+      const chartId = chartDom?.getAttribute("k-line-chart-id");
+      if (!chartDom || !chartId) return null;
+      chartDom.id = chartId;
+      innerChartRef.current = initKLineChart(chartDom) as InnerKLineChart | null;
+      return innerChartRef.current;
+    };
+    const fitHorizontalScale = () => {
+      const chart = getInnerChart();
+      const dataCount = chart?.getDataList?.().length || 0;
+      if (!chart || dataCount <= 0) return;
+
+      chart.resize?.();
+      const mainWidth = chart.getSize("candle_pane", DomPosition.Main)?.width || 0;
+      if (mainWidth <= 0) return;
+
+      const maxVisibleCount = Math.max(1, Math.floor(mainWidth / 4));
+      const targetVisibleCount = Math.max(45, Math.min(dataCount + 6, maxVisibleCount));
+      const barSpace = Math.min(28, Math.max(4, (mainWidth - 24) / targetVisibleCount));
+      chart.setBarSpace(Number(barSpace.toFixed(2)));
+      chart.scrollToRealTime(0);
+    };
+    const resizeChart = () => {
+      window.dispatchEvent(new Event("resize"));
+      rafIds.push(requestAnimationFrame(fitHorizontalScale));
+    };
     const scheduleResize = (delay = 0) => {
       if (delay > 0) {
         resizeTimers.push(setTimeout(resizeChart, delay));
@@ -235,6 +265,7 @@ export function ChartContainer({
       resizeTimers.forEach(timer => clearTimeout(timer));
       scheduleResizeRef.current = () => {};
       chartRef.current = null;
+      innerChartRef.current = null;
       container.innerHTML = "";
     };
   }, [symbol.ticker, stocks]);
