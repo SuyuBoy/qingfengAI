@@ -8,7 +8,7 @@ import { toIndexKLine, toStockKLine, aggregateBars, swapUpDownColors, type KLine
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
-type KLineChartProHandle = { _chartApi?: { resize?: () => void }; setStyles?: (s: any) => void; getStyles?: () => any };
+type KLineChartProHandle = { setStyles?: (s: any) => void; getStyles?: () => any };
 
 // ---- 日K盘中更新 ----
 // 后端已固化的最后一根 bar 作为"锚"，轮询只覆盖 close
@@ -106,7 +106,7 @@ export function ChartContainer({
 
     const rafIds: number[] = [];
     const resizeTimers: ReturnType<typeof setTimeout>[] = [];
-    const resizeChart = () => chartRef.current?._chartApi?.resize?.();
+    const resizeChart = () => window.dispatchEvent(new Event("resize"));
     const scheduleResize = (delay = 0) => {
       if (delay > 0) {
         resizeTimers.push(setTimeout(resizeChart, delay));
