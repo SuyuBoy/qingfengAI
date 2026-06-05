@@ -483,6 +483,56 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       scheduleFlush();
     };
 
+    const handleSseLine = (rawLine: string) => {
+      const line = rawLine.trimEnd();
+      if (!line.startsWith("data: ")) return;
+      const dataStr = line.slice(6).trim();
+      if (!dataStr || dataStr === "[DONE]") return;
+
+      try {
+        const obj = JSON.parse(dataStr);
+        if (obj.debug) {
+          accumulatedDebugLog.push(obj.debug);
+        } else if (obj.debug_response) {
+          if (accumulatedDebugLog.length) {
+            accumulatedDebugLog[accumulatedDebugLog.length - 1].response = obj.debug_response;
+          }
+        } else if (obj.ds_usage) {
+          setCacheStats({
+            hit: obj.ds_usage.prompt_cache_hit_tokens || 0,
+            miss: obj.ds_usage.prompt_cache_miss_tokens || 0,
+          });
+        } else if (obj.tool || obj.cached) {
+          flushReasoning();
+          phase = "tool";
+          const raw = obj.tool || obj.cached;
+          const { name, query } = parseToolKey(raw);
+          const id = makeId();
+          currentCardId = id;
+          steps = [...steps, { type: "tool", text: `${obj.tool ? "工具" : "缓存"} ${escapeHtml(name)}: ${escapeHtml(query)}` }];
+          accumulatedCards.push({ id, name, query, cached: Boolean(obj.cached), articles: [] });
+        } else if (obj.articles) {
+          const articles = (obj.articles || []) as ArticleSummary[];
+          const cardIdx = accumulatedCards.findIndex(c => c.id === currentCardId);
+          if (cardIdx >= 0) accumulatedCards[cardIdx] = { ...accumulatedCards[cardIdx], articles };
+        } else if (obj.reasoning) {
+          phase = "thinking";
+          reasoning += obj.reasoning;
+          reasoningContent += obj.reasoning;
+        } else if (obj.delta) {
+          phase = "thinking";
+          flushReasoning();
+          content += obj.delta;
+        } else if (obj.done && obj.messages) {
+          receivedDoneMessages = true;
+          finalMessages = normalizeMessages([...finalMessages, ...(obj.messages as ChatMessage[])]);
+        }
+        syncDraftAcc();
+      } catch {
+        // Ignore one malformed SSE line and keep consuming the stream.
+      }
+    };
+
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
@@ -517,53 +567,11 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const dataStr = line.slice(6);
-          if (dataStr === "[DONE]") continue;
-          try {
-            const obj = JSON.parse(dataStr);
-            if (obj.debug) {
-              accumulatedDebugLog.push(obj.debug);
-            } else if (obj.debug_response) {
-              if (accumulatedDebugLog.length) {
-                accumulatedDebugLog[accumulatedDebugLog.length - 1].response = obj.debug_response;
-              }
-            } else if (obj.ds_usage) {
-              setCacheStats({
-                hit: obj.ds_usage.prompt_cache_hit_tokens || 0,
-                miss: obj.ds_usage.prompt_cache_miss_tokens || 0,
-              });
-            } else if (obj.tool || obj.cached) {
-              flushReasoning();
-              phase = "tool";
-              const raw = obj.tool || obj.cached;
-              const { name, query } = parseToolKey(raw);
-              const id = makeId();
-              currentCardId = id;
-              steps = [...steps, { type: "tool", text: `${obj.tool ? "工具" : "缓存"} ${escapeHtml(name)}: ${escapeHtml(query)}` }];
-              accumulatedCards.push({ id, name, query, cached: Boolean(obj.cached), articles: [] });
-            } else if (obj.articles) {
-              const articles = (obj.articles || []) as ArticleSummary[];
-              const cardIdx = accumulatedCards.findIndex(c => c.id === currentCardId);
-              if (cardIdx >= 0) accumulatedCards[cardIdx] = { ...accumulatedCards[cardIdx], articles };
-            } else if (obj.reasoning) {
-              phase = "thinking";
-              reasoning += obj.reasoning;
-              reasoningContent += obj.reasoning;
-            } else if (obj.delta) {
-              phase = "thinking";
-              flushReasoning();
-              content += obj.delta;
-            } else if (obj.done && obj.messages) {
-              receivedDoneMessages = true;
-              finalMessages = normalizeMessages([...finalMessages, ...(obj.messages as ChatMessage[])]);
-            }
-            syncDraftAcc();
-          } catch {
-            // Ignore one malformed SSE line and keep consuming the stream.
-          }
+          handleSseLine(line);
         }
       }
+      buffer += decoder.decode();
+      if (buffer.trim()) handleSseLine(buffer);
 
       flushReasoning();
       phase = "done";
