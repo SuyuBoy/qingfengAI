@@ -354,6 +354,83 @@
   text-align: center;
 }
 
+.stock-search-command-dialog {
+  width: min(94vw, 620px);
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.stock-search-command-title {
+  padding: 1.05rem 1.2rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stock-search-command-dialog [data-slot="command"] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.stock-search-command-dialog [data-slot="command-input-wrapper"] {
+  height: 52px;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.stock-search-command-dialog [data-slot="command-input"] {
+  height: 52px;
+  color: var(--text);
+}
+
+.stock-search-command-list {
+  max-height: min(58vh, 520px);
+  padding: 0.45rem 0.35rem 0.65rem;
+}
+
+.stock-search-command-item {
+  min-height: 48px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.stock-search-command-item[data-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
+}
+
+.stock-search-command-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.stock-search-command-symbol {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+}
+
+.stock-search-command-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.stock-search-command-dialog [data-slot="command-shortcut"] {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.stock-search-command-check {
+  color: var(--accent);
+}
+
 @media (max-width: 960px) {
   .stocks-page {
     height: auto;

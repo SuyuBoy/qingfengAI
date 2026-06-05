@@ -6,10 +6,15 @@ import type { Chart as KLineChart } from "klinecharts";
 import { api } from "../../api";
 import type { StockIndexPoint, StockPrice, StockSummary } from "../../types";
 import { toIndexKLine, toStockKLine, aggregateBars, swapUpDownColors, type KLinePoint } from "./stockUtils";
+import { StockSearchDialog } from "./StockSearchDialog";
 
 const defaultPeriod: Period = { multiplier: 1, timespan: "day", text: "D" };
 
-type KLineChartProHandle = { setStyles?: (s: any) => void; getStyles?: () => any };
+type KLineChartProHandle = {
+  setStyles?: (s: any) => void;
+  getStyles?: () => any;
+  setSymbol?: (symbol: SymbolInfo) => void;
+};
 type InnerKLineChart = KLineChart & { resize?: () => void };
 
 // ---- 日K盘中更新 ----
@@ -38,6 +43,17 @@ function cancelDailyPoll() {
   _subscribeCb = null;
   _backendLastBar = null;
   if (_pollTimer !== null) { clearTimeout(_pollTimer); _pollTimer = null; }
+}
+
+function toChartSymbol(stock: StockSummary): SymbolInfo {
+  return {
+    ticker: stock.order_book_id,
+    shortName: stock.symbol,
+    name: stock.industry_name || stock.symbol,
+    market: "stocks",
+    pricePrecision: 2,
+    volumePrecision: 0,
+  };
 }
 
 // 从腾讯个股日K加权算当前指数 close
@@ -90,16 +106,19 @@ async function doPoll() {
 }
 
 export function ChartContainer({
-  symbol, periods, layoutKey, stocks,
+  symbol, periods, layoutKey, stocks, selectedStock, onSymbolSelect,
 }: {
   symbol: SymbolInfo; periods: Period[]; layoutKey: string;
   stocks: StockSummary[];
+  selectedStock: StockSummary | null;
+  onSymbolSelect: (stock: StockSummary) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartProHandle | null>(null);
   const innerChartRef = useRef<InnerKLineChart | null>(null);
   const scheduleResizeRef = useRef<(delay?: number) => void>(() => {});
   const [error, setError] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -148,14 +167,7 @@ export function ChartContainer({
 
     const theme = (document.documentElement.dataset.theme || "dark") as "light" | "dark";
     const indexCache: Record<string, KLinePoint[]> = {};
-    const stockSymbols = stocks.map(stock => ({
-      ticker: stock.order_book_id,
-      shortName: stock.symbol,
-      name: stock.industry_name || stock.symbol,
-      market: "stocks",
-      pricePrecision: 2,
-      volumePrecision: 0,
-    }));
+    const stockSymbols = stocks.map(toChartSymbol);
     const searchableSymbols = stockSymbols.length ? stockSymbols : (symbol.ticker === "QF_INDEX" ? [] : [symbol]);
     const matchSymbol = (item: SymbolInfo, search: string) => {
       const t = search.trim().toLowerCase();
@@ -254,6 +266,15 @@ export function ChartContainer({
     const modalObserver = new MutationObserver(patchSearchModalText);
     modalObserver.observe(container, { childList: true, subtree: true });
     patchSearchModalText();
+    const onSymbolClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest(".klinecharts-pro-period-bar .symbol")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setSearchOpen(true);
+    };
+    container.addEventListener("click", onSymbolClick, true);
 
     return () => {
       cancelDailyPoll();
@@ -261,6 +282,7 @@ export function ChartContainer({
       modalObserver.disconnect();
       window.removeEventListener("orientationchange", resizeChart);
       window.visualViewport?.removeEventListener("resize", resizeChart);
+      container.removeEventListener("click", onSymbolClick, true);
       rafIds.forEach(id => cancelAnimationFrame(id));
       resizeTimers.forEach(timer => clearTimeout(timer));
       scheduleResizeRef.current = () => {};
@@ -276,6 +298,16 @@ export function ChartContainer({
 
   return <div className="stock-pro-chart">
     <div className="stock-pro-chart-inner" ref={containerRef} />
+    <StockSearchDialog
+      open={searchOpen}
+      stocks={stocks}
+      selected={selectedStock}
+      onOpenChange={setSearchOpen}
+      onSelect={stock => {
+        chartRef.current?.setSymbol?.(toChartSymbol(stock));
+        onSymbolSelect(stock);
+      }}
+    />
     {error && <div className="chart-overlay-error">{error}</div>}
   </div>;
 }

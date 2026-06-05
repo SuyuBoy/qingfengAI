@@ -97,7 +97,8 @@ export default function StocksPage() {
         <ChartContainer
           key={`chart:${selected?.order_book_id || "index"}`}
           symbol={symbolInfo} periods={periods}
-          layoutKey={collapsed ? "collapsed" : "expanded"} stocks={stocks} />
+          layoutKey={collapsed ? "collapsed" : "expanded"} stocks={stocks}
+          selectedStock={selected} onSymbolSelect={setSelected} />
       </div>
 
       <StockPanel
