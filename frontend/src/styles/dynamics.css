@@ -288,6 +288,17 @@
   font-size: 0.9rem;
 }
 
+.card .content blockquote.help-warning {
+  border-left-color: #d92d20;
+  background: #fff5f5;
+  color: #b91c1c;
+}
+
+:root[data-theme="dark"] .card .content blockquote.help-warning {
+  background: #2d1b1b;
+  color: #fca5a5;
+}
+
 .card .content blockquote p {
   margin: 0.25rem 0;
 }
