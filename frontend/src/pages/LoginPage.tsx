@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, setToken } from "../api";
+import { API_BASE, api, setToken } from "../api";
 
 type Tab = "google" | "email";
 type EmailStep = "login" | "register" | "verify";
@@ -15,6 +15,26 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<EmailStep>("login");
+
+  // captcha
+  const [captchaId, setCaptchaId] = useState("");
+  const [captchaImg, setCaptchaImg] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+
+  const fetchCaptcha = useCallback(async () => {
+    try {
+      const data = await api.get<{ id: string; image: string }>("/api/auth/captcha");
+      if (data) {
+        setCaptchaId(data.id);
+        setCaptchaImg(data.image);
+        setCaptchaAnswer("");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, [step, fetchCaptcha]);
 
   useEffect(() => {
     if (hasGoogle) return;
@@ -101,9 +121,10 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     setError("");
     setLoading(true);
     try {
-      await api.post("/api/auth/register", { email, password });
+      await api.post("/api/auth/register", { email, password, captcha_id: captchaId, captcha_answer: captchaAnswer });
       setStep("verify");
     } catch (e) {
+      fetchCaptcha();
       setError(`注册失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
     setLoading(false);
@@ -152,7 +173,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
         >邮箱登录</button>
       </div>
 
-      <div className={`error-msg${error ? " show" : ""}`}>{error || " "}</div>
+      <div className={`error-msg`}>{error || " "}</div>
 
       {tab === "google" ? (
         hasGoogle ? (
@@ -193,6 +214,16 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             autoComplete={step === "login" ? "current-password" : "new-password"}
             minLength={6}
           />
+          {step === "register" && captchaImg && (
+            <div className="captcha-row">
+              <img src={captchaImg} alt="验证码" className="captcha-img" onClick={fetchCaptcha} title="点击刷新" />
+              <input
+                type="text" className="email-input captcha-input" placeholder="验证码" required
+                value={captchaAnswer} onChange={e => setCaptchaAnswer(e.target.value)}
+                maxLength={2}
+              />
+            </div>
+          )}
           <button type="submit" className="email-btn" disabled={loading}>
             {loading ? "请稍候..." : step === "login" ? "登录" : "注册"}
           </button>

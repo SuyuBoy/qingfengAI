@@ -44,3 +44,14 @@
   background: transparent; border: 0; color: var(--muted); font-size: 0.8rem;
   cursor: pointer; text-decoration: underline; padding: 0.25rem 0;
 }
+
+.captcha-row {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.captcha-img {
+  height: 42px; border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer;
+}
+.captcha-input {
+  flex: 1;
+}
