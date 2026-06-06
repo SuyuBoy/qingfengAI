@@ -261,7 +261,40 @@ button {
 .recent-list {
   min-height: 0;
   overflow-y: auto;
-  padding-right: 0.2rem;
+  margin-right: -0.35rem;
+  padding-right: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.app-sidebar:hover .recent-list,
+.recent-list:focus-within {
+  scrollbar-color: rgba(142, 142, 160, 0.45) transparent;
+}
+
+.recent-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.recent-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recent-list::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+}
+
+.app-sidebar:hover .recent-list::-webkit-scrollbar-thumb,
+.recent-list:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(142, 142, 160, 0.45);
+}
+
+.recent-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(142, 142, 160, 0.62);
 }
 
 .recent-row {
