@@ -9,17 +9,12 @@ on:
       - "frontend/**"
       - ".github/workflows/react-root.yml"
 
-permissions:
-  contents: write
-
 jobs:
-  build-root:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -32,18 +27,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build root frontend
+      - name: Build
         working-directory: frontend
         run: npm run build:github-root
-
-      - name: Commit built root frontend
-        run: |
-          if git diff --quiet -- index.html assets; then
-            echo "No root frontend changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html assets
-          git commit -m "Build React root frontend"
-          git push
