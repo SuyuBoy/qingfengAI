@@ -320,7 +320,7 @@ const DynamicCard = memo(function DynamicCard({ item, expanded, onExpand }: {
   const content = isLong && !expanded ? item.content.slice(0, 300) : item.content;
 
   const html = useMemo(
-    () => marked.parse(fixImages(content, item.dynamic_id)) as string,
+    () => marked.parse(fixImages(content, item.dynamic_id), { gfm: true, breaks: false }) as string,
     [content, item.dynamic_id],
   );
 
