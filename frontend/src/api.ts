@@ -3,7 +3,7 @@ const TOKEN_KEY = "bili_jwt";
 let token = localStorage.getItem(TOKEN_KEY) || "";
 
 export const API_BASE =
-  window.__API_BASE__ || import.meta.env.VITE_API_BASE || "";
+  window.__API_BASE__ || import.meta.env.VITE_API_BASE || "https://qingfenapiflask-tanwdgitwa.cn-hangzhou.fcapp.run";
 
 export function setToken(nextToken: string) {
   token = nextToken;
