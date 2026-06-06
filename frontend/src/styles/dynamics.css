@@ -330,7 +330,7 @@
   margin: 0.5rem 0;
 }
 
-.card[data-id="00001"] .content img {
+span.help-qr img {
   max-width: 200px;
 }
 
