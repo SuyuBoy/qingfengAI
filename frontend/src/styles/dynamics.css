@@ -330,7 +330,7 @@
   margin: 0.5rem 0;
 }
 
-span.help-qr img {
+.card .content span.help-qr img {
   max-width: 200px;
 }
 
