@@ -323,6 +323,26 @@
   font-weight: 650;
 }
 
+.card .content table {
+  width: 100%;
+  margin: 0.8em 0;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.card .content th,
+.card .content td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.card .content th {
+  background: var(--tag-bg);
+  font-weight: 700;
+}
+
 .card .content img {
   max-width: 100%;
   height: auto;
