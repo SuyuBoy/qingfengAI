@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/cjk/dist/*.js";
 
 :root {
   --background: var(--bg);

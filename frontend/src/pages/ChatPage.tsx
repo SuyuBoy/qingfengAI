@@ -5,6 +5,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  TextMessagePartProvider,
   getExternalStoreMessages,
   useAuiState,
   useComposerRuntime,
@@ -23,7 +24,8 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { marked } from "marked";
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+import { cjk } from "@streamdown/cjk";
 import { API_BASE, api, getToken } from "../api";
 import {
   Select,
@@ -1081,7 +1083,7 @@ const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { on
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
         {!original?.stream && original?.reasoning_content && <CompletedThoughts onOpenActivity={onOpenActivity} />}
-        <MarkdownTextPart text={content} />
+        <MarkdownTextPart text={content} isRunning={Boolean(original?.stream?.typing)} />
       </div>
     </MessagePrimitive.Root>
   );
@@ -1092,12 +1094,17 @@ const PlainTextPart = memo(function PlainTextPart() {
   return <span>{part.text}</span>;
 });
 
-const MarkdownTextPart = memo(function MarkdownTextPart({ text }: { text: string }) {
-  const html = useMemo(
-    () => marked.parse(normalizeChatMarkdown(text), { gfm: true, breaks: false }) as string,
-    [text],
+const MarkdownTextPart = memo(function MarkdownTextPart({ text, isRunning }: { text: string; isRunning: boolean }) {
+  return (
+    <TextMessagePartProvider text={text} isRunning={isRunning}>
+      <StreamdownTextPrimitive
+        containerClassName="markdown-body"
+        preprocess={normalizeChatMarkdown}
+        plugins={{ cjk }}
+        caret={isRunning ? "block" : undefined}
+      />
+    </TextMessagePartProvider>
   );
-  return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
 function thoughtStatusText(draft: AssistantDraft) {

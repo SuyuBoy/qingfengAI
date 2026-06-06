@@ -12,7 +12,9 @@
   "dependencies": {
     "@assistant-ui/react": "^0.14.13",
     "@assistant-ui/react-markdown": "^0.14.1",
+    "@assistant-ui/react-streamdown": "^0.3.1",
     "@klinecharts/pro": "^0.1.1",
+    "@streamdown/cjk": "^1.0.3",
     "@tailwindcss/postcss": "^4.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -25,6 +27,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.1.0",
     "remark-gfm": "^4.0.1",
+    "streamdown": "^2.5.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0"
   },

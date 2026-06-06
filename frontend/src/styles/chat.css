@@ -169,15 +169,6 @@
   color: var(--danger);
 }
 
-.typing .markdown-body::after {
-  content: "\258A";
-  animation: blink 1s steps(1) infinite;
-}
-
-@keyframes blink {
-  50% { opacity: 0; }
-}
-
 .markdown-body {
   line-height: 1.76;
   overflow-wrap: anywhere;
