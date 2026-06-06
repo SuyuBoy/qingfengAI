@@ -1,3 +1,10 @@
+# build output (deployed via GitHub Pages Actions, not committed)
+index.html
+favicon.svg
+assets/
+js/
+dist/
+
 # docs (generated)
 architecture.md
 api-doc.md
