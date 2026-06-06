@@ -254,6 +254,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   const [effort, setEffort] = useState("high");
   const [maxRounds, setMaxRounds] = useState(10);
   const [debug, setDebug] = useState(false);
+  const [agentMode, setAgentMode] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLog, setDebugLog] = useState<DebugLogEntry[]>(window.__debugLog || []);
   const [cacheStats, setCacheStats] = useState<DsCacheStats>({ hit: 0, miss: 0 });
@@ -562,8 +563,10 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       }
     };
 
+    const chatPath = user.is_admin && agentMode ? "/api/chat-deep" : "/api/chat";
+
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${API_BASE}${chatPath}`, {
         method: "POST",
         signal: abortController.signal,
         headers: {
@@ -581,7 +584,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       });
 
       if (res.status === 401) throw new Error("未登录");
-      if (res.status === 403) throw new Error("未付费");
+      if (res.status === 403) throw new Error(chatPath === "/api/chat-deep" ? "需要管理员权限" : "未付费");
       if (!res.ok) throw new Error(res.statusText);
       if (!res.body) throw new Error("空响应");
 
@@ -673,7 +676,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       streamMessageIdRef.current = null;
       setStreaming(false);
     }
-  }, [debug, effort, flushStreamState, maxRounds, model, pastedImages, persistActiveSession, scheduleFlush]);
+  }, [agentMode, debug, effort, flushStreamState, maxRounds, model, pastedImages, persistActiveSession, scheduleFlush, user.is_admin]);
 
   const visibleMessages = useMemo(
     () => messages.filter(isVisibleMessage),
@@ -701,6 +704,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             effort={effort}
             maxRounds={maxRounds}
             debug={debug}
+            agentMode={agentMode}
             cacheStats={cacheStats}
             quotaInfo={quotaInfo}
             isAdmin={Boolean(user.is_admin)}
@@ -708,6 +712,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
             onEffortChange={setEffort}
             onMaxRoundsChange={setMaxRounds}
             onDebugChange={setDebug}
+            onAgentModeChange={setAgentMode}
             onDebugOpen={openDebug}
             onOpenActivity={expandSidebar}
             onAddImages={addImageFiles}
@@ -731,6 +736,7 @@ const AssistantThread = memo(function AssistantThread({
   effort,
   maxRounds,
   debug,
+  agentMode,
   cacheStats,
   quotaInfo,
   isAdmin,
@@ -738,6 +744,7 @@ const AssistantThread = memo(function AssistantThread({
   onEffortChange,
   onMaxRoundsChange,
   onDebugChange,
+  onAgentModeChange,
   onDebugOpen,
   onOpenActivity,
   onAddImages,
@@ -751,6 +758,7 @@ const AssistantThread = memo(function AssistantThread({
   effort: string;
   maxRounds: number;
   debug: boolean;
+  agentMode: boolean;
   cacheStats: DsCacheStats;
   quotaInfo: QuotaInfo;
   isAdmin: boolean;
@@ -758,6 +766,7 @@ const AssistantThread = memo(function AssistantThread({
   onEffortChange: (value: string) => void;
   onMaxRoundsChange: (value: number) => void;
   onDebugChange: (value: boolean) => void;
+  onAgentModeChange: (value: boolean) => void;
   onDebugOpen: () => void;
   onOpenActivity: () => void;
   onAddImages: (files: FileList | File[]) => void;
@@ -788,6 +797,7 @@ const AssistantThread = memo(function AssistantThread({
               effort={effort}
               maxRounds={maxRounds}
               debug={debug}
+              agentMode={agentMode}
               cacheStats={cacheStats}
               quotaInfo={quotaInfo}
               isAdmin={isAdmin}
@@ -795,6 +805,7 @@ const AssistantThread = memo(function AssistantThread({
               onEffortChange={onEffortChange}
               onMaxRoundsChange={onMaxRoundsChange}
               onDebugChange={onDebugChange}
+              onAgentModeChange={onAgentModeChange}
               onDebugOpen={onDebugOpen}
               onAddImages={onAddImages}
               onPaste={onPaste}
@@ -820,6 +831,7 @@ const Composer = memo(function Composer({
   effort,
   maxRounds,
   debug,
+  agentMode,
   cacheStats,
   quotaInfo,
   isAdmin,
@@ -827,6 +839,7 @@ const Composer = memo(function Composer({
   onEffortChange,
   onMaxRoundsChange,
   onDebugChange,
+  onAgentModeChange,
   onDebugOpen,
   onAddImages,
   onPaste,
@@ -838,6 +851,7 @@ const Composer = memo(function Composer({
   effort: string;
   maxRounds: number;
   debug: boolean;
+  agentMode: boolean;
   cacheStats: DsCacheStats;
   quotaInfo: QuotaInfo;
   isAdmin: boolean;
@@ -845,6 +859,7 @@ const Composer = memo(function Composer({
   onEffortChange: (value: string) => void;
   onMaxRoundsChange: (value: number) => void;
   onDebugChange: (value: boolean) => void;
+  onAgentModeChange: (value: boolean) => void;
   onDebugOpen: () => void;
   onAddImages: (files: FileList | File[]) => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
@@ -970,6 +985,10 @@ const Composer = memo(function Composer({
             <QuotaRing info={quotaInfo} isAdmin={isAdmin} />
             {isAdmin && (
               <>
+                <label className="composer-menu-row switch-row">
+                  <span>启动Agent模式</span>
+                  <input type="checkbox" checked={agentMode} onChange={e => onAgentModeChange(e.target.checked)} />
+                </label>
                 <label className="composer-menu-row switch-row">
                   <span>调试模式</span>
                   <input type="checkbox" checked={debug} onChange={e => onDebugChange(e.target.checked)} />
