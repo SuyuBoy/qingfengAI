@@ -330,6 +330,10 @@
   margin: 0.5rem 0;
 }
 
+.card[data-id="00001"] .content img {
+  max-width: 200px;
+}
+
 .card .content.preview::after {
   content: "...";
   color: var(--muted);
