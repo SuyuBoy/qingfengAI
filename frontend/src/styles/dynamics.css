@@ -323,6 +323,14 @@
   font-weight: 650;
 }
 
+.card .content a {
+  color: #5b9bd5;
+}
+
+:root[data-theme="dark"] .card .content a {
+  color: #7eb8e0;
+}
+
 .card .content table {
   width: 100%;
   margin: 0.8em 0;
