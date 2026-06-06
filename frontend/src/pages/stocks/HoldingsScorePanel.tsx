@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, X } from "lucide-react";
 import { Calendar } from "../../components/ui/calendar";
 
@@ -91,7 +92,7 @@ export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanel
     setCalendarOpen(false);
   }, [holdingsData]);
 
-  return (
+  return createPortal(
     <div className="modal-overlay holdings-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-box holdings-modal">
         <div className="modal-header holdings-modal-header">
@@ -144,6 +145,7 @@ export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanel
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

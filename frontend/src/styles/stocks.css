@@ -526,10 +526,26 @@
 
 .holdings-modal {
   width: min(94vw, 880px);
+  max-height: min(84vh, 720px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.holdings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .holdings-modal-header {
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .holdings-modal-header h3 {
@@ -637,13 +653,18 @@
 }
 
 .holdings-modal-body {
+  min-height: 0;
+  flex: 1;
   padding: 0;
   line-height: 1.45;
+  overflow: hidden;
 }
 
 .holdings-table-wrap {
   width: 100%;
+  max-height: 100%;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .holdings-score-table {
@@ -752,12 +773,78 @@
 }
 
 @media (max-width: 620px) {
+  .holdings-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .holdings-modal {
+    width: 100vw;
+    max-height: 88svh;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .holdings-modal-header {
+    gap: 0.65rem;
+    padding: 0.85rem 0.9rem 0.65rem;
+  }
+
+  .holdings-modal-header h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.98rem;
+  }
+
+  .holdings-title-row {
+    flex: 1;
+  }
+
+  .holdings-calendar-panel {
+    width: min(320px, calc(100vw - 1.2rem));
+  }
+
   .holdings-score-table {
-    min-width: 560px;
+    min-width: 0;
+    table-layout: auto;
+    font-size: 0.84rem;
   }
 
   .holdings-score-table th,
   .holdings-score-table td {
-    padding: 0.6rem 0.75rem;
+    padding: 0.55rem 0.4rem;
+  }
+
+  .holdings-score-table th:first-child,
+  .holdings-score-table td:first-child {
+    width: auto;
+    min-width: 8.2rem;
+    padding-left: 0.9rem;
+  }
+
+  .holdings-score-table th:nth-child(2),
+  .holdings-score-table td:nth-child(2) {
+    width: 3.4rem;
+  }
+
+  .holdings-score-table th:nth-child(3),
+  .holdings-score-table td:nth-child(3),
+  .holdings-score-table th:nth-child(4),
+  .holdings-score-table td:nth-child(4),
+  .holdings-score-table th:nth-child(5),
+  .holdings-score-table td:nth-child(5) {
+    width: 3.9rem;
+  }
+
+  .holdings-score-table th:last-child,
+  .holdings-score-table td:last-child {
+    padding-right: 0.9rem;
+  }
+
+  .holding-name-cell span {
+    font-size: 0.74rem;
   }
 }
