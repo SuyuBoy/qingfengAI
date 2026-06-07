@@ -343,7 +343,7 @@ export default function App() {
             <span className="avatar">{user.email.slice(0, 1).toUpperCase()}</span>
             <span className="account-main">
               <span>{user.email}</span>
-              <small>{user.is_admin ? "Admin" : user.role === "pro" ? "Pro" : user.role === "plus" ? "Plus" : "未验证"}</small>
+              <small>{user.is_admin ? "Admin" : user.role === "pro" ? "Pro" : user.role === "plus" ? "Plus" : user.is_verified ? "未付费" : "未验证"}</small>
             </span>
           </button>
         </div>
