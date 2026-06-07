@@ -7,6 +7,9 @@ export interface CurrentUser {
   quota_balance?: number;
   quota_cap?: number;
   quota_refill_rate?: number;
+  verify_until?: string;
+  is_verified?: boolean;
+  role_expire_at?: string;
 }
 
 export interface QuotaInfo {

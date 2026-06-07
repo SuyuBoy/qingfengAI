@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   BarChart3,
   BookOpen,
-  LogOut,
   Menu,
   MessageSquare,
   MessageSquarePlus,
@@ -22,6 +21,8 @@ import ChatPage from "./pages/ChatPage";
 import DynamicsPage from "./pages/DynamicsPage";
 import LoginPage from "./pages/LoginPage";
 import StocksPage from "./pages/StocksPage";
+import ProfilePage from "./pages/ProfilePage";
+import VerifyPage from "./pages/VerifyPage";
 import type { ChatSession, CurrentUser } from "./types";
 
 const SESSIONS_KEY = "chat_sessions";
@@ -220,7 +221,6 @@ export default function App() {
 
   if (loading) return <main className="auth-screen"><div className="loading">加载中...</div></main>;
   if (!user) return <main className="auth-screen"><LoginPage onLogin={onLogin} /></main>;
-  if (user.role === "unpaid") return <main className="auth-screen"><LockPage user={user} onLogout={logout} /></main>;
 
   return (
     <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>
@@ -339,19 +339,22 @@ export default function App() {
               <span>{crawlText}</span>
             </button>
           )}
-          <button className="account-row" type="button" onClick={logout}>
+          <button className="account-row" type="button" onClick={() => setRoute("/profile")}>
             <span className="avatar">{user.email.slice(0, 1).toUpperCase()}</span>
             <span className="account-main">
               <span>{user.email}</span>
-              <small>{user.is_admin ? "Admin" : user.role === "pro" ? "Pro" : "Plus"}</small>
+              <small>{user.is_admin ? "Admin" : user.role === "pro" ? "Pro" : user.role === "plus" ? "Plus" : "未验证"}</small>
             </span>
-            <LogOut size={17} />
           </button>
         </div>
       </aside>
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="关闭侧边栏" onClick={() => setSidebarOpen(false)} />}
       <main className="app-main" id="app">
-        {route === "/stocks" ? (
+        {route === "/profile" ? (
+          <ProfilePage user={user} onLogout={logout} />
+        ) : route === "/verify" ? (
+          <VerifyPage onVerified={() => { checkAuth(); setRoute("/dynamics"); }} />
+        ) : route === "/stocks" ? (
           <StocksPage />
         ) : route === "/dynamics" ? (
           <DynamicsPage />
@@ -432,14 +435,3 @@ function SearchDialog({
   );
 }
 
-function LockPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
-  return (
-    <div className="login-box">
-      <h1>清风 AI</h1>
-      <p className="lock-mark">锁定</p>
-      <p>{user.email}</p>
-      <p className="lock-desc">尚未解锁，请在 B站私信联系管理员获取访问权限</p>
-      <button className="auth-secondary-btn" onClick={onLogout}>切换账号</button>
-    </div>
-  );
-}
