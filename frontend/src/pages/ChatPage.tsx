@@ -460,6 +460,22 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     const previousMessages = messagesRef.current;
     const sessionId = activeSessionIdRef.current || makeId();
     const userMessage: UiChatMessage = { id: makeId(), role: "user", content: text || "[图片]" };
+    // If user has never verified, show guidance instead of calling AI
+    if (!user.is_verified) {
+      const guidanceMsg: UiChatMessage = {
+        id: makeId(),
+        role: "assistant",
+        content: "⚠️ 尚未完成内容验证\n\n您需要先完成内容验证才能使用 AI 对话。\n\n请前往个人中心（点击侧边栏头像）进行验证。验证通过后即可正常使用 AI 对话。",
+      };
+      const newMessages = [...previousMessages, userMessage, guidanceMsg];
+      setPastedImages([]);
+      setMessages(newMessages);
+      setActiveSessionId(sessionId);
+      setStoredActiveId(sessionId);
+      persistActiveSession(sessionId, newMessages);
+      return;
+    }
+
     const outboundMessages = [...previousMessages, userMessage];
     const assistantId = makeId();
     const assistantMessage: UiChatMessage = {
@@ -678,7 +694,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       streamMessageIdRef.current = null;
       setStreaming(false);
     }
-  }, [agentMode, debug, effort, flushStreamState, maxRounds, model, pastedImages, persistActiveSession, scheduleFlush, user.is_admin]);
+  }, [agentMode, debug, effort, flushStreamState, maxRounds, model, pastedImages, persistActiveSession, scheduleFlush, user.is_admin, user.is_verified]);
 
   const visibleMessages = useMemo(
     () => messages.filter(isVisibleMessage),
