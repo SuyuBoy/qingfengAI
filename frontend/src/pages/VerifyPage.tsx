@@ -112,7 +112,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   }
 
   return (
-    <div className="login-box">
+    <div className="login-box verify-box">
       <h1>内容验证</h1>
 
       {success ? (
@@ -124,22 +124,19 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
           {error && <div className="error-msg">{error}</div>}
 
           {challenge && (
-            <form className="email-form" onSubmit={handleSubmit}>
-              <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.5rem", lineHeight: 1.6 }}>
+            <form className="email-form verify-form" onSubmit={handleSubmit}>
+              <p className="verify-intro">
                 请在 B站最新动态中找到对应内容，完成填空验证。
               </p>
 
-              <div style={{
-                fontSize: "0.8rem", color: countdown <= 60 ? "var(--danger, #ef4444)" : "var(--muted)",
-                marginBottom: "0.8rem", fontWeight: 500,
-              }}>
+              <div className={`verify-meta${countdown <= 60 ? " is-urgent" : ""}`}>
                 {countdown > 0
                   ? `⏱ 剩余 ${formatCountdown(countdown)}`
                   : "⏱ 已超时"}
                 {" · "}第 {challenge.attempt}/5 次
               </div>
 
-              <label style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem", display: "block" }}>
+              <label className="verify-label">
                 动态 ID
               </label>
               <input
@@ -148,7 +145,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 autoFocus
               />
 
-              <label style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem", display: "block", marginTop: "0.8rem" }}>
+              <label className="verify-label">
                 填空
               </label>
               <input
@@ -157,10 +154,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
               />
 
               {challenge.blank_context && (
-                <p style={{
-                  fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem",
-                  padding: "0.5rem", background: "var(--bg-secondary, #f5f5f5)", borderRadius: "4px", lineHeight: 1.5,
-                }}>
+                <p className="verify-context">
                   {challenge.blank_context}
                 </p>
               )}

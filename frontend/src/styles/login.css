@@ -55,3 +55,78 @@
 .captcha-input {
   flex: 1;
 }
+
+.verify-box {
+  text-align: left;
+}
+
+.verify-box h1,
+.verify-box .error-msg {
+  text-align: center;
+}
+
+.verify-form {
+  gap: 0.75rem;
+}
+
+.verify-intro {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin: 0 0 0.1rem;
+  text-align: center;
+}
+
+.verify-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+  text-align: center;
+}
+
+.verify-meta.is-urgent {
+  color: var(--danger);
+}
+
+.verify-label {
+  color: var(--text);
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.verify-form .email-input {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.verify-form .email-input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.verify-form .email-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.2);
+}
+
+.verify-context {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.65;
+  margin: 0.15rem 0 0;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+:root[data-theme="dark"] .verify-context,
+:root[data-theme="dark"] .verify-form .email-input {
+  background: #171717;
+  border-color: #454545;
+}
