@@ -285,7 +285,18 @@ export default function DynamicsPage({
 
       <div id="card-list">
         {loading ? <div className="loading">加载中...</div> : null}
-        {!loading && error ? <div className="error">{error}<br /><button onClick={initialLoad}>重试</button></div> : null}
+        {!loading && error ? (
+            <div className="error">
+              {error}
+              {error.includes("内容验证") && (
+                <a href="#/profile" style={{ display: "block", marginTop: "0.5rem", color: "var(--accent)" }}>
+                  前往个人中心完成验证 →
+                </a>
+              )}
+              <br />
+              <button onClick={initialLoad}>重试</button>
+            </div>
+          ) : null}
         {!loading && !error && !items.length ? <div className="empty">暂无数据</div> : null}
         {!loading && !error && groups.map(([date, dateItems]) => (
           <div className="month-group" key={date}>

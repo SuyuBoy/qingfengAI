@@ -53,7 +53,10 @@ export default function StocksPage() {
       ]);
       setStocks(sData?.stocks || []);
       setIndexSeries(iData?.index || []);
-    } catch { setError("数据加载失败"); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "数据加载失败";
+      setError(msg);
+    }
     setLoading(false);
   }, []);
 
