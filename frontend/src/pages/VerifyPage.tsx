@@ -25,7 +25,6 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
       const data = await api.get<Challenge>("/api/user/verify-challenge");
       if (data) {
         setChallenge(data);
-        setDynamicIdInput(data.dynamic_id || "");
       } else {
         setError("获取验证内容失败");
       }
