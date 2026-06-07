@@ -8,6 +8,7 @@ interface VerifyPageProps {
 interface Challenge {
   dynamic_id: string;
   blank_context: string;
+  expires_at: string;
 }
 
 export default function VerifyPage({ onVerified }: VerifyPageProps) {
@@ -17,6 +18,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [dynamicIdInput, setDynamicIdInput] = useState("");
   const [textInput, setTextInput] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
 
   const fetchChallenge = useCallback(async () => {
     setLoading(true);
@@ -25,6 +27,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
       const data = await api.get<Challenge>("/api/user/verify-challenge");
       if (data) {
         setChallenge(data);
+        setExpiresAt(data.expires_at || "");
       } else {
         setError("获取验证内容失败");
       }
@@ -50,6 +53,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
       const result = await api.post<{ verify_until: string }>("/api/user/verify-content", {
         dynamic_id: dynamicIdInput,
         text: textInput,
+        expires_at: expiresAt,
       });
       if (result) {
         setSuccess(true);
