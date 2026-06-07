@@ -26,7 +26,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   const [dynamicIdInput, setDynamicIdInput] = useState("");
   const [textInput, setTextInput] = useState("");
   const [countdown, setCountdown] = useState(0);
-  const timerRef = useRef<number | undefined>();
+  const timerRef = useRef<number | undefined>(undefined);
 
   const startTimer = useCallback((expiresAt: string) => {
     clearInterval(timerRef.current);
