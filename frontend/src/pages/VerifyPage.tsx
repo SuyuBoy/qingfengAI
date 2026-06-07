@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 
 interface VerifyPageProps {
@@ -9,6 +9,13 @@ interface Challenge {
   dynamic_id: string;
   blank_context: string;
   expires_at: string;
+  attempt: number;
+}
+
+function formatCountdown(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 export default function VerifyPage({ onVerified }: VerifyPageProps) {
@@ -18,52 +25,79 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [dynamicIdInput, setDynamicIdInput] = useState("");
   const [textInput, setTextInput] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef<number | undefined>();
+
+  const startTimer = useCallback((expiresAt: string) => {
+    clearInterval(timerRef.current);
+    const tick = () => {
+      const remaining = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCountdown(0);
+        clearInterval(timerRef.current);
+      } else {
+        setCountdown(remaining);
+      }
+    };
+    tick();
+    timerRef.current = setInterval(tick, 1000);
+  }, []);
 
   const fetchChallenge = useCallback(async () => {
     setLoading(true);
     setError("");
+    setDynamicIdInput("");
+    setTextInput("");
     try {
       const data = await api.get<Challenge>("/api/user/verify-challenge");
       if (data) {
         setChallenge(data);
-        setExpiresAt(data.expires_at || "");
+        startTimer(data.expires_at);
       } else {
         setError("获取验证内容失败");
       }
     } catch (e) {
-      if (e instanceof Error && e.message.includes("503")) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("503") || msg.includes("无可用于验证")) {
         setError("今日无动态，暂不可验证");
+      } else if (msg.includes("次数已用完")) {
+        setError("今日尝试次数已用完，请明天再试");
       } else {
-        setError("获取验证内容失败");
+        setError(msg || "获取验证内容失败");
       }
     }
     setLoading(false);
-  }, []);
+  }, [startTimer]);
 
   useEffect(() => {
     fetchChallenge();
+    return () => clearInterval(timerRef.current);
   }, [fetchChallenge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!dynamicIdInput.trim() || !textInput.trim()) return;
     setError("");
     setLoading(true);
     try {
       const result = await api.post<{ verify_until: string }>("/api/user/verify-content", {
-        dynamic_id: dynamicIdInput,
-        text: textInput,
-        expires_at: expiresAt,
+        dynamic_id: dynamicIdInput.trim(),
+        text: textInput.trim(),
       });
       if (result) {
         setSuccess(true);
-        setTimeout(() => {
-          onVerified();
-        }, 1500);
+        clearInterval(timerRef.current);
+        setTimeout(() => onVerified(), 1500);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "验证失败";
-      setError(msg);
+      if (msg.includes("超时")) {
+        setError("答题已超时，请点击下方按钮刷新题目");
+        setChallenge(null);
+        clearInterval(timerRef.current);
+      } else {
+        setError(msg);
+      }
     }
     setLoading(false);
   };
@@ -89,11 +123,21 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
         <>
           {error && <div className="error-msg">{error}</div>}
 
-          {challenge && !error && (
+          {challenge && (
             <form className="email-form" onSubmit={handleSubmit}>
-              <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1rem", lineHeight: 1.6 }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.5rem", lineHeight: 1.6 }}>
                 请在 B站最新动态中找到对应内容，完成填空验证。
               </p>
+
+              <div style={{
+                fontSize: "0.8rem", color: countdown <= 60 ? "var(--danger, #ef4444)" : "var(--muted)",
+                marginBottom: "0.8rem", fontWeight: 500,
+              }}>
+                {countdown > 0
+                  ? `⏱ 剩余 ${formatCountdown(countdown)}`
+                  : "⏱ 已超时"}
+                {" · "}第 {challenge.attempt}/5 次
+              </div>
 
               <label style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem", display: "block" }}>
                 动态 ID
@@ -124,7 +168,22 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
               <button type="submit" className="email-btn" disabled={loading} style={{ marginTop: "1rem" }}>
                 {loading ? "验证中..." : "提交验证"}
               </button>
+
+              <button
+                type="button"
+                className="email-link"
+                onClick={fetchChallenge}
+                disabled={loading}
+              >
+                刷新题目（重新出题，消耗一次机会）
+              </button>
             </form>
+          )}
+
+          {!challenge && !error && (
+            <button type="button" className="email-btn" onClick={fetchChallenge}>
+              获取题目
+            </button>
           )}
 
           {!challenge && error && (
