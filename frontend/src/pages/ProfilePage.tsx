@@ -340,7 +340,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
   return (
     <div style={{
-      maxWidth: 480,
+      maxWidth: 640,
       margin: "2rem auto",
       padding: "0 1.5rem",
     }}>
@@ -467,7 +467,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
             color: "var(--danger)",
             border: "1px solid var(--danger)",
             width: "100%",
-            maxWidth: 480,
+            maxWidth: 640,
           }}
         >
           退出登录
