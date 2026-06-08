@@ -105,15 +105,14 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       </h3>
 
       {/* Afdian 官方嵌入 */}
-      <div style={{ marginBottom: "0.8rem", overflow: "hidden", borderRadius: 6 }}>
-        <iframe
-          src="https://ifdian.net/leaflet?slug=qingfengAIstock"
-          scrolling="no"
-          height="200"
-          frameBorder="0"
-          style={{ border: "none", width: "100%", minWidth: "100%", maxWidth: "100%" }}
-        />
-      </div>
+      <iframe
+        src="https://ifdian.net/leaflet?slug=qingfengAIstock"
+        width="100%"
+        scrolling="no"
+        height="200"
+        frameBorder="0"
+        style={{ border: "none", borderRadius: 6, display: "block" }}
+      />
 
       {/* 升级按钮 */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
