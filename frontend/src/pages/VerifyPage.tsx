@@ -70,9 +70,8 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   }, [startTimer]);
 
   useEffect(() => {
-    fetchChallenge();
     return () => clearInterval(timerRef.current);
-  }, [fetchChallenge]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
