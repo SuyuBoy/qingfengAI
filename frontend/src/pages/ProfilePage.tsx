@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { CurrentUser } from "../types";
 import { api } from "../api";
 
@@ -89,11 +89,6 @@ function AfdianSection({ user }: { user: CurrentUser }) {
     }
   };
 
-  useEffect(() => {
-    const el = document.getElementById("afdian_leaflet_qingfengAIstock");
-    if (el) el.setAttribute("width", document.body.clientWidth < 700 ? "100%" : "640");
-  }, []);
-
   const isBound = !!user.afdian_user_id;
   const cardStyle: React.CSSProperties = {
     background: "var(--card-bg)",
@@ -110,15 +105,13 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       </h3>
 
       {/* Afdian 官方嵌入 */}
-      <div style={{ marginBottom: "0.8rem" }}>
+      <div style={{ marginBottom: "0.8rem", overflow: "hidden", borderRadius: 6 }}>
         <iframe
-          id="afdian_leaflet_qingfengAIstock"
           src="https://ifdian.net/leaflet?slug=qingfengAIstock"
-          width="100%"
           scrolling="no"
           height="200"
           frameBorder="0"
-          style={{ border: "none", borderRadius: 6 }}
+          style={{ border: "none", width: "100%", minWidth: "100%", maxWidth: "100%" }}
         />
       </div>
 
