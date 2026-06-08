@@ -204,6 +204,69 @@ function AfdianSection({ user }: { user: CurrentUser }) {
   );
 }
 
+function MeowSection({ user }: { user: CurrentUser }) {
+  const [meow, setMeow] = useState(user.meow || "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const showMsg = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await api.post<{ ok: boolean; error?: string }>("/api/user/meow", { meow: meow.trim() });
+      if (res?.ok) {
+        showMsg("已保存", true);
+      } else {
+        showMsg(res?.error || "保存失败", false);
+      }
+    } catch {
+      showMsg("保存失败", false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: "var(--card-bg)", borderRadius: "var(--radius)",
+      border: "1px solid var(--border)", padding: "1rem 1.25rem", marginBottom: "1rem",
+    }}>
+      <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.6rem" }}>推送通知</h3>
+      <div style={{ display: "flex", gap: "0.4rem" }}>
+        <input
+          placeholder="Meow ID（用于手机推送）"
+          value={meow}
+          onChange={(e) => setMeow(e.target.value)}
+          style={{
+            flex: 1, padding: "0.4rem 0.6rem", borderRadius: 4,
+            border: "1px solid var(--border)", background: "var(--bg)",
+            color: "var(--text)", fontSize: "0.85rem",
+          }}
+        />
+        <button
+          className="email-btn"
+          style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+          onClick={handleSave} disabled={saving}
+        >
+          {saving ? "..." : "保存"}
+        </button>
+      </div>
+      {msg && (
+        <div style={{
+          marginTop: "0.5rem", padding: "0.3rem 0.6rem", borderRadius: 4, fontSize: "0.8rem",
+          background: msg.ok ? "#dcfce7" : "#fee2e2", color: msg.ok ? "#166534" : "#991b1b",
+        }}>
+          {msg.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RedeemSection() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -383,6 +446,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
       {/* Redeem Code */}
       {!isAdmin && <RedeemSection />}
+      {!isAdmin && <MeowSection user={user} />}
 
       {/* Verification Status */}
       <div style={{ ...cardStyle, ...rowStyle }}>
