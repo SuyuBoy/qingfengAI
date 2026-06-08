@@ -37,7 +37,7 @@
 .email-btn {
   height: 42px; border: 0; border-radius: var(--radius);
   background: var(--text); color: var(--bg); font-size: 0.9rem;
-  font-weight: 600; cursor: pointer;
+  font-weight: 600; cursor: pointer; padding: 0 1.25rem;
 }
 .email-btn:disabled { opacity: .6; cursor: default; }
 .email-link {

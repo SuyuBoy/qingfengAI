@@ -107,11 +107,16 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       {/* Afdian 官方嵌入 */}
       <iframe
         src="https://ifdian.net/leaflet?slug=qingfengAIstock"
-        width="100%"
         scrolling="no"
-        height="200"
         frameBorder="0"
-        style={{ border: "none", borderRadius: 6, display: "block" }}
+        style={{
+          border: "none",
+          borderRadius: 6,
+          display: "block",
+          width: "calc(100% + 2.5rem)",
+          margin: "0 -1.25rem",
+          height: 320,
+        }}
       />
 
       {/* 升级按钮 */}
