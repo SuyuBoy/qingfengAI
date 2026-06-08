@@ -123,17 +123,17 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       </div>
 
       {/* 升级按钮 */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
         <button
           className="email-btn"
-          style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none" }}
+          style={{ flex: "1 1 120px", background: "#f59e0b", color: "#fff", border: "none" }}
           onClick={() => handleUpgrade("plus")}
         >
           开通 Plus
         </button>
         <button
           className="email-btn"
-          style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none" }}
+          style={{ flex: "1 1 120px", background: "#8b5cf6", color: "#fff", border: "none" }}
           onClick={() => handleUpgrade("pro")}
         >
           开通 Pro
@@ -341,8 +341,10 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
   return (
     <div style={{
       maxWidth: 640,
+      width: "100%",
+      boxSizing: "border-box",
       margin: "2rem auto",
-      padding: "0 1.5rem",
+      padding: "0 1rem",
     }}>
       {/* Avatar + Email */}
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
