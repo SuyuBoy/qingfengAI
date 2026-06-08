@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { marked } from "marked";
 import { API_BASE, api, setToken } from "../api";
 
 type Tab = "google" | "email";
@@ -22,14 +23,19 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [agreementContent, setAgreementContent] = useState("");
   const agreementLoaded = useRef(false);
 
+  const agreementHtml = useMemo(
+    () => marked.parse(agreementContent || "加载中...", { gfm: true, breaks: false }) as string,
+    [agreementContent]
+  );
+
   const loadAgreement = useCallback(async () => {
     if (agreementLoaded.current) return;
     agreementLoaded.current = true;
     try {
       const data = await api.get<{ content: string }>("/api/dynamics/00002");
-      setAgreementContent(data?.content || "加载失败");
+      setAgreementContent(data?.content || "");
     } catch {
-      setAgreementContent("加载失败");
+      setAgreementContent("# 加载失败\n\n请稍后重试。");
     }
   }, []);
 
@@ -293,12 +299,11 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
                 ✕
               </button>
             </div>
-            <div style={{
-              padding: "1rem 1.25rem", overflow: "auto", flex: 1,
-              fontSize: "0.85rem", lineHeight: 1.7, whiteSpace: "pre-wrap",
-            }}>
-              {agreementContent || "加载中..."}
-            </div>
+            <div
+              className="content"
+              style={{ padding: "1rem 1.25rem", overflow: "auto", flex: 1, fontSize: "0.88rem", lineHeight: 1.7 }}
+              dangerouslySetInnerHTML={{ __html: agreementHtml }}
+            />
             <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid var(--border)", textAlign: "right" }}>
               <button
                 className="email-btn"
