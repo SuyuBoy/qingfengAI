@@ -33,6 +33,7 @@ function getRoleBadgeStyle(role: string): React.CSSProperties {
 
 function AfdianSection({ user }: { user: CurrentUser }) {
   const [afdianUid, setAfdianUid] = useState("");
+  const [editing, setEditing] = useState(false);
   const [binding, setBinding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -59,8 +60,10 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         afdian_user_id: afdianUid.trim(),
       });
       if (res?.ok) {
-        showMsg("绑定成功，请点击同步", true);
+        showMsg(res.rebind ? "已更新绑定" : "绑定成功", true);
+        setEditing(false);
         setAfdianUid("");
+        setTimeout(() => window.location.reload(), 1000);
       } else {
         showMsg(res?.error || "绑定失败", false);
       }
@@ -124,10 +127,19 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       </div>
 
       {/* 绑定 + 同步 */}
-      {isBound ? (
+      {isBound && !editing ? (
         <div>
-          <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
-            已绑定: {user.afdian_user_id}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+            <span style={{ fontSize: "0.8rem", color: "var(--muted)", flex: 1 }}>
+              ID: {user.afdian_user_id}
+            </span>
+            <button
+              className="email-link"
+              style={{ color: "#ef4444", whiteSpace: "nowrap" }}
+              onClick={() => { setEditing(true); setAfdianUid(user.afdian_user_id || ""); }}
+            >
+              修改
+            </button>
           </div>
           <button
             className="email-btn"
@@ -140,10 +152,7 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.4rem" }}>
-            赞助后自动绑定。也可手动输入：
-          </div>
-          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
             <input
               placeholder="爱发电用户 ID"
               value={afdianUid}
@@ -166,15 +175,16 @@ function AfdianSection({ user }: { user: CurrentUser }) {
             >
               {binding ? "..." : "绑定"}
             </button>
+            {editing && (
+              <button
+                className="email-btn"
+                style={{ background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", whiteSpace: "nowrap" }}
+                onClick={() => setEditing(false)}
+              >
+                取消
+              </button>
+            )}
           </div>
-          <button
-            className="email-btn"
-            style={{ width: "100%", background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)" }}
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            {syncing ? "同步中..." : "我已赞助，同步状态"}
-          </button>
         </div>
       )}
 
