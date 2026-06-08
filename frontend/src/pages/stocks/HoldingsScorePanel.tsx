@@ -5,6 +5,7 @@ import { Calendar } from "../../components/ui/calendar";
 
 export interface Holding {
   o: string;
+  n?: string;
   symbol?: string;
   sc: number;
   w: number;
