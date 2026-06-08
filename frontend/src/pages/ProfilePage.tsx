@@ -211,6 +211,89 @@ function AfdianSection({ user }: { user: CurrentUser }) {
   );
 }
 
+function RedeemSection() {
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const showMsg = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
+  };
+
+  const handleRedeem = async () => {
+    if (!code.trim()) return showMsg("请输入兑换码", false);
+    setLoading(true);
+    try {
+      const res = await api.post<{ ok: boolean; error?: string; tokens_added?: number; new_balance?: number }>(
+        "/api/user/redeem",
+        { code: code.trim() }
+      );
+      if (res?.ok) {
+        showMsg(`兑换成功 +${res.tokens_added?.toLocaleString() || ""} tokens`, true);
+        setCode("");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showMsg(res?.error || "兑换失败", false);
+      }
+    } catch {
+      showMsg("兑换失败", false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: "var(--card-bg)",
+      borderRadius: "var(--radius)",
+      border: "1px solid var(--border)",
+      padding: "1rem 1.25rem",
+      marginBottom: "1rem",
+    }}>
+      <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.6rem" }}>
+        兑换码
+      </h3>
+      <div style={{ display: "flex", gap: "0.4rem" }}>
+        <input
+          placeholder="输入兑换码"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          style={{
+            flex: 1,
+            padding: "0.4rem 0.6rem",
+            borderRadius: 4,
+            border: "1px solid var(--border)",
+            background: "var(--bg)",
+            color: "var(--text)",
+            fontSize: "0.85rem",
+          }}
+        />
+        <button
+          className="email-btn"
+          style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+          onClick={handleRedeem}
+          disabled={loading}
+        >
+          {loading ? "..." : "兑换"}
+        </button>
+      </div>
+      {msg && (
+        <div style={{
+          marginTop: "0.5rem",
+          padding: "0.3rem 0.6rem",
+          borderRadius: 4,
+          fontSize: "0.8rem",
+          background: msg.ok ? "#dcfce7" : "#fee2e2",
+          color: msg.ok ? "#166534" : "#991b1b",
+        }}>
+          {msg.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const roleLabel = getRoleLabel(user.role);
   const roleBadgeStyle = getRoleBadgeStyle(user.role);
@@ -302,6 +385,9 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
       {/* Afdian — 开通 & 绑定 */}
       {!isAdmin && <AfdianSection user={user} />}
+
+      {/* Redeem Code */}
+      {!isAdmin && <RedeemSection />}
 
       {/* Verification Status */}
       <div style={{ ...cardStyle, ...rowStyle }}>
