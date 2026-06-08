@@ -355,7 +355,7 @@ export default function App() {
         ) : route === "/verify" ? (
           <VerifyPage onVerified={() => { checkAuth(); setRoute("/dynamics"); }} />
         ) : route === "/stocks" ? (
-          <StocksPage />
+          <StocksPage userRole={user.role} />
         ) : route === "/dynamics" ? (
           <DynamicsPage />
         ) : route === "/help" ? (

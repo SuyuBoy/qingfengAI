@@ -9,7 +9,7 @@ export function StockPanel({
   stocks, loading, selected, sortBy, sortDir,
   onSelect, onSelectIndex, onChangeSort, onRefresh,
   collapsed, onToggleCollapse,
-  indexValue, indexChange, holdingsData, onLoadHoldings,
+  indexValue, indexChange, holdingsData, onLoadHoldings, isPro,
 }: {
   stocks: StockSummary[];
   loading: boolean;
@@ -26,6 +26,7 @@ export function StockPanel({
   indexChange: number;
   holdingsData: Record<string, any[]>;
   onLoadHoldings: () => void;
+  isPro: boolean;
 }) {
   const sorted = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -64,7 +65,7 @@ export function StockPanel({
         <IndexCard
           indexValue={indexValue} indexChange={indexChange}
           selected={selected} holdingsData={holdingsData}
-          onSelectIndex={onSelectIndex} onLoadHoldings={onLoadHoldings} />
+          onSelectIndex={onSelectIndex} onLoadHoldings={onLoadHoldings} isPro={isPro} />
 
         <div className="sort-bar stock-sort-bar">
           {(["active_mentions", "mention_count", "last_mentioned"] as SortKey[]).map(key => (

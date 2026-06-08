@@ -4,10 +4,11 @@ import { formatNumber } from "./stockUtils";
 import { HoldingsScorePanel, type Holding } from "./HoldingsScorePanel";
 
 export function IndexCard({
-  indexValue, indexChange, selected, holdingsData, onSelectIndex, onLoadHoldings,
+  indexValue, indexChange, selected, holdingsData, onSelectIndex, onLoadHoldings, isPro,
 }: {
   indexValue: number; indexChange: number; selected: null | any;
   holdingsData: Record<string, Holding[]>; onSelectIndex: () => void; onLoadHoldings: () => void;
+  isPro?: boolean;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -33,7 +34,7 @@ export function IndexCard({
       </div>
 
       {modalOpen && (
-        <HoldingsScorePanel holdingsData={holdingsData} onClose={() => setModalOpen(false)} />
+        <HoldingsScorePanel holdingsData={holdingsData} onClose={() => setModalOpen(false)} isPro={isPro} />
       )}
     </div>
   );

@@ -18,6 +18,7 @@ export interface Holding {
 interface HoldingsScorePanelProps {
   holdingsData: Record<string, Holding[]>;
   onClose: () => void;
+  isPro?: boolean;
 }
 
 function formatDate(date: Date) {
@@ -71,7 +72,7 @@ function HoldingsScoreRow({ holding }: { holding: Holding }) {
   );
 }
 
-export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanelProps) {
+export function HoldingsScorePanel({ holdingsData, onClose, isPro }: HoldingsScorePanelProps) {
   const [selectedDate, setSelectedDate] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -125,7 +126,9 @@ export function HoldingsScorePanel({ holdingsData, onClose }: HoldingsScorePanel
 
         <div className="modal-body holdings-modal-body">
           {holdings.length === 0 ? (
-            <div className="holdings-empty">暂无持仓数据</div>
+            <div className="holdings-empty">
+              {isPro ? "暂无持仓数据" : "升级 Pro 查看持仓明细"}
+            </div>
           ) : (
             <div className="holdings-table-wrap">
               <table className="holdings-score-table">

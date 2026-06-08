@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
-import type { StockIndexPoint, StockSummary } from "../types";
+import type { StockIndexPoint, StockSummary, UserRole } from "../types";
 import { StockPanel } from "./stocks/StockPanel";
 import { ChartContainer } from "./stocks/ChartContainer";
+
+interface StocksPageProps {
+  userRole?: UserRole;
+}
 
 type SortKey = "active_mentions" | "mention_count" | "last_mentioned";
 
@@ -27,7 +31,8 @@ function toSymbolInfo(selected: StockSummary | null): any {
   };
 }
 
-export default function StocksPage() {
+export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
+  const isPro = userRole === "pro" || userRole === "admin";
   const [stocks, setStocks] = useState<StockSummary[]>([]);
   const [selected, setSelected] = useState<StockSummary | null>(null);
   const [indexSeries, setIndexSeries] = useState<StockIndexPoint[]>([]);
@@ -61,11 +66,12 @@ export default function StocksPage() {
   }, []);
 
   const loadHoldings = useCallback(async () => {
+    if (!isPro) return;
     try {
       const data = await api.get<{ holdings: Record<string, any[]> }>("/api/stocks/index/holdings");
       setHoldingsData(data?.holdings || {});
     } catch { /* holdings optional */ }
-  }, []);
+  }, [isPro]);
 
   const changeSort = useCallback((key: SortKey) => {
     setSortBy(prev => {
@@ -110,7 +116,7 @@ export default function StocksPage() {
         onSelect={setSelected} onSelectIndex={() => setSelected(null)}
         onChangeSort={changeSort} onRefresh={loadAll}
         indexValue={indexValue} indexChange={indexChange}
-        holdingsData={holdingsData} onLoadHoldings={loadHoldings}
+        holdingsData={holdingsData} onLoadHoldings={loadHoldings} isPro={isPro}
         collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
     </section>
   );
