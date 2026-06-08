@@ -24,14 +24,14 @@ import StocksPage from "./pages/StocksPage";
 import ProfilePage from "./pages/ProfilePage";
 import VerifyPage from "./pages/VerifyPage";
 import {
-  ACTIVE_KEY,
-  SESSIONS_KEY,
   deleteRemoteChatSession,
   fetchChatSessions,
+  getStoredActiveId,
   importLocalChatSessions,
   loadChatSessions,
   mergeChatSessions,
   saveChatSessions,
+  setStoredActiveId,
 } from "./chatStorage";
 import type { ChatSession, CurrentUser } from "./types";
 
@@ -75,32 +75,38 @@ export default function App() {
   const checkAuth = useCallback(async () => {
     if (!getToken()) {
       setUser(null);
+      setSessions([]);
       setLoading(false);
-      return;
+      return null;
     }
     setLoading(true);
     const currentUser = await api.get<CurrentUser>("/api/auth/me").catch(() => null);
     setUser(currentUser);
+    if (!currentUser) setSessions([]);
     setLoading(false);
+    return currentUser;
   }, []);
 
-  const refreshSessions = useCallback(async () => {
+  const refreshSessions = useCallback(async (email?: string | null) => {
+    if (!email || !getToken()) {
+      setSessions([]);
+      return;
+    }
     try {
-      const localSessions = loadChatSessions();
+      const localSessions = loadChatSessions(email);
       setSessions(localSessions);
-      if (!getToken()) return;
 
       const remoteSessions = localSessions.length
         ? await importLocalChatSessions(localSessions)
         : await fetchChatSessions();
       const merged = mergeChatSessions(remoteSessions, localSessions);
-      saveChatSessions(merged);
+      saveChatSessions(merged, email);
       setSessions(merged);
     } catch {
       try {
-        setSessions(loadChatSessions());
+        setSessions(loadChatSessions(email));
       } catch {
-        localStorage.removeItem(SESSIONS_KEY);
+        saveChatSessions([], email);
         setSessions([]);
       }
     }
@@ -112,23 +118,29 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    checkAuth();
-    refreshSessions();
-    const onHashChange = () => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      const currentUser = await checkAuth();
+      if (!cancelled) refreshSessions(currentUser?.email);
+    };
+    bootstrap();
+    const onHashChange = async () => {
       setCurrentRoute(getRoute());
       setSidebarOpen(false);
-      checkAuth();
+      const currentUser = await checkAuth();
+      refreshSessions(currentUser?.email);
     };
-    const onSessionsChanged = () => refreshSessions();
+    const onSessionsChanged = () => refreshSessions(user?.email);
     window.addEventListener("hashchange", onHashChange);
     window.addEventListener("chat-sessions-changed", onSessionsChanged);
     window.addEventListener("storage", onSessionsChanged);
     return () => {
+      cancelled = true;
       window.removeEventListener("hashchange", onHashChange);
       window.removeEventListener("chat-sessions-changed", onSessionsChanged);
       window.removeEventListener("storage", onSessionsChanged);
     };
-  }, [checkAuth, refreshSessions]);
+  }, [checkAuth, refreshSessions, user?.email]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -175,45 +187,47 @@ export default function App() {
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
+    setSessions([]);
     setRoute("/login");
   }, []);
 
-  const onLogin = useCallback(() => {
-    checkAuth();
+  const onLogin = useCallback(async () => {
+    const currentUser = await checkAuth();
+    await refreshSessions(currentUser?.email);
     setRoute("/chat");
-  }, [checkAuth]);
+  }, [checkAuth, refreshSessions]);
 
   const startNewChat = useCallback(() => {
-    localStorage.removeItem(ACTIVE_KEY);
+    setStoredActiveId(null, user?.email);
     if (route !== "/chat") setRoute("/chat");
     window.dispatchEvent(new CustomEvent("chat-new-session"));
     setSidebarOpen(false);
     setSearchOpen(false);
-  }, [route]);
+  }, [route, user?.email]);
 
   const loadSession = useCallback((id: string) => {
-    localStorage.setItem(ACTIVE_KEY, id);
+    setStoredActiveId(id, user?.email);
     if (route !== "/chat") setRoute("/chat");
     window.dispatchEvent(new CustomEvent("chat-load-session", { detail: { id } }));
     setSidebarOpen(false);
     setSearchOpen(false);
     setOpenSessionMenu(null);
-  }, [route]);
+  }, [route, user?.email]);
 
   const deleteSession = useCallback((id: string) => {
-    const activeId = localStorage.getItem(ACTIVE_KEY);
-    const nextSessions = loadChatSessions().filter(session => session.id !== id);
-    saveChatSessions(nextSessions);
+    const activeId = getStoredActiveId(user?.email);
+    const nextSessions = loadChatSessions(user?.email).filter(session => session.id !== id);
+    saveChatSessions(nextSessions, user?.email);
     setSessions(nextSessions);
     setOpenSessionMenu(null);
     if (activeId === id) {
-      localStorage.removeItem(ACTIVE_KEY);
+      setStoredActiveId(null, user?.email);
       window.dispatchEvent(new CustomEvent("chat-session-deleted", { detail: { id } }));
     }
     deleteRemoteChatSession(id)
-      .then(() => refreshSessions())
+      .then(() => refreshSessions(user?.email))
       .catch(() => undefined);
-  }, [refreshSessions]);
+  }, [refreshSessions, user?.email]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === "dark" ? "light" : "dark");
@@ -373,7 +387,7 @@ export default function App() {
         ) : route === "/help" ? (
           <DynamicsPage dynamicId={HELP_DYNAMIC_ID} title="帮助文档" description="清风 AI 使用说明" />
         ) : (
-          <ChatPage user={user} />
+          <ChatPage key={user.email} user={user} />
         )}
       </main>
       {searchOpen && (

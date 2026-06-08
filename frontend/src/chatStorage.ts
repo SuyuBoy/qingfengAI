@@ -4,6 +4,11 @@ import type { ChatSession } from "./types";
 export const SESSIONS_KEY = "chat_sessions";
 export const ACTIVE_KEY = "chat_active_session";
 
+function scopedKey(key: string, email?: string | null) {
+  const account = (email || "anonymous").trim().toLowerCase();
+  return `${key}:${account || "anonymous"}`;
+}
+
 interface SessionsResponse {
   sessions: ChatSession[];
 }
@@ -12,24 +17,41 @@ interface SessionResponse {
   session: ChatSession;
 }
 
-export function loadChatSessions() {
-  const raw = localStorage.getItem(SESSIONS_KEY);
+export function loadChatSessions(email?: string | null) {
+  const raw = localStorage.getItem(scopedKey(SESSIONS_KEY, email));
   if (!raw) return [];
   const sessions = JSON.parse(raw) as ChatSession[];
   return Array.isArray(sessions) ? sessions : [];
 }
 
-export function saveChatSessions(sessions: ChatSession[]) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+export function saveChatSessions(sessions: ChatSession[], email?: string | null) {
+  localStorage.setItem(scopedKey(SESSIONS_KEY, email), JSON.stringify(sessions));
 }
 
-export function getStoredActiveId() {
-  return localStorage.getItem(ACTIVE_KEY);
+export function getStoredActiveId(email?: string | null) {
+  return localStorage.getItem(scopedKey(ACTIVE_KEY, email));
 }
 
-export function setStoredActiveId(id: string | null) {
-  if (id) localStorage.setItem(ACTIVE_KEY, id);
-  else localStorage.removeItem(ACTIVE_KEY);
+export function setStoredActiveId(id: string | null, email?: string | null) {
+  const key = scopedKey(ACTIVE_KEY, email);
+  if (id) localStorage.setItem(key, id);
+  else localStorage.removeItem(key);
+}
+
+export function clearAllLocalChatSessions() {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (
+      key === SESSIONS_KEY ||
+      key === ACTIVE_KEY ||
+      key?.startsWith(`${SESSIONS_KEY}:`) ||
+      key?.startsWith(`${ACTIVE_KEY}:`)
+    ) {
+      keys.push(key);
+    }
+  }
+  keys.forEach(key => localStorage.removeItem(key));
 }
 
 export function mergeChatSessions(remote: ChatSession[], local: ChatSession[]) {

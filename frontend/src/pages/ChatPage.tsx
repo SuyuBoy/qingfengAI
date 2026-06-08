@@ -184,15 +184,15 @@ function parseToolKey(raw: string) {
   return { name: raw.slice(0, idx), query: raw.slice(idx + 1) };
 }
 
-function getInitialState() {
+function getInitialState(email: string) {
   let sessions: ChatSession[] = [];
   try {
-    sessions = loadChatSessions();
+    sessions = loadChatSessions(email);
   } catch {
-    localStorage.removeItem("chat_sessions");
-    localStorage.removeItem("chat_active_session");
+    saveChatSessions([], email);
+    setStoredActiveId(null, email);
   }
-  const activeId = getStoredActiveId();
+  const activeId = getStoredActiveId(email);
   const activeSession = activeId ? sessions.find(s => s.id === activeId) : null;
   return {
     sessions,
@@ -228,7 +228,7 @@ function extractAppendText(message: AppendMessage) {
 }
 
 export default function ChatPage({ user }: { user: CurrentUser }) {
-  const initial = useMemo(getInitialState, []);
+  const initial = useMemo(() => getInitialState(user.email), [user.email]);
   const [sessions, setSessions] = useState<ChatSession[]>(initial.sessions);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(initial.activeSessionId);
   const [messages, setMessages] = useState<UiChatMessage[]>(initial.messages);
@@ -308,9 +308,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
 
   const persistSessions = useCallback((nextSessions: ChatSession[]) => {
     setSessions(nextSessions);
-    saveChatSessions(nextSessions);
+    saveChatSessions(nextSessions, user.email);
     window.dispatchEvent(new CustomEvent("chat-sessions-changed"));
-  }, []);
+  }, [user.email]);
 
   const persistActiveSession = useCallback((sessionId: string | null, nextMessages: UiChatMessage[], currentSessions?: ChatSession[]) => {
     const storedMessages = stripRuntimeFields(nextMessages);
@@ -349,7 +349,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     }
     setMessages([]);
     setActiveSessionId(null);
-    setStoredActiveId(null);
+    setStoredActiveId(null, user.email);
     setCards([]);
     setActivitySteps([]);
     localCardsRef.current = [];
@@ -360,7 +360,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setPastedImages([]);
     draftAccRef.current = null;
     streamMessageIdRef.current = null;
-  }, []);
+  }, [user.email]);
 
   const beginNewSession = useCallback(() => {
     if (streamingRef.current) return;
@@ -384,7 +384,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     if (!session) return;
     setMessages(normalizeMessages(session.messages));
     setActiveSessionId(id);
-    setStoredActiveId(id);
+    setStoredActiveId(id, user.email);
     setCards([]);
     setActivitySteps([]);
     localCardsRef.current = [];
@@ -460,7 +460,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
   }, [beginNewSession, loadSession, resetCurrentSession]);
 
   useEffect(() => {
-    const id = activeSessionIdRef.current || getStoredActiveId();
+    const id = activeSessionIdRef.current || getStoredActiveId(user.email);
     if (!id) return;
     let cancelled = false;
     fetchChatSession(id)
@@ -469,9 +469,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
         const base = sessionsRef.current;
         const idx = base.findIndex(s => s.id === session.id);
         persistSessions(idx >= 0 ? base.map((s, i) => i === idx ? session : s) : [session, ...base]);
-        if (activeSessionIdRef.current === session.id || getStoredActiveId() === session.id) {
+        if (activeSessionIdRef.current === session.id || getStoredActiveId(user.email) === session.id) {
           setActiveSessionId(session.id);
-          setStoredActiveId(session.id);
+          setStoredActiveId(session.id, user.email);
           setMessages(normalizeMessages(session.messages));
         }
       })
@@ -500,7 +500,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       setPastedImages([]);
       setMessages(newMessages);
       setActiveSessionId(sessionId);
-      setStoredActiveId(sessionId);
+      setStoredActiveId(sessionId, user.email);
       persistActiveSession(sessionId, newMessages);
       return;
     }
@@ -517,7 +517,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setPastedImages([]);
     setMessages([...outboundMessages, assistantMessage]);
     setActiveSessionId(sessionId);
-    setStoredActiveId(sessionId);
+    setStoredActiveId(sessionId, user.email);
     persistActiveSession(sessionId, outboundMessages);
 
     streamMessageIdRef.current = assistantId;

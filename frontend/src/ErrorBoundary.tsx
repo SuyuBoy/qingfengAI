@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { clearAllLocalChatSessions } from "./chatStorage";
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -24,8 +25,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Er
           页面渲染失败：{this.state.error.message}
           <br />
           <button onClick={() => {
-            localStorage.removeItem("chat_sessions");
-            localStorage.removeItem("chat_active_session");
+            clearAllLocalChatSessions();
             window.location.reload();
           }}>
             清理本地对话并刷新
