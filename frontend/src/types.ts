@@ -10,6 +10,7 @@ export interface CurrentUser {
   verify_until?: string;
   is_verified?: boolean;
   role_expire_at?: string;
+  afdian_user_id?: string;
 }
 
 export interface QuotaInfo {

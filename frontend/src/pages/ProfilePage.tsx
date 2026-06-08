@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { CurrentUser } from "../types";
+import { api } from "../api";
 
 interface ProfilePageProps {
   user: CurrentUser;
@@ -27,6 +29,168 @@ function getRoleBadgeStyle(role: string): React.CSSProperties {
     case "plus": return { background: "#f59e0b", color: "#fff" };
     default: return { background: "#6b7280", color: "#fff" };
   }
+}
+
+function AfdianSection({ user }: { user: CurrentUser }) {
+  const [afdianUid, setAfdianUid] = useState("");
+  const [binding, setBinding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const showMsg = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
+  };
+
+  const handleUpgrade = async (plan: "plus" | "pro") => {
+    try {
+      const res = await api.get<{ pay_url: string }>(`/api/afdian/link?plan=${plan}`);
+      if (res?.pay_url) window.location.href = res.pay_url;
+    } catch {
+      showMsg("获取支付链接失败", false);
+    }
+  };
+
+  const handleBind = async () => {
+    if (!afdianUid.trim()) return showMsg("请输入爱发电用户 ID", false);
+    setBinding(true);
+    try {
+      const res = await api.post<{ ok: boolean; error?: string }>("/api/afdian/bind", {
+        afdian_user_id: afdianUid.trim(),
+      });
+      if (res?.ok) {
+        showMsg("绑定成功，请点击同步", true);
+        setAfdianUid("");
+      } else {
+        showMsg(res?.error || "绑定失败", false);
+      }
+    } catch {
+      showMsg("绑定失败", false);
+    } finally {
+      setBinding(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post<{ ok: boolean; error?: string; role?: string }>("/api/afdian/sync");
+      if (res?.ok) {
+        showMsg(`同步成功，已激活 ${res.role || ""} 会员`, true);
+        // 刷新用户信息
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showMsg(res?.error || "未找到有效赞助记录", false);
+      }
+    } catch {
+      showMsg("同步失败", false);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const isBound = !!user.afdian_user_id;
+  const cardStyle: React.CSSProperties = {
+    background: "var(--card-bg)",
+    borderRadius: "var(--radius)",
+    border: "1px solid var(--border)",
+    padding: "1rem 1.25rem",
+    marginBottom: "1rem",
+  };
+
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.8rem" }}>
+        爱发电赞助
+      </h3>
+
+      {/* 升级按钮 */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+        <button
+          className="email-btn"
+          style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none" }}
+          onClick={() => handleUpgrade("plus")}
+        >
+          开通 Plus
+        </button>
+        <button
+          className="email-btn"
+          style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none" }}
+          onClick={() => handleUpgrade("pro")}
+        >
+          开通 Pro
+        </button>
+      </div>
+
+      {/* 绑定 + 同步 */}
+      {isBound ? (
+        <div>
+          <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
+            已绑定: {user.afdian_user_id}
+          </div>
+          <button
+            className="email-btn"
+            style={{ width: "100%", background: "var(--accent)", color: "#fff", border: "none" }}
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            {syncing ? "同步中..." : "同步赞助状态"}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.4rem" }}>
+            赞助后自动绑定。也可手动输入：
+          </div>
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
+            <input
+              placeholder="爱发电用户 ID"
+              value={afdianUid}
+              onChange={(e) => setAfdianUid(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "0.4rem 0.6rem",
+                borderRadius: 4,
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: "0.85rem",
+              }}
+            />
+            <button
+              className="email-btn"
+              style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+              onClick={handleBind}
+              disabled={binding}
+            >
+              {binding ? "..." : "绑定"}
+            </button>
+          </div>
+          <button
+            className="email-btn"
+            style={{ width: "100%", background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)" }}
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            {syncing ? "同步中..." : "我已赞助，同步状态"}
+          </button>
+        </div>
+      )}
+
+      {msg && (
+        <div style={{
+          marginTop: "0.6rem",
+          padding: "0.3rem 0.6rem",
+          borderRadius: 4,
+          fontSize: "0.8rem",
+          background: msg.ok ? "#dcfce7" : "#fee2e2",
+          color: msg.ok ? "#166534" : "#991b1b",
+        }}>
+          {msg.text}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
@@ -117,6 +281,9 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
           </div>
         )}
       </div>
+
+      {/* Afdian — 开通 & 绑定 */}
+      {!isAdmin && <AfdianSection user={user} />}
 
       {/* Verification Status */}
       <div style={{ ...cardStyle, ...rowStyle }}>
