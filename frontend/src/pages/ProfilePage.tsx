@@ -104,20 +104,6 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         爱发电赞助
       </h3>
 
-      {/* Afdian 官方嵌入 */}
-      <iframe
-        src="https://ifdian.net/leaflet?slug=qingfengAIstock"
-        scrolling="no"
-        frameBorder="0"
-        style={{
-          border: "none",
-          borderRadius: 6,
-          display: "block",
-          width: "calc(100% + 2.5rem)",
-          margin: "0 -1.25rem",
-          height: 320,
-        }}
-      />
 
       {/* 升级按钮 */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
