@@ -401,9 +401,18 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
             </button>
           </div>
         ) : isVerifyValid ? (
-          <span style={{ ...badgeBase, background: "#22c55e", color: "#fff" }}>
-            已验证至 {formatDate(verifyUntilStr!)}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...badgeBase, background: "#22c55e", color: "#fff" }}>
+              已验证至 {formatDate(verifyUntilStr!)}
+            </span>
+            <button
+              className="email-link"
+              onClick={() => { window.location.hash = "#/verify"; }}
+              style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              重新验证 →
+            </button>
+          </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ ...badgeBase, background: "#eab308", color: "#fff" }}>
