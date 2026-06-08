@@ -56,7 +56,7 @@ function AfdianSection({ user }: { user: CurrentUser }) {
     if (!afdianUid.trim()) return showMsg("请输入爱发电用户 ID", false);
     setBinding(true);
     try {
-      const res = await api.post<{ ok: boolean; error?: string }>("/api/afdian/bind", {
+      const res = await api.post<{ ok: boolean; error?: string; rebind?: boolean }>("/api/afdian/bind", {
         afdian_user_id: afdianUid.trim(),
       });
       if (res?.ok) {
