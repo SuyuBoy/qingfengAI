@@ -50,7 +50,7 @@ function HoldingsScoreRow({ holding }: { holding: Holding }) {
     <tr>
       <td>
         <div className="holding-name-cell">
-          <strong>{holding.symbol || "--"}</strong>
+          <strong>{holding.n || holding.symbol || "--"}</strong>
           <span>{holding.o}</span>
         </div>
       </td>
