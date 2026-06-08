@@ -214,6 +214,20 @@ function MeowSection({ user }: { user: CurrentUser }) {
     setTimeout(() => setMsg(null), 3000);
   };
 
+  const [testing, setTesting] = useState(false);
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const res = await api.post<{ ok: boolean; error?: string }>("/api/user/meow/test");
+      showMsg(res?.ok ? "测试推送已发送" : (res?.error || "发送失败"), !!res?.ok);
+    } catch {
+      showMsg("发送失败", false);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -254,6 +268,15 @@ function MeowSection({ user }: { user: CurrentUser }) {
         >
           {saving ? "..." : "保存"}
         </button>
+        {user.meow && (
+          <button
+            className="email-btn"
+            style={{ background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)", whiteSpace: "nowrap" }}
+            onClick={handleTest} disabled={testing}
+          >
+            {testing ? "..." : "测试"}
+          </button>
+        )}
       </div>
       {msg && (
         <div style={{
@@ -362,6 +385,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const isVerifyExpired = isVerified && verifyUntil !== null && verifyUntil <= now;
 
   const isAdmin = user.role === "admin" || user.is_admin === true;
+  const isPro = isAdmin || user.role === "pro";
   const showQuota = !isAdmin;
   const balance = user.quota_balance ?? 0;
   const cap = user.quota_cap ?? 0;
@@ -446,7 +470,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
       {/* Redeem Code */}
       {!isAdmin && <RedeemSection />}
-      {!isAdmin && <MeowSection user={user} />}
+      {isPro && isVerified && <MeowSection user={user} />}
 
       {/* Verification Status */}
       <div style={{ ...cardStyle, ...rowStyle }}>
