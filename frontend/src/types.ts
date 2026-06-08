@@ -51,6 +51,8 @@ export interface ArticleSummary {
 }
 
 export interface ChatToolCall {
+  id?: string;
+  type?: string;
   function: {
     name: string;
     arguments: string;
@@ -63,6 +65,7 @@ export interface ChatMessage {
   content?: string;
   tool_calls?: ChatToolCall[];
   reasoning_content?: string;
+  tool_call_id?: string;
 }
 
 export interface ChatSession {

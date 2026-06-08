@@ -23,10 +23,18 @@ import LoginPage from "./pages/LoginPage";
 import StocksPage from "./pages/StocksPage";
 import ProfilePage from "./pages/ProfilePage";
 import VerifyPage from "./pages/VerifyPage";
+import {
+  ACTIVE_KEY,
+  SESSIONS_KEY,
+  deleteRemoteChatSession,
+  fetchChatSessions,
+  importLocalChatSessions,
+  loadChatSessions,
+  mergeChatSessions,
+  saveChatSessions,
+} from "./chatStorage";
 import type { ChatSession, CurrentUser } from "./types";
 
-const SESSIONS_KEY = "chat_sessions";
-const ACTIVE_KEY = "chat_active_session";
 const THEME_KEY = "qf_theme";
 const HELP_DYNAMIC_ID = "00001";
 
@@ -40,17 +48,6 @@ function getRoute() {
 
 function setRoute(path: string) {
   window.location.hash = path;
-}
-
-function loadChatSessions() {
-  const raw = localStorage.getItem(SESSIONS_KEY);
-  if (!raw) return [];
-  const sessions = JSON.parse(raw) as ChatSession[];
-  return Array.isArray(sessions) ? sessions : [];
-}
-
-function saveChatSessions(sessions: ChatSession[]) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 }
 
 function getInitialTheme(): ThemeMode {
@@ -87,12 +84,25 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  const refreshSessions = useCallback(() => {
+  const refreshSessions = useCallback(async () => {
     try {
-      setSessions(loadChatSessions());
+      const localSessions = loadChatSessions();
+      setSessions(localSessions);
+      if (!getToken()) return;
+
+      const remoteSessions = localSessions.length
+        ? await importLocalChatSessions(localSessions)
+        : await fetchChatSessions();
+      const merged = mergeChatSessions(remoteSessions, localSessions);
+      saveChatSessions(merged);
+      setSessions(merged);
     } catch {
-      localStorage.removeItem(SESSIONS_KEY);
-      setSessions([]);
+      try {
+        setSessions(loadChatSessions());
+      } catch {
+        localStorage.removeItem(SESSIONS_KEY);
+        setSessions([]);
+      }
     }
   }, []);
 
@@ -196,12 +206,14 @@ export default function App() {
     saveChatSessions(nextSessions);
     setSessions(nextSessions);
     setOpenSessionMenu(null);
-    window.dispatchEvent(new CustomEvent("chat-sessions-changed"));
     if (activeId === id) {
       localStorage.removeItem(ACTIVE_KEY);
       window.dispatchEvent(new CustomEvent("chat-session-deleted", { detail: { id } }));
     }
-  }, []);
+    deleteRemoteChatSession(id)
+      .then(() => refreshSessions())
+      .catch(() => undefined);
+  }, [refreshSessions]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === "dark" ? "light" : "dark");
@@ -434,4 +446,3 @@ function SearchDialog({
     </div>
   );
 }
-

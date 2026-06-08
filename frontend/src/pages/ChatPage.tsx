@@ -34,6 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  fetchChatSession,
+  getStoredActiveId,
+  loadChatSessions,
+  saveChatSessions,
+  saveRemoteChatSession,
+  setStoredActiveId,
+} from "../chatStorage";
 import { escapeHtml, renderMarkdown } from "../markdown";
 import type {
   ArticleSummary,
@@ -46,9 +54,6 @@ import type {
   QuotaInfo,
   ToolCardData,
 } from "../types";
-
-const SESSIONS_KEY = "chat_sessions";
-const ACTIVE_KEY = "chat_active_session";
 
 function normalizeChatMarkdown(text: string) {
   return text
@@ -74,26 +79,6 @@ type UiChatMessage = ChatMessage & {
   id: string;
   stream?: AssistantDraft;
 };
-
-function loadSessions() {
-  const raw = localStorage.getItem(SESSIONS_KEY);
-  if (!raw) return [];
-  const sessions = JSON.parse(raw) as ChatSession[];
-  return Array.isArray(sessions) ? sessions : [];
-}
-
-function saveSessions(sessions: ChatSession[]) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-}
-
-function getActiveId() {
-  return localStorage.getItem(ACTIVE_KEY);
-}
-
-function setStoredActiveId(id: string | null) {
-  if (id) localStorage.setItem(ACTIVE_KEY, id);
-  else localStorage.removeItem(ACTIVE_KEY);
-}
 
 function makeId() {
   return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -202,12 +187,12 @@ function parseToolKey(raw: string) {
 function getInitialState() {
   let sessions: ChatSession[] = [];
   try {
-    sessions = loadSessions();
+    sessions = loadChatSessions();
   } catch {
-    localStorage.removeItem(SESSIONS_KEY);
-    localStorage.removeItem(ACTIVE_KEY);
+    localStorage.removeItem("chat_sessions");
+    localStorage.removeItem("chat_active_session");
   }
-  const activeId = getActiveId();
+  const activeId = getStoredActiveId();
   const activeSession = activeId ? sessions.find(s => s.id === activeId) : null;
   return {
     sessions,
@@ -323,7 +308,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
 
   const persistSessions = useCallback((nextSessions: ChatSession[]) => {
     setSessions(nextSessions);
-    saveSessions(nextSessions);
+    saveChatSessions(nextSessions);
     window.dispatchEvent(new CustomEvent("chat-sessions-changed"));
   }, []);
 
@@ -344,6 +329,17 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       ? base.map((s, i) => i === idx ? entry : s)
       : [entry, ...base];
     persistSessions(nextSessions);
+    saveRemoteChatSession(entry)
+      .then(remote => {
+        if (!remote || deletedSessionIdsRef.current.has(sessionId)) return;
+        const latest = sessionsRef.current;
+        const remoteIdx = latest.findIndex(s => s.id === remote.id);
+        const next = remoteIdx >= 0
+          ? latest.map((s, i) => i === remoteIdx ? remote : s)
+          : [remote, ...latest];
+        persistSessions(next);
+      })
+      .catch(() => undefined);
   }, [persistSessions]);
 
   const resetCurrentSession = useCallback(() => {
@@ -371,9 +367,20 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     resetCurrentSession();
   }, [resetCurrentSession]);
 
-  const loadSession = useCallback((id: string) => {
+  const loadSession = useCallback(async (id: string) => {
     if (streamingRef.current || id === activeSessionIdRef.current) return;
-    const session = sessionsRef.current.find(s => s.id === id);
+    let session = sessionsRef.current.find(s => s.id === id) || null;
+    try {
+      const remote = await fetchChatSession(id);
+      if (remote) {
+        session = remote;
+        const base = sessionsRef.current;
+        const idx = base.findIndex(s => s.id === remote.id);
+        persistSessions(idx >= 0 ? base.map((s, i) => i === idx ? remote : s) : [remote, ...base]);
+      }
+    } catch {
+      // Keep using the local cached copy when the backend is unavailable.
+    }
     if (!session) return;
     setMessages(normalizeMessages(session.messages));
     setActiveSessionId(id);
@@ -382,7 +389,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     setActivitySteps([]);
     localCardsRef.current = [];
     localActivityStepsRef.current = [];
-  }, []);
+  }, [persistSessions]);
 
   const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -451,6 +458,28 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       window.removeEventListener("chat-session-deleted", onSessionDeleted);
     };
   }, [beginNewSession, loadSession, resetCurrentSession]);
+
+  useEffect(() => {
+    const id = activeSessionIdRef.current || getStoredActiveId();
+    if (!id) return;
+    let cancelled = false;
+    fetchChatSession(id)
+      .then(session => {
+        if (!session || cancelled) return;
+        const base = sessionsRef.current;
+        const idx = base.findIndex(s => s.id === session.id);
+        persistSessions(idx >= 0 ? base.map((s, i) => i === idx ? session : s) : [session, ...base]);
+        if (activeSessionIdRef.current === session.id || getStoredActiveId() === session.id) {
+          setActiveSessionId(session.id);
+          setStoredActiveId(session.id);
+          setMessages(normalizeMessages(session.messages));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [persistSessions, user.email]);
 
   const sendMessage = useCallback(async (appendMessage: AppendMessage) => {
     const text = extractAppendText(appendMessage);
@@ -686,8 +715,9 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
           error: "1",
         },
       };
-      setMessages([...previousMessages, failed]);
-      persistActiveSession(sessionId, previousMessages);
+      const failedMessages = [...outboundMessages, failed];
+      setMessages(failedMessages);
+      persistActiveSession(sessionId, failedMessages);
       draftAccRef.current = null;
     } finally {
       if (abortControllerRef.current === abortController) abortControllerRef.current = null;
