@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { API_BASE, api, setToken } from "../api";
 
 type Tab = "google" | "email";
@@ -15,6 +15,23 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<EmailStep>("login");
+
+  // agreement
+  const [agreed, setAgreed] = useState(false);
+  const [showAgreement, setShowAgreement] = useState(false);
+  const [agreementContent, setAgreementContent] = useState("");
+  const agreementLoaded = useRef(false);
+
+  const loadAgreement = useCallback(async () => {
+    if (agreementLoaded.current) return;
+    agreementLoaded.current = true;
+    try {
+      const data = await api.get<{ content: string }>("/api/dynamics/00002");
+      setAgreementContent(data?.content || "加载失败");
+    } catch {
+      setAgreementContent("加载失败");
+    }
+  }, []);
 
   // captcha
   const [captchaId, setCaptchaId] = useState("");
@@ -118,6 +135,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) { setError("请阅读并同意用户协议"); return; }
     setError("");
     setLoading(true);
     try {
@@ -224,7 +242,20 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
               />
             </div>
           )}
-          <button type="submit" className="email-btn" disabled={loading}>
+          {step === "register" && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.82rem", color: "var(--muted)", cursor: "pointer" }}>
+              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ cursor: "pointer" }} />
+              已阅读并同意
+              <span
+                className="email-link"
+                style={{ textDecoration: "underline", cursor: "pointer" }}
+                onClick={(e) => { e.preventDefault(); loadAgreement(); setShowAgreement(true); }}
+              >
+                用户协议
+              </span>
+            </label>
+          )}
+          <button type="submit" className="email-btn" disabled={loading || (step === "register" && !agreed)}>
             {loading ? "请稍候..." : step === "login" ? "登录" : "注册"}
           </button>
           <button
@@ -234,6 +265,51 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             {step === "login" ? "没有账号？注册" : "已有账号？登录"}
           </button>
         </form>
+      )}
+
+      {showAgreement && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.5)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: "1rem",
+          }}
+          onClick={() => setShowAgreement(false)}
+        >
+          <div
+            style={{
+              background: "var(--card-bg)", borderRadius: "var(--radius)",
+              border: "1px solid var(--border)", maxWidth: 560, width: "100%",
+              maxHeight: "80vh", display: "flex", flexDirection: "column",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid var(--border)" }}>
+              <h3 style={{ margin: 0, fontSize: "1rem" }}>用户协议</h3>
+              <button
+                onClick={() => setShowAgreement(false)}
+                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1.2rem" }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{
+              padding: "1rem 1.25rem", overflow: "auto", flex: 1,
+              fontSize: "0.85rem", lineHeight: 1.7, whiteSpace: "pre-wrap",
+            }}>
+              {agreementContent || "加载中..."}
+            </div>
+            <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid var(--border)", textAlign: "right" }}>
+              <button
+                className="email-btn"
+                style={{ background: "var(--accent)", color: "#fff", border: "none" }}
+                onClick={() => { setAgreed(true); setShowAgreement(false); }}
+              >
+                同意
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
