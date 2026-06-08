@@ -464,7 +464,7 @@
   }
 
   .stocks-panel-body {
-    overflow: hidden;
+    overflow-y: auto;
     max-height: calc(60vh - 2rem);
     opacity: 1;
     transform: translateY(0);
