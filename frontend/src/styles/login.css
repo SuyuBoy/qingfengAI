@@ -60,6 +60,10 @@
   text-align: left;
 }
 
+.verify-box .email-btn {
+  width: 100%;
+}
+
 .verify-box h1,
 .verify-box .error-msg {
   text-align: center;
