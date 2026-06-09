@@ -301,7 +301,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             </div>
             <div
               className="content"
-              style={{ padding: "1rem 1.25rem", overflow: "auto", flex: 1, fontSize: "0.88rem", lineHeight: 1.7 }}
+              style={{ padding: "1rem 1.25rem", overflow: "auto", flex: 1, fontSize: "0.88rem", lineHeight: 1.7, textAlign: "left" }}
               dangerouslySetInnerHTML={{ __html: agreementHtml }}
             />
             <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid var(--border)", textAlign: "right" }}>
