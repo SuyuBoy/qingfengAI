@@ -41,6 +41,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T | 
     try { const body = await res.json(); if (body.error) msg = body.error; } catch {}
     throw new Error(msg);
   }
+  if (res.status === 422) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error || "验证失败");
+    (err as any).body = body;
+    throw err;
+  }
   if (!res.ok) throw new Error(res.statusText);
   return res.json() as Promise<T>;
 }

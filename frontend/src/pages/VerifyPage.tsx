@@ -90,13 +90,22 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "验证失败";
+      const body = (e as any).body;
       if (msg.includes("超时")) {
         setError("答题已超时，请点击下方按钮刷新题目");
         setChallenge(null);
         clearInterval(timerRef.current);
-      } else if (msg.includes("答案错误")) {
-        setError("答案错误，自动换题中...");
-        await fetchChallenge();
+      } else if (body?.dynamic_id) {
+        // 答错，后端给了新题
+        setError("答案错误，已换新题");
+        const newChallenge: Challenge = {
+          dynamic_id: body.dynamic_id,
+          blank_context: body.blank_context,
+          expires_at: body.expires_at,
+          attempt: body.attempt,
+        };
+        setChallenge(newChallenge);
+        startTimer(body.expires_at);
       } else {
         setError(msg);
       }
