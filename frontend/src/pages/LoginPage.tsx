@@ -285,26 +285,26 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
           <div
             style={{
               background: "var(--card-bg)", borderRadius: "var(--radius)",
-              border: "1px solid var(--border)", maxWidth: 560, width: "100%",
-              maxHeight: "80vh", display: "flex", flexDirection: "column",
+              border: "1px solid var(--border)", width: "min(92vw, 720px)",
+              maxHeight: "min(88vh, 800px)", display: "flex", flexDirection: "column",
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid var(--border)" }}>
-              <h3 style={{ margin: 0, fontSize: "1rem" }}>用户协议</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem clamp(0.75rem, 3vw, 1.5rem)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+              <h3 style={{ margin: 0, fontSize: "1.05rem" }}>用户协议</h3>
               <button
                 onClick={() => setShowAgreement(false)}
-                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1.2rem" }}
+                style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1.2rem", padding: "0.25rem" }}
               >
                 ✕
               </button>
             </div>
             <div
-              className="content"
-              style={{ padding: "1rem 1.25rem", overflow: "auto", flex: 1, fontSize: "0.88rem", lineHeight: 1.7, textAlign: "left" }}
+              className="agreement-content"
+              style={{ padding: "1.2rem clamp(0.75rem, 3vw, 1.5rem)", overflow: "auto", flex: 1, fontSize: "0.9rem", lineHeight: 1.75, textAlign: "left" }}
               dangerouslySetInnerHTML={{ __html: agreementHtml }}
             />
-            <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid var(--border)", textAlign: "right" }}>
+            <div style={{ padding: "0.75rem clamp(0.75rem, 3vw, 1.5rem)", borderTop: "1px solid var(--border)", textAlign: "right", flexShrink: 0 }}>
               <button
                 className="email-btn"
                 style={{ background: "var(--accent)", color: "#fff", border: "none" }}

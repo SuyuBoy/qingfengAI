@@ -134,3 +134,14 @@
   background: #171717;
   border-color: #454545;
 }
+
+/* agreement modal */
+.agreement-content h1 { font-size: 1.2rem; margin: 1.2rem 0 0.6rem; }
+.agreement-content h2 { font-size: 1.05rem; margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+.agreement-content h3 { font-size: 0.95rem; margin: 0.8rem 0 0.4rem; }
+.agreement-content p { margin: 0.5rem 0; }
+.agreement-content ul, .agreement-content ol { margin: 0.4rem 0; padding-left: 1.5rem; }
+.agreement-content li { margin: 0.2rem 0; }
+.agreement-content hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+.agreement-content blockquote { border-left: 3px solid var(--accent); margin: 0.6rem 0; padding: 0.3rem 0.8rem; color: var(--muted); background: var(--surface); border-radius: 0 4px 4px 0; }
+.agreement-content strong { color: var(--text); }
