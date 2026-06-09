@@ -57,7 +57,7 @@ function toChartSymbol(stock: StockSummary): SymbolInfo {
 }
 
 // 从腾讯个股日K加权算当前指数 close
-async function computeIndexClose(): Promise<number | null> {
+async function computeRealtimeOHLC(): Promise<{ o: number; h: number; l: number; c: number; v: number } | null> {
   if (!_weightsCache) {
     const data = await api.get<{ holdings: any[]; base_value: number }>("/api/stocks/index/weights");
     if (data?.holdings?.length) _weightsCache = { holdings: data.holdings, base_value: data.base_value };
@@ -75,35 +75,46 @@ async function computeIndexClose(): Promise<number | null> {
       const bars = JSON.parse(jsonStr)?.data?.[toTc(code)]?.qfqday || JSON.parse(jsonStr)?.data?.[toTc(code)]?.day || [];
       if (!bars.length) return null;
       const l = bars[bars.length - 1];
-      return l.length >= 6 ? { o: parseFloat(l[1]), c: parseFloat(l[2]), w: parseFloat(h.w || "0") } : null;
+      // l: [date, open, close, high, low, volume]
+      return l.length >= 6 ? {
+        o: parseFloat(l[1]), c: parseFloat(l[2]),
+        h: parseFloat(l[3]), l: parseFloat(l[4]),
+        v: parseFloat(l[5]), w: parseFloat(h.w || "0"),
+      } : null;
     } catch { return null; }
   }));
 
   // 指数 = 前收 × 加权日内收益
-  let ret = 0, tw = 0;
+  let ret_o = 0, ret_h = 0, ret_l = 0, ret_c = 0, vSum = 0, tw = 0;
   for (const r of results) {
-    if (r && r.w > 0 && r.o > 0) { ret += r.w * (r.c / r.o); tw += r.w; }
+    if (r && r.w > 0 && r.o > 0) {
+      ret_o += r.w;
+      ret_h += r.w * (r.h / r.o);
+      ret_l += r.w * (r.l / r.o);
+      ret_c += r.w * (r.c / r.o);
+      vSum += r.v;
+      tw += r.w;
+    }
   }
   if (tw <= 0 || base_value <= 0) return null;
-  const v = parseFloat((base_value * ret / tw).toFixed(2));
-  return v > 0 && Number.isFinite(v) ? v : null;
+  return {
+    o: base_value,
+    h: parseFloat((base_value * ret_h / tw).toFixed(2)),
+    l: parseFloat((base_value * ret_l / tw).toFixed(2)),
+    c: parseFloat((base_value * ret_c / tw).toFixed(2)),
+    v: Math.round(vSum),
+  };
 }
 
 async function doPoll() {
   if (!isTradingHours() || !_subscribeCb || !_backendLastBar) return;
-  const c = await computeIndexClose();
-  if (c != null && c > 0 && Number.isFinite(c)) {
-    // 以后端 bar 为锚：O 不动，H/L 只在 close 超出时扩展
-    const b = _backendLastBar;
+  const ohlc = await computeRealtimeOHLC();
+  if (ohlc && ohlc.c > 0 && Number.isFinite(ohlc.c)) {
     _subscribeCb({
-      timestamp: b.timestamp,
-      open: b.open,
-      high: Math.max(b.high, c),
-      low: Math.min(b.low, c),
-      close: c,
-      volume: b.volume,
+      timestamp: Date.now(),
+      ...ohlc,
     });
-    window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close: c } }));
+    window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close: ohlc.c } }));
   }
   if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
 }
