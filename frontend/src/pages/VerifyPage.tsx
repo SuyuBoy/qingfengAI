@@ -94,6 +94,9 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
         setError("答题已超时，请点击下方按钮刷新题目");
         setChallenge(null);
         clearInterval(timerRef.current);
+      } else if (msg.includes("答案错误")) {
+        setError("答案错误，自动换题中...");
+        await fetchChallenge();
       } else {
         setError(msg);
       }
