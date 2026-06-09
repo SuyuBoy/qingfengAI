@@ -105,6 +105,8 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
           attempt: body.attempt,
         };
         setChallenge(newChallenge);
+        setDynamicIdInput("");
+        setTextInput("");
         startTimer(body.expires_at);
       } else {
         setError(msg);
