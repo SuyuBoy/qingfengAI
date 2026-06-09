@@ -299,11 +299,13 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
                 ✕
               </button>
             </div>
-            <div
-              className="agreement-content"
-              style={{ padding: "1.2rem clamp(0.75rem, 3vw, 1.5rem)", overflow: "auto", flex: 1, fontSize: "0.9rem", lineHeight: 1.75, textAlign: "left" }}
-              dangerouslySetInnerHTML={{ __html: agreementHtml }}
-            />
+            <div className="card" style={{ flex: 1, overflow: "auto", border: "none", borderRadius: 0, margin: 0 }}>
+              <div
+                className="content"
+                style={{ textAlign: "left" }}
+                dangerouslySetInnerHTML={{ __html: agreementHtml }}
+              />
+            </div>
             <div style={{ padding: "0.75rem clamp(0.75rem, 3vw, 1.5rem)", borderTop: "1px solid var(--border)", textAlign: "right", flexShrink: 0 }}>
               <button
                 className="email-btn"
