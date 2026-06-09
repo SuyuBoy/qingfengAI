@@ -36,6 +36,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T | 
     window.location.hash = "#/login";
     return null;
   }
+  if (res.status === 400) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "请求错误");
+  }
   if (res.status === 403) {
     let msg = "未付费";
     try { const body = await res.json(); if (body.error) msg = body.error; } catch {}
