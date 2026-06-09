@@ -75,14 +75,17 @@ async function computeIndexClose(): Promise<number | null> {
       const bars = JSON.parse(jsonStr)?.data?.[toTc(code)]?.qfqday || JSON.parse(jsonStr)?.data?.[toTc(code)]?.day || [];
       if (!bars.length) return null;
       const l = bars[bars.length - 1];
-      return l.length >= 6 ? { c: parseFloat(l[2]), w: parseFloat(h.w || "0") } : null;
+      return l.length >= 6 ? { o: parseFloat(l[1]), c: parseFloat(l[2]), w: parseFloat(h.w || "0") } : null;
     } catch { return null; }
   }));
 
-  let cSum = 0, tw = 0;
-  for (const r of results) { if (r && r.w > 0) { cSum += r.c * r.w; tw += r.w; } }
+  // 指数 = 前收 × 加权日内收益
+  let ret = 0, tw = 0;
+  for (const r of results) {
+    if (r && r.w > 0 && r.o > 0) { ret += r.w * (r.c / r.o); tw += r.w; }
+  }
   if (tw <= 0 || base_value <= 0) return null;
-  const v = parseFloat(((cSum / tw) / base_value * 1000).toFixed(2));
+  const v = parseFloat((base_value * ret / tw).toFixed(2));
   return v > 0 && Number.isFinite(v) ? v : null;
 }
 
