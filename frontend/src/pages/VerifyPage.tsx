@@ -180,7 +180,6 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 type="button"
                 className="email-link"
                 onClick={fetchChallenge}
-                disabled={loading}
               >
                 刷新题目（重新出题，消耗一次机会）
               </button>
