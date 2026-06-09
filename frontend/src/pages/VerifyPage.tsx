@@ -172,7 +172,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 </p>
               )}
 
-              <button type="submit" className="email-btn" disabled={loading} style={{ marginTop: "1rem" }}>
+              <button type="submit" className="email-btn" disabled={loading || countdown === 0} style={{ marginTop: "1rem" }}>
                 {loading ? "验证中..." : "提交验证"}
               </button>
 
