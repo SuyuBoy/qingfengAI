@@ -583,8 +583,8 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
       {/* Afdian — 开通 & 绑定 */}
       {!isAdmin && <AfdianSection user={user} />}
 
-      {/* Alipay */}
-      {!isAdmin && <AlipaySection />}
+      {/* Alipay — 仅管理员可见（支付产品接入中） */}
+      {isAdmin && <AlipaySection />}
 
       {/* Redeem Code */}
       {!isAdmin && <RedeemSection />}
