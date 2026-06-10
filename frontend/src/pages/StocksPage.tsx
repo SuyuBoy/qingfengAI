@@ -42,6 +42,7 @@ export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [holdingsData, setHoldingsData] = useState<Record<string, any[]>>({});
   const [error, setError] = useState("");
+  const [topN, setTopN] = useState(15);
 
   const last = indexSeries[indexSeries.length - 1];
   const prev = indexSeries[indexSeries.length - 2];
@@ -52,9 +53,12 @@ export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
     setError("");
     setLoading(true);
     try {
+      const indexUrl = topN !== 15
+        ? `/api/stocks/index/recalculate?top_n=${topN}`
+        : "/api/stocks/index?period=1d";
       const [sData, iData] = await Promise.all([
         api.get<{ stocks: StockSummary[] }>("/api/stocks/active"),
-        api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d"),
+        api.get<{ index: StockIndexPoint[] }>(indexUrl),
       ]);
       setStocks(sData?.stocks || []);
       setIndexSeries(iData?.index || []);
@@ -63,7 +67,7 @@ export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
       setError(msg);
     }
     setLoading(false);
-  }, []);
+  }, [topN]);
 
   const loadHoldings = useCallback(async () => {
     if (!isPro) return;
@@ -104,10 +108,11 @@ export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
     <section className={`stocks-page${collapsed ? " stocks-collapsed" : ""}`}>
       <div className="stock-chart-panel">
         <ChartContainer
-          key={`chart:${selected?.order_book_id || "index"}`}
+          key={`chart:${selected?.order_book_id || "index"}:n${topN}`}
           symbol={symbolInfo} periods={periods}
           layoutKey={collapsed ? "collapsed" : "expanded"} stocks={stocks}
-          selectedStock={selected} onSymbolSelect={setSelected} />
+          selectedStock={selected} onSymbolSelect={setSelected}
+          topN={topN} />
       </div>
 
       <StockPanel
@@ -117,7 +122,8 @@ export default function StocksPage({ userRole = "unpaid" }: StocksPageProps) {
         onChangeSort={changeSort} onRefresh={loadAll}
         indexValue={indexValue} indexChange={indexChange}
         holdingsData={holdingsData} onLoadHoldings={loadHoldings} isPro={isPro}
-        collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
+        collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)}
+        topN={topN} onTopNChange={setTopN} />
     </section>
   );
 }

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, X } from "lucide-react";
 import { Calendar } from "../../components/ui/calendar";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../../components/ui/select";
 
 export interface Holding {
   o: string;
@@ -15,10 +18,14 @@ export interface Holding {
   close?: number;
 }
 
+const TOP_N_OPTIONS = [3, 5, 10, 15, 20];
+
 interface HoldingsScorePanelProps {
   holdingsData: Record<string, Holding[]>;
   onClose: () => void;
   isPro?: boolean;
+  topN: number;
+  onTopNChange: (n: number) => void;
 }
 
 function formatDate(date: Date) {
@@ -72,12 +79,17 @@ function HoldingsScoreRow({ holding }: { holding: Holding }) {
   );
 }
 
-export function HoldingsScorePanel({ holdingsData, onClose, isPro }: HoldingsScorePanelProps) {
+export function HoldingsScorePanel({ holdingsData, onClose, isPro, topN, onTopNChange }: HoldingsScorePanelProps) {
   const [selectedDate, setSelectedDate] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const availableDates = useMemo(() => Object.keys(holdingsData).sort().reverse(), [holdingsData]);
-  const holdings = holdingsData[selectedDate] || [];
+  const rawHoldings = holdingsData[selectedDate] || [];
+  // 按评分排序取 top N
+  const holdings = useMemo(() => {
+    if (topN >= 15) return rawHoldings;
+    return [...rawHoldings].sort((a, b) => (b.sc || 0) - (a.sc || 0)).slice(0, topN);
+  }, [rawHoldings, topN]);
 
   useEffect(() => {
     if (!availableDates.length) {
@@ -109,6 +121,16 @@ export function HoldingsScorePanel({ holdingsData, onClose, isPro }: HoldingsSco
             >
               <CalendarDays size={15} />
             </button>
+            <Select value={String(topN)} onValueChange={(v) => onTopNChange(Number(v))}>
+              <SelectTrigger className="holdings-topn-trigger" title="选择成分股数量">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end" className="holdings-select-content">
+                {TOP_N_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>Top {n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {calendarOpen && (
               <div className="holdings-calendar-panel">
                 <Calendar
