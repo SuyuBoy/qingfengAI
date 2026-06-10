@@ -68,6 +68,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [openSessionMenu, setOpenSessionMenu] = useState<SessionMenuState | null>(null);
   const crawlCooldown = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -76,13 +77,17 @@ export default function App() {
     if (!getToken()) {
       setUser(null);
       setSessions([]);
+      setActiveSessionId(null);
       setLoading(false);
       return null;
     }
     setLoading(true);
     const currentUser = await api.get<CurrentUser>("/api/auth/me").catch(() => null);
     setUser(currentUser);
-    if (!currentUser) setSessions([]);
+    if (!currentUser) {
+      setSessions([]);
+      setActiveSessionId(null);
+    }
     setLoading(false);
     return currentUser;
   }, []);
@@ -90,11 +95,13 @@ export default function App() {
   const refreshSessions = useCallback(async (email?: string | null) => {
     if (!email || !getToken()) {
       setSessions([]);
+      setActiveSessionId(null);
       return;
     }
     try {
       const localSessions = loadChatSessions(email);
       setSessions(localSessions);
+      setActiveSessionId(getStoredActiveId(email));
 
       const remoteSessions = localSessions.length
         ? await importLocalChatSessions(localSessions)
@@ -102,12 +109,15 @@ export default function App() {
       const merged = mergeChatSessions(remoteSessions, localSessions);
       saveChatSessions(merged, email);
       setSessions(merged);
+      setActiveSessionId(getStoredActiveId(email));
     } catch {
       try {
         setSessions(loadChatSessions(email));
+        setActiveSessionId(getStoredActiveId(email));
       } catch {
         saveChatSessions([], email);
         setSessions([]);
+        setActiveSessionId(null);
       }
     }
   }, []);
@@ -124,23 +134,32 @@ export default function App() {
       if (!cancelled) refreshSessions(currentUser?.email);
     };
     bootstrap();
-    const onHashChange = async () => {
+    return () => {
+      cancelled = true;
+    };
+  }, [checkAuth, refreshSessions]);
+
+  useEffect(() => {
+    const onHashChange = () => {
       setCurrentRoute(getRoute());
       setSidebarOpen(false);
-      const currentUser = await checkAuth();
-      refreshSessions(currentUser?.email);
     };
-    const onSessionsChanged = () => refreshSessions(user?.email);
     window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    const onSessionsChanged = () => {
+      refreshSessions(user?.email);
+      setActiveSessionId(getStoredActiveId(user?.email));
+    };
     window.addEventListener("chat-sessions-changed", onSessionsChanged);
     window.addEventListener("storage", onSessionsChanged);
     return () => {
-      cancelled = true;
-      window.removeEventListener("hashchange", onHashChange);
       window.removeEventListener("chat-sessions-changed", onSessionsChanged);
       window.removeEventListener("storage", onSessionsChanged);
     };
-  }, [checkAuth, refreshSessions, user?.email]);
+  }, [refreshSessions, user?.email]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -188,6 +207,7 @@ export default function App() {
     clearToken();
     setUser(null);
     setSessions([]);
+    setActiveSessionId(null);
     setRoute("/login");
   }, []);
 
@@ -197,22 +217,30 @@ export default function App() {
     setRoute("/chat");
   }, [checkAuth, refreshSessions]);
 
+  const navigate = useCallback((path: string) => {
+    setCurrentRoute(path);
+    if (getRoute() !== path) setRoute(path);
+    setSidebarOpen(false);
+  }, []);
+
   const startNewChat = useCallback(() => {
     setStoredActiveId(null, user?.email);
-    if (route !== "/chat") setRoute("/chat");
+    setActiveSessionId(null);
+    if (route !== "/chat") navigate("/chat");
     window.dispatchEvent(new CustomEvent("chat-new-session"));
     setSidebarOpen(false);
     setSearchOpen(false);
-  }, [route, user?.email]);
+  }, [navigate, route, user?.email]);
 
   const loadSession = useCallback((id: string) => {
     setStoredActiveId(id, user?.email);
-    if (route !== "/chat") setRoute("/chat");
+    setActiveSessionId(id);
+    if (route !== "/chat") navigate("/chat");
     window.dispatchEvent(new CustomEvent("chat-load-session", { detail: { id } }));
     setSidebarOpen(false);
     setSearchOpen(false);
     setOpenSessionMenu(null);
-  }, [route, user?.email]);
+  }, [navigate, route, user?.email]);
 
   const deleteSession = useCallback((id: string) => {
     const activeId = getStoredActiveId(user?.email);
@@ -222,6 +250,7 @@ export default function App() {
     setOpenSessionMenu(null);
     if (activeId === id) {
       setStoredActiveId(null, user?.email);
+      setActiveSessionId(null);
       window.dispatchEvent(new CustomEvent("chat-session-deleted", { detail: { id } }));
     }
     deleteRemoteChatSession(id)
@@ -255,7 +284,7 @@ export default function App() {
       </button>
       <aside className={`app-sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sidebar-top">
-          <button className="brand-row" type="button" onClick={() => setRoute("/chat")}>
+          <button className="brand-row" type="button" onClick={() => navigate("/chat")}>
             <Sparkles size={20} />
             <span>清风 AI</span>
           </button>
@@ -294,15 +323,15 @@ export default function App() {
             <Search size={19} />
             <span>搜索聊天</span>
           </button>
-          <button className={`sidebar-nav-item${route === "/dynamics" ? " active" : ""}`} type="button" onClick={() => setRoute("/dynamics")}>
+          <button className={`sidebar-nav-item${route === "/dynamics" ? " active" : ""}`} type="button" onClick={() => navigate("/dynamics")}>
             <TrendingUp size={19} />
             <span>动态</span>
           </button>
-          <button className={`sidebar-nav-item${route === "/help" ? " active" : ""}`} type="button" onClick={() => setRoute("/help")}>
+          <button className={`sidebar-nav-item${route === "/help" ? " active" : ""}`} type="button" onClick={() => navigate("/help")}>
             <BookOpen size={19} />
             <span>帮助文档</span>
           </button>
-          <button className={`sidebar-nav-item${route === "/stocks" ? " active" : ""}`} type="button" onClick={() => setRoute("/stocks")}>
+          <button className={`sidebar-nav-item${route === "/stocks" ? " active" : ""}`} type="button" onClick={() => navigate("/stocks")}>
             <BarChart3 size={19} />
             <span>股票</span>
           </button>
@@ -312,7 +341,10 @@ export default function App() {
           <div className="sidebar-section-title">最近</div>
           <div className="recent-list">
             {recentSessions.length ? recentSessions.map(session => (
-              <div className={`recent-row${openSessionMenu?.id === session.id ? " menu-open" : ""}`} key={session.id}>
+              <div
+                className={`recent-row${route === "/chat" && activeSessionId === session.id ? " active" : ""}${openSessionMenu?.id === session.id ? " menu-open" : ""}`}
+                key={session.id}
+              >
                 <button
                   className="recent-item"
                   type="button"
@@ -365,7 +397,7 @@ export default function App() {
               <span>{crawlText}</span>
             </button>
           )}
-          <button className="account-row" type="button" onClick={() => setRoute("/profile")}>
+          <button className="account-row" type="button" onClick={() => navigate("/profile")}>
             <span className="avatar">{user.email.slice(0, 1).toUpperCase()}</span>
             <span className="account-main">
               <span>{user.email}</span>

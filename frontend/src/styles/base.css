@@ -306,6 +306,7 @@ button {
 
 .recent-row:hover,
 .recent-row:focus-within,
+.recent-row.active,
 .recent-row.menu-open {
   background: var(--surface-2);
 }
@@ -345,6 +346,7 @@ button {
 
 .recent-row:hover .recent-more,
 .recent-row:focus-within .recent-more,
+.recent-row.active .recent-more,
 .recent-row.menu-open .recent-more {
   opacity: 1;
 }
