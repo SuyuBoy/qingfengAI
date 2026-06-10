@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CurrentUser } from "../types";
 import { api } from "../api";
 
@@ -29,6 +29,115 @@ function getRoleBadgeStyle(role: string): React.CSSProperties {
     case "plus": return { background: "#f59e0b", color: "#fff" };
     default: return { background: "#6b7280", color: "#fff" };
   }
+}
+
+function AlipaySection() {
+  const [plans, setPlans] = useState<Array<{plan: string; label: string; unit_price_fen: number; unit_price_label: string}>>([]);
+  const [selectedPlan, setSelectedPlan] = useState("plus");
+  const [months, setMonths] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const showMsg = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
+  };
+
+  useEffect(() => {
+    api.get<{ plans: typeof plans }>("/api/pay/plans").then(res => {
+      if (res?.plans) setPlans(res.plans);
+    }).catch(() => {});
+  }, []);
+
+  const plan = plans.find(p => p.plan === selectedPlan);
+  const totalFen = (plan?.unit_price_fen ?? 0) * months;
+  const totalLabel = totalFen % 100 === 0 ? `¥${totalFen / 100}` : `¥${(totalFen / 100).toFixed(2)}`;
+
+  const handlePay = async () => {
+    setLoading(true);
+    try {
+      const res = await api.post<{ order_id: string; pay_url: string }>("/api/pay/create", { plan: selectedPlan, months });
+      if (res?.pay_url) window.location.href = res.pay_url;
+      else showMsg("创建订单失败", false);
+    } catch (e: any) {
+      showMsg(e?.message || "创建订单失败", false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: "var(--card-bg)",
+    borderRadius: "var(--radius)",
+    border: "1px solid var(--border)",
+    padding: "1rem 1.25rem",
+    marginBottom: "1rem",
+  };
+
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.8rem" }}>支付宝支付</h3>
+
+      {/* 方案选择 */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+        {plans.map(p => (
+          <button
+            key={p.plan}
+            className="email-btn"
+            style={{
+              flex: 1,
+              background: selectedPlan === p.plan ? (p.plan === "pro" ? "#8b5cf6" : "#1677ff") : "var(--border)",
+              color: selectedPlan === p.plan ? "#fff" : "var(--text)",
+              border: "none",
+              padding: "0.5rem",
+            }}
+            onClick={() => setSelectedPlan(p.plan)}
+          >
+            {p.label} ({p.unit_price_label}/月)
+          </button>
+        ))}
+      </div>
+
+      {/* 月数选择 */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+        {[1, 3, 6].map(m => (
+          <button
+            key={m}
+            className="email-btn"
+            style={{
+              flex: 1,
+              background: months === m ? "var(--accent)" : "var(--border)",
+              color: months === m ? "#fff" : "var(--text)",
+              border: "none",
+              padding: "0.4rem",
+            }}
+            onClick={() => setMonths(m)}
+          >
+            {m}个月
+          </button>
+        ))}
+      </div>
+
+      {/* 总价 + 支付按钮 */}
+      <button
+        className="email-btn"
+        style={{ width: "100%", background: "#1677ff", color: "#fff", border: "none", padding: "0.6rem" }}
+        onClick={handlePay}
+        disabled={loading}
+      >
+        {loading ? "创建订单中..." : `支付宝支付 ${totalLabel}`}
+      </button>
+
+      {msg && (
+        <div style={{
+          marginTop: "0.6rem", padding: "0.3rem 0.6rem", borderRadius: 4, fontSize: "0.8rem",
+          background: msg.ok ? "#dcfce7" : "#fee2e2", color: msg.ok ? "#166534" : "#991b1b",
+        }}>
+          {msg.text}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AfdianSection({ user }: { user: CurrentUser }) {
@@ -473,6 +582,9 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
       {/* Afdian — 开通 & 绑定 */}
       {!isAdmin && <AfdianSection user={user} />}
+
+      {/* Alipay */}
+      {!isAdmin && <AlipaySection />}
 
       {/* Redeem Code */}
       {!isAdmin && <RedeemSection />}
