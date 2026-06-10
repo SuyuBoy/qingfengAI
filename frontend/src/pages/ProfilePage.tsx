@@ -220,27 +220,27 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       </h3>
 
 
-      {/* 升级按钮 — 必须绑定后才能开通 */}
-      {isBound ? (
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
-          <button
-            className="email-btn"
-            style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none", padding: "0 1.5rem" }}
-            onClick={() => handleUpgrade("plus")}
-          >
-            开通 Plus
-          </button>
-          <button
-            className="email-btn"
-            style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none", padding: "0 1.5rem" }}
-            onClick={() => handleUpgrade("pro")}
-          >
-            开通 Pro
-          </button>
-        </div>
-      ) : (
-        <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.8rem" }}>
-          请先绑定爱发电账号，再开通会员
+      {/* 升级按钮 */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
+        <button
+          className="email-btn"
+          style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none", padding: "0 1.5rem" }}
+          onClick={() => handleUpgrade("plus")}
+        >
+          开通 Plus
+        </button>
+        <button
+          className="email-btn"
+          style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none", padding: "0 1.5rem" }}
+          onClick={() => handleUpgrade("pro")}
+        >
+          开通 Pro
+        </button>
+      </div>
+
+      {!isBound && (
+        <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.6rem" }}>
+          付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
         </div>
       )}
 
