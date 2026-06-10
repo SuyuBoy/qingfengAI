@@ -669,6 +669,8 @@
   flex: 1 1 auto;
   overflow: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .holdings-score-table {
@@ -784,11 +786,24 @@
 
   .holdings-modal {
     width: 100vw;
+    height: 88svh;
     max-height: 88svh;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     border-radius: 14px 14px 0 0;
+  }
+
+  .holdings-modal-body {
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .holdings-table-wrap {
+    min-height: auto;
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .holdings-modal-header {
