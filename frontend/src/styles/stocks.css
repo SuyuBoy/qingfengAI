@@ -525,6 +525,18 @@
 }
 .index-card-btns button:hover { background: var(--surface-2); color: var(--text); }
 
+.index-topn-trigger {
+  height: 30px; padding: 0 8px; gap: 4px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-1); color: var(--muted); font-size: 0.82rem; cursor: pointer;
+  display: inline-flex; align-items: center; white-space: nowrap; min-width: 58px;
+}
+.index-topn-trigger:hover,
+.index-topn-trigger[data-state="open"] {
+  background: var(--surface-2); color: var(--text); border-color: var(--muted);
+}
+.index-topn-trigger [data-slot="select-value"] { line-height: 1; }
+.index-topn-trigger .aui-select-chevron { width: 14px; height: 14px; opacity: 0.6; }
+
 .holdings-modal {
   width: min(94vw, 880px);
   height: min(84vh, 720px);

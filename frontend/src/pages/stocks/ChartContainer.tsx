@@ -57,14 +57,19 @@ function toChartSymbol(stock: StockSummary): SymbolInfo {
 }
 
 // 从腾讯个股日K加权算当前指数 close
-async function computeRealtimeOHLC(): Promise<{ o: number; h: number; l: number; c: number; v: number } | null> {
+async function computeRealtimeOHLC(topN: number): Promise<{ o: number; h: number; l: number; c: number; v: number } | null> {
   if (!_weightsCache) {
     const data = await api.get<{ holdings: any[]; base_value: number }>("/api/stocks/index/weights");
     if (data?.holdings?.length) _weightsCache = { holdings: data.holdings, base_value: data.base_value };
   }
   if (!_weightsCache) return null;
 
-  const { holdings, base_value } = _weightsCache;
+  const { holdings: allHoldings, base_value } = _weightsCache;
+
+  // 按评分排序取 top N，等权重算
+  const sorted = [...allHoldings].sort((a, b) => (b.sc || 0) - (a.sc || 0));
+  const holdings = topN !== 15 ? sorted.slice(0, topN) : allHoldings;
+  const wEq = 1.0 / holdings.length;
   const results = await Promise.all(holdings.map(async (h: any) => {
     const code = h.o; if (!code) return null;
     try {
@@ -87,13 +92,14 @@ async function computeRealtimeOHLC(): Promise<{ o: number; h: number; l: number;
   // 指数 = 前收 × 加权日内收益
   let ret_o = 0, ret_h = 0, ret_l = 0, ret_c = 0, vSum = 0, tw = 0;
   for (const r of results) {
-    if (r && r.w > 0 && r.o > 0) {
-      ret_o += r.w;
-      ret_h += r.w * (r.h / r.o);
-      ret_l += r.w * (r.l / r.o);
-      ret_c += r.w * (r.c / r.o);
+    const w = topN !== 15 ? wEq : (r?.w || 0);
+    if (r && w > 0 && r.o > 0) {
+      ret_o += w;
+      ret_h += w * (r.h / r.o);
+      ret_l += w * (r.l / r.o);
+      ret_c += w * (r.c / r.o);
       vSum += r.v;
-      tw += r.w;
+      tw += w;
     }
   }
   if (tw <= 0 || base_value <= 0) return null;
@@ -106,9 +112,9 @@ async function computeRealtimeOHLC(): Promise<{ o: number; h: number; l: number;
   };
 }
 
-async function doPoll() {
+async function doPoll(useTopN: number) {
   if (!isTradingHours() || !_subscribeCb || !_backendLastBar) return;
-  const ohlc = await computeRealtimeOHLC();
+  const ohlc = await computeRealtimeOHLC(useTopN);
   if (ohlc && ohlc.c > 0 && Number.isFinite(ohlc.c)) {
     _subscribeCb({
       timestamp: Date.now(),
@@ -116,14 +122,15 @@ async function doPoll() {
     });
     window.dispatchEvent(new CustomEvent("index-realtime", { detail: { close: ohlc.c } }));
   }
-  if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
+  if (isTradingHours()) _pollTimer = setTimeout(() => doPoll(useTopN), 60_000);
 }
 
 export function ChartContainer({
-  symbol, periods, layoutKey, stocks, selectedStock, onSymbolSelect,
+  symbol, periods, layoutKey, stocks, selectedStock, onSymbolSelect, topN,
 }: {
   symbol: SymbolInfo; periods: Period[]; layoutKey: string;
   stocks: StockSummary[];
+  topN?: number;
   selectedStock: StockSummary | null;
   onSymbolSelect: (stock: StockSummary) => void;
 }) {
@@ -224,7 +231,10 @@ export function ChartContainer({
 
         const cacheKey = period.timespan === "week" ? "week" : "day";
         if (!indexCache[cacheKey]) {
-          const data = await api.get<{ index: StockIndexPoint[] }>("/api/stocks/index?period=1d");
+          const ep = topN && topN !== 15
+            ? `/api/stocks/index/recalculate?top_n=${topN}`
+            : "/api/stocks/index?period=1d";
+          const data = await api.get<{ index: StockIndexPoint[] }>(ep);
           const bars = toIndexKLine(data?.index || []);
           if (bars.length) _backendLastBar = bars[bars.length - 1];
           indexCache[cacheKey] = bars;
@@ -244,7 +254,7 @@ export function ChartContainer({
         }
         _subscribeCb = cb;
         _weightsCache = null;  // 每次挂载重新拉权重
-        if (isTradingHours()) _pollTimer = setTimeout(doPoll, 60_000);
+        if (isTradingHours()) _pollTimer = setTimeout(() => doPoll(topN ?? 15), 60_000);
       },
       unsubscribe: () => { cancelDailyPoll(); },
     };
