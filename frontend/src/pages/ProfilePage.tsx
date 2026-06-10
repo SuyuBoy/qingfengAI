@@ -162,14 +162,11 @@ function AfdianSection({ user }: { user: CurrentUser }) {
   };
 
   const handleBind = async () => {
-    if (!afdianUid.trim()) return showMsg("请输入爱发电用户 ID", false);
+    if (!afdianUid.trim()) return showMsg("请输入爱发电订单号", false);
     setBinding(true);
     try {
-      const input = afdianUid.trim();
-      const isOrder = /^\d{20,}$/.test(input);
       const res = await api.post<{ ok: boolean; error?: string; rebind?: boolean }>("/api/afdian/bind", {
-        afdian_user_id: isOrder ? "" : input,
-        order_no: isOrder ? input : "",
+        order_no: afdianUid.trim(),
       });
       if (res?.ok) {
         showMsg(res.rebind ? "已更新绑定" : "绑定成功", true);
@@ -272,7 +269,7 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         <div>
           <div style={{ display: "flex", gap: "0.4rem" }}>
             <input
-              placeholder="爱发电用户 ID 或订单号"
+              placeholder="输入爱发电订单号"
               value={afdianUid}
               onChange={(e) => setAfdianUid(e.target.value)}
               style={{
