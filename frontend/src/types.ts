@@ -11,6 +11,7 @@ export interface CurrentUser {
   is_verified?: boolean;
   role_expire_at?: string;
   afdian_user_id?: string;
+  alipay_user_id?: string;
   meow?: string;
 }
 
