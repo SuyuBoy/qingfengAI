@@ -235,12 +235,6 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         </button>
       </div>
 
-      {!isBound && (
-        <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.6rem" }}>
-          付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
-        </div>
-      )}
-
       {/* 绑定 + 同步 */}
       {isBound && !editing ? (
         <div>
@@ -290,8 +284,8 @@ function AfdianSection({ user }: { user: CurrentUser }) {
             >
               {binding ? "..." : "绑定"}
             </button>
-            <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.4rem" }}>
-              通过本页按钮赞助后自动绑定，无需手动输入。
+            <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.6rem" }}>
+              通过本页按钮赞助后自动绑定，无需手动输入。付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
             </div>
             {editing && (
               <button
