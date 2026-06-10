@@ -84,7 +84,12 @@ export function HoldingsScorePanel({ holdingsData, onClose, isPro, topN, onTopNC
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const availableDates = useMemo(() => Object.keys(holdingsData).sort().reverse(), [holdingsData]);
-  const holdings = holdingsData[selectedDate] || [];
+  const rawHoldings = holdingsData[selectedDate] || [];
+  // 按评分排序取 top N
+  const holdings = useMemo(() => {
+    if (topN >= 15) return rawHoldings;
+    return [...rawHoldings].sort((a, b) => (b.sc || 0) - (a.sc || 0)).slice(0, topN);
+  }, [rawHoldings, topN]);
 
   useEffect(() => {
     if (!availableDates.length) {
