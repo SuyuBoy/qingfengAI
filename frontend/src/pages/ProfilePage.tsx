@@ -175,6 +175,9 @@ function AfdianSection({ user }: { user: CurrentUser }) {
             >
               {binding ? "..." : "绑定"}
             </button>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.4rem" }}>
+              通过本页按钮赞助后自动绑定，无需手动输入。
+            </div>
             {editing && (
               <button
                 className="email-btn"
