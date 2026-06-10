@@ -595,6 +595,11 @@
 .holdings-topn-trigger [data-slot="select-value"] { line-height: 1; }
 .holdings-topn-trigger .aui-select-chevron { width: 14px; height: 14px; opacity: 0.6; }
 
+/* SelectContent Portal 需要高于 holdings-modal-overlay (z-index: 1200) */
+.aui-select-content.holdings-select-content {
+  z-index: 1210;
+}
+
 .holdings-calendar-panel {
   position: absolute;
   top: calc(100% + 0.45rem);

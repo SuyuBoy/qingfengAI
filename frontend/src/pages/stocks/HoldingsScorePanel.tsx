@@ -120,7 +120,7 @@ export function HoldingsScorePanel({ holdingsData, onClose, isPro, topN, onTopNC
               <SelectTrigger className="holdings-topn-trigger" title="选择成分股数量">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent align="end">
+              <SelectContent align="end" className="holdings-select-content">
                 {TOP_N_OPTIONS.map((n) => (
                   <SelectItem key={n} value={String(n)}>Top {n}</SelectItem>
                 ))}
