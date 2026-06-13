@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   BarChart3,
   BookOpen,
+  Database,
   Menu,
   MessageSquare,
   MessageSquarePlus,
@@ -21,6 +22,7 @@ import ChatPage from "./pages/ChatPage";
 import DynamicsPage from "./pages/DynamicsPage";
 import LoginPage from "./pages/LoginPage";
 import StocksPage from "./pages/StocksPage";
+import WikiPage from "./pages/WikiPage";
 import ProfilePage from "./pages/ProfilePage";
 import VerifyPage from "./pages/VerifyPage";
 import {
@@ -335,6 +337,12 @@ export default function App() {
             <BarChart3 size={19} />
             <span>股票</span>
           </button>
+          {user.is_admin && (
+            <button className={`sidebar-nav-item${route === "/wiki" ? " active" : ""}`} type="button" onClick={() => navigate("/wiki")}>
+              <Database size={19} />
+              <span>Wiki</span>
+            </button>
+          )}
         </nav>
 
         <div className="sidebar-section">
@@ -414,6 +422,8 @@ export default function App() {
           <VerifyPage onVerified={() => { checkAuth(); setRoute("/dynamics"); }} />
         ) : route === "/stocks" ? (
           <StocksPage userRole={user.role} />
+        ) : route === "/wiki" && user.is_admin ? (
+          <WikiPage user={user} />
         ) : route === "/dynamics" ? (
           <DynamicsPage />
         ) : route === "/help" ? (

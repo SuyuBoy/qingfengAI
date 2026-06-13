@@ -8,6 +8,7 @@ import "./styles/dynamics.css";
 import "./styles/chat.css";
 import "@klinecharts/pro/dist/klinecharts-pro.css";
 import "./styles/stocks.css";
+import "./styles/wiki.css";
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
