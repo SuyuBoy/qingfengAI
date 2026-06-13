@@ -282,7 +282,29 @@ function markdownValue(value: unknown, level = 2): string {
   return formatScalar(value);
 }
 
+function parseJsonValue(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!text || !["{", "["].includes(text[0])) return value;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return value;
+  }
+}
+
+function parsedRecord(value: unknown): Record<string, unknown> | null {
+  const parsed = parseJsonValue(value);
+  return isRecord(parsed) ? parsed : null;
+}
+
+function isJsonLikeString(value: unknown) {
+  const parsed = parseJsonValue(value);
+  return typeof value === "string" && (isRecord(parsed) || Array.isArray(parsed));
+}
+
 function markdownCell(value: unknown): string {
+  value = parseJsonValue(value);
   if (isEmptyValue(value)) return "原文未说明";
   if (Array.isArray(value)) {
     const text = value.map(entry => {
@@ -302,6 +324,7 @@ function markdownCell(value: unknown): string {
 }
 
 function formatScalarValue(value: unknown): string {
+  value = parseJsonValue(value);
   if (isEmptyValue(value)) return "";
   if (Array.isArray(value)) return value.map(formatScalarValue).filter(Boolean).join("、");
   if (isRecord(value)) {
@@ -354,6 +377,7 @@ function addRecordsTable(
 }
 
 function addStringList(lines: string[], title: string, value: unknown) {
+  value = parseJsonValue(value);
   if (!Array.isArray(value) || !value.length) return;
   const entries = value.filter(entry => !isEmptyValue(entry));
   if (!entries.length) return;
@@ -361,6 +385,29 @@ function addStringList(lines: string[], title: string, value: unknown) {
   for (const entry of entries) {
     lines.push(`- ${markdownCell(entry)}`);
   }
+}
+
+function addFlexibleSection(
+  lines: string[],
+  title: string,
+  value: unknown,
+  columns?: Array<[string, string]>,
+) {
+  value = parseJsonValue(value);
+  if (isEmptyValue(value)) return;
+  if (Array.isArray(value)) {
+    if (value.some(isRecord) && columns?.length) {
+      addRecordsTable(lines, title, value, columns);
+      return;
+    }
+    addStringList(lines, title, value);
+    return;
+  }
+  if (isRecord(value)) {
+    addKeyValueTable(lines, title, value);
+    return;
+  }
+  addParagraph(lines, title, value);
 }
 
 function documentPath(item: Record<string, any>) {
@@ -389,11 +436,11 @@ function documentMetaMarkdown(item: Record<string, any>) {
 
 function documentMarkdown(item: Record<string, any>) {
   const docType = normalizedDocType(item.doc_type);
-  const content = isRecord(item.content_json) ? item.content_json : null;
+  const content = parsedRecord(item.content_json) || parsedRecord(item.summary);
   const lines: string[] = [`# ${itemTitle(item, "documents")}`];
   const meta = documentMetaMarkdown(item);
   if (meta) lines.push("", meta);
-  if (item.summary) addParagraph(lines, "摘要", item.summary);
+  if (item.summary && !isJsonLikeString(item.summary)) addParagraph(lines, "摘要", item.summary);
 
   if (!content) {
     const fallback = item.content || item.result || item.error;
@@ -402,15 +449,15 @@ function documentMarkdown(item: Record<string, any>) {
   }
 
   if (docType === "market") {
-    addKeyValueTable(lines, "当前状态", content.current);
-    addRecordsTable(lines, "时间线", content.timeline, [
+    addFlexibleSection(lines, "当前状态", content.current || content.current_status || content.overview);
+    addFlexibleSection(lines, "时间线", content.timeline, [
       ["date", "日期"],
       ["judgment", "判断"],
       ["change_type", "变化类型"],
       ["reason", "关键理由"],
       ["source", "来源"],
     ]);
-    addRecordsTable(lines, "情绪与操作节奏", content.sentiment, [
+    addFlexibleSection(lines, "情绪与操作节奏", content.sentiment, [
       ["date", "日期"],
       ["stage", "情绪阶段"],
       ["style", "风格"],
@@ -422,13 +469,13 @@ function documentMarkdown(item: Record<string, any>) {
   }
 
   if (docType === "rolling") {
-    addRecordsTable(lines, "核心结论", content.core_conclusions, [
+    addFlexibleSection(lines, "核心结论", content.core_conclusions, [
       ["theme", "主题"],
       ["current_judgment", "当前判断"],
       ["change", "变化方向"],
       ["source", "证据动态"],
     ]);
-    addRecordsTable(lines, "市场主线", content.market_themes, [
+    addFlexibleSection(lines, "市场主线", content.market_themes, [
       ["theme", "主线"],
       ["strength", "强度"],
       ["catalyst", "催化"],
@@ -436,7 +483,7 @@ function documentMarkdown(item: Record<string, any>) {
       ["stance", "清风态度"],
       ["source", "来源"],
     ]);
-    addRecordsTable(lines, "大盘与情绪", content.market_sentiment, [
+    addFlexibleSection(lines, "大盘与情绪", content.market_sentiment, [
       ["date", "日期"],
       ["market_status", "大盘状态"],
       ["sentiment", "情绪状态"],
@@ -444,7 +491,7 @@ function documentMarkdown(item: Record<string, any>) {
       ["position", "仓位建议"],
       ["source", "来源"],
     ]);
-    addRecordsTable(lines, "观点变化", content.view_changes, [
+    addFlexibleSection(lines, "观点变化", content.view_changes, [
       ["from", "起点"],
       ["to", "终点"],
       ["change", "变化"],
@@ -491,12 +538,12 @@ function documentMarkdown(item: Record<string, any>) {
   }
 
   if (docType === "method") {
-    addRecordsTable(lines, "稳定原则", content.principles, [
+    addFlexibleSection(lines, "稳定原则", content.principles, [
       ["principle", "原则"],
       ["description", "说明"],
       ["source", "来源"],
     ]);
-    addRecordsTable(lines, "新增/修正记录", content.updates, [
+    addFlexibleSection(lines, "新增/修正记录", content.updates, [
       ["date", "日期"],
       ["new_view", "新观点"],
       ["relation", "与旧观点关系"],
