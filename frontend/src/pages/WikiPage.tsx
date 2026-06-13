@@ -1,4 +1,5 @@
-import { type ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarDays,
   Database,
@@ -145,6 +146,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const startTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const endTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const calendarPanelRef = useRef<HTMLDivElement | null>(null);
+  const [calendarStyle, setCalendarStyle] = useState<CSSProperties>({});
 
   const items = overview?.items || [];
   const availableDates = useMemo(() => {
@@ -195,6 +200,25 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     }
   }, [isAdmin]);
 
+  const updateCalendarPosition = useCallback(() => {
+    if (!openCalendar) return;
+    const trigger = openCalendar === "start" ? startTriggerRef.current : endTriggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const panelWidth = Math.min(306, window.innerWidth - 16);
+    const panelHeight = calendarPanelRef.current?.offsetHeight || 0;
+    const gap = 8;
+    const left = Math.min(Math.max(gap, rect.left), window.innerWidth - panelWidth - gap);
+    let top = rect.bottom + gap;
+
+    if (panelHeight && top + panelHeight > window.innerHeight - gap && rect.top > panelHeight + gap) {
+      top = rect.top - panelHeight - gap;
+    }
+
+    setCalendarStyle({ left, top, width: panelWidth });
+  }, [openCalendar]);
+
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
@@ -202,6 +226,35 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   useEffect(() => {
     loadDynamicDateStats();
   }, [loadDynamicDateStats]);
+
+  useLayoutEffect(() => {
+    updateCalendarPosition();
+  }, [updateCalendarPosition, startDate, endDate, dynamicDateCounts]);
+
+  useEffect(() => {
+    if (!openCalendar) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      const trigger = openCalendar === "start" ? startTriggerRef.current : endTriggerRef.current;
+      if (calendarPanelRef.current?.contains(target) || trigger?.contains(target)) return;
+      setOpenCalendar("");
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenCalendar("");
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updateCalendarPosition);
+    window.addEventListener("scroll", updateCalendarPosition, true);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updateCalendarPosition);
+      window.removeEventListener("scroll", updateCalendarPosition, true);
+    };
+  }, [openCalendar, updateCalendarPosition]);
 
   useEffect(() => {
     if (!availableDates.length) return;
@@ -295,6 +348,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     <div className="wiki-date-field">
       <span>{label}</span>
       <button
+        ref={field === "start" ? startTriggerRef : endTriggerRef}
         type="button"
         className="wiki-date-trigger"
         aria-expanded={openCalendar === field}
@@ -309,8 +363,8 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const renderCalendarPanel = () => {
     if (!openCalendar) return null;
     const value = openCalendar === "start" ? startDate : endDate;
-    return (
-      <div className="wiki-calendar-popover">
+    return createPortal(
+      <div ref={calendarPanelRef} className="wiki-calendar-popover" style={calendarStyle}>
         <Calendar
           key={openCalendar}
           mode="single"
@@ -321,7 +375,8 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
           components={{ DayButton: renderCalendarDayButton }}
         />
         {dateStatsLoading && <div className="wiki-calendar-note">加载动态日期...</div>}
-      </div>
+      </div>,
+      document.body,
     );
   };
 
@@ -349,8 +404,8 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
           <div className="wiki-date-range">
             {renderDatePicker("start", "开始", startDate)}
             {renderDatePicker("end", "结束", endDate)}
-            {renderCalendarPanel()}
           </div>
+          {renderCalendarPanel()}
           <label>
             <span>批次</span>
             <input type="number" min={1} max={100} value={batchSize} onChange={e => setBatchSize(Number(e.target.value || 20))} />

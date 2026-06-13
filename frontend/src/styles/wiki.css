@@ -96,11 +96,14 @@
 }
 
 .wiki-calendar-popover {
-  width: 100%;
-  min-width: 0;
+  position: fixed;
+  z-index: 1000;
+  width: 306px;
+  max-width: calc(100vw - 1rem);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--background);
+  box-shadow: var(--shadow);
   overflow: hidden;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -147,8 +150,8 @@
 .wiki-calendar-popover [data-slot="calendar"] {
   width: 100%;
   max-width: 100%;
-  padding: 0.45rem;
-  --cell-size: 1.95rem;
+  padding: 0.55rem;
+  --cell-size: 2rem;
 }
 
 .wiki-calendar-popover .rdp-months,
