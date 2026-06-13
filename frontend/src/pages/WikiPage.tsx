@@ -170,7 +170,8 @@ function defaultStartDate() {
 }
 
 function itemKey(item: Record<string, any>, index: number) {
-  return item.doc_id || item.date || item.dynamic_id || item.event_id || item.entity_id || item.sector_id || item.job_id || String(index);
+  const id = item.doc_id || item.date || item.dynamic_id || item.event_id || item.entity_id || item.sector_id || item.job_id || "item";
+  return `${id}:${index}`;
 }
 
 function itemTitle(item: Record<string, any>, section: WikiSection) {
@@ -344,12 +345,15 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [rawOpen, setRawOpen] = useState(false);
+  const overviewRequestRef = useRef(0);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const startTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endTriggerRef = useRef<HTMLButtonElement | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
   const [calendarStyle, setCalendarStyle] = useState<CSSProperties>({});
 
-  const items = overview?.items || [];
+  const overviewMatchesSelection = overview?.section === section && (section !== "documents" || (overview.doc_type || "") === docType);
+  const items = overviewMatchesSelection ? overview.items : [];
   const availableDates = useMemo(() => {
     return Object.entries(dynamicDateCounts)
       .filter(([, count]) => count > 0)
@@ -379,15 +383,23 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
 
   const loadOverview = useCallback(async () => {
     if (!isAdmin) return;
+    const requestId = overviewRequestRef.current + 1;
+    overviewRequestRef.current = requestId;
+    const requestSection = section;
+    const requestDocType = docType;
     setLoading(true);
     setError("");
+    setSelectedKey("");
+    listRef.current?.scrollTo({ top: 0 });
     try {
-      const data = await api.get<WikiOverview>("/api/admin/wiki", { section, doc_type: docType, limit: 200 });
+      const data = await api.get<WikiOverview>("/api/admin/wiki", { section: requestSection, doc_type: requestDocType, limit: 200 });
+      if (overviewRequestRef.current !== requestId) return;
       setOverview(data || null);
-      setSelectedKey("");
     } catch (e) {
+      if (overviewRequestRef.current !== requestId) return;
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
+      if (overviewRequestRef.current !== requestId) return;
       setLoading(false);
     }
   }, [docType, isAdmin, section]);
@@ -694,7 +706,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
       </aside>
 
       <div className="wiki-main">
-        <div className="wiki-list">
+        <div className="wiki-list" ref={listRef}>
           <div className="wiki-list-head">
             <FileText size={18} />
             <span>{SECTION_LABELS[section]}</span>
@@ -705,7 +717,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             const active = selected && itemKey(selected, items.indexOf(selected)) === key;
             const advancing = isAdvancingJob(item);
             return (
-              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={key} type="button" onClick={() => setSelectedKey(key)}>
+              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={`${section}:${docType}:${key}`} type="button" onClick={() => setSelectedKey(key)}>
                 <strong className="wiki-row-title">
                   {section === "jobs" && <JobStatusIcon item={item} />}
                   <span>{itemTitle(item, section)}</span>
