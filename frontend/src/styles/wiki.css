@@ -301,6 +301,83 @@
   color: var(--danger);
 }
 
+.wiki-active-job {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.wiki-active-job-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.wiki-progress {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.wiki-progress-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.wiki-progress-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-progress-head strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.wiki-progress-track {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+
+.wiki-progress-track span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.wiki-progress.failed .wiki-progress-track span {
+  background: var(--danger);
+}
+
+.wiki-progress.compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.2rem;
+}
+
+.wiki-progress.compact small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .wiki-main {
   min-width: 0;
   min-height: 0;

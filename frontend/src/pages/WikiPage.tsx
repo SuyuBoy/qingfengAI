@@ -36,9 +36,22 @@ interface WikiJob {
   job_type: string;
   status: string;
   processed?: number;
+  total?: number;
   failed?: number;
   cursor?: string;
   error?: string;
+  phase?: string;
+  current_date?: string;
+  current_dynamic_id?: string;
+  finalized_dates?: string[];
+  progress?: {
+    total?: number;
+    processed?: number;
+    percent?: number;
+    current_date?: string;
+    phase?: string;
+    finalized_count?: number;
+  };
   result?: unknown;
   updated_at?: string;
   created_at?: string;
@@ -103,6 +116,7 @@ const FIELD_LABELS: Record<string, string> = {
   error: "错误",
   event_id: "事件 ID",
   failed: "失败数",
+  finalized_dates: "已总结日期",
   fetched_at: "抓取时间",
   finalized: "已定稿",
   job_id: "任务 ID",
@@ -111,6 +125,8 @@ const FIELD_LABELS: Record<string, string> = {
   long_term_updates: "长期更新",
   name: "名称",
   path: "路径",
+  phase: "阶段",
+  progress: "进度",
   processed: "处理数",
   result: "结果",
   sector_id: "板块 ID",
@@ -125,6 +141,9 @@ const FIELD_LABELS: Record<string, string> = {
   update_type: "更新类型",
   updated_at: "更新时间",
   value: "数值",
+  total: "总数",
+  current_date: "当前日期",
+  current_dynamic_id: "当前动态",
 };
 
 const PRIMARY_FIELDS: Record<WikiSection, string[]> = {
@@ -134,7 +153,7 @@ const PRIMARY_FIELDS: Record<WikiSection, string[]> = {
   events: ["summary", "result", "error"],
   entities: ["summary", "content_json", "result", "error"],
   sectors: ["summary", "content_json", "result", "error"],
-  jobs: ["result", "error"],
+  jobs: ["progress", "result", "error"],
 };
 
 const META_FIELDS = new Set([
@@ -211,7 +230,8 @@ function itemMeta(item: Record<string, any>, section: WikiSection) {
   if (section === "events") return [item.category, item.stance, item.dynamic_id].filter(Boolean).join(" / ");
   if (section === "entities") return [item.type, item.status, item.latest_date].filter(Boolean).join(" / ");
   if (section === "sectors") return [item.board_type, item.code, item.fetched_at].filter(Boolean).join(" / ");
-  return [item.job_type, item.status, `processed=${item.processed ?? 0}`, item.updated_at].filter(Boolean).join(" / ");
+  const progress = jobProgress(item);
+  return [item.job_type, item.status, item.phase, `${progress.processed}/${progress.total}`, item.updated_at].filter(Boolean).join(" / ");
 }
 
 function compactSummary(item: Record<string, any>, section: WikiSection) {
@@ -631,6 +651,50 @@ function JobStatusIcon({ item, size = 16 }: { item: Record<string, any>; size?: 
   return <LoaderCircle className="wiki-job-status running wiki-running-icon" size={size} aria-label="正在运行" />;
 }
 
+function jobProgress(item: Record<string, any>) {
+  const progress = isRecord(item.progress) ? item.progress : {};
+  const total = Math.max(0, Number(progress.total ?? item.total ?? 0) || 0);
+  const rawProcessed = Math.max(0, Number(progress.processed ?? item.processed ?? 0) || 0);
+  const processed = total > 0 ? Math.min(total, rawProcessed) : rawProcessed;
+  const rawPercent = Number(progress.percent ?? (total > 0 ? processed * 100 / total : 0));
+  const percent = Math.max(0, Math.min(100, Number.isFinite(rawPercent) ? rawPercent : 0));
+  const finalizedCount = Number(progress.finalized_count ?? (Array.isArray(item.finalized_dates) ? item.finalized_dates.length : 0)) || 0;
+  return {
+    total,
+    processed,
+    percent,
+    finalizedCount,
+    phase: String(progress.phase ?? item.phase ?? item.status ?? ""),
+    currentDate: String(progress.current_date ?? item.current_date ?? ""),
+  };
+}
+
+function JobProgress({ item, compact = false }: { item: Record<string, any>; compact?: boolean }) {
+  const progress = jobProgress(item);
+  const status = jobDisplayStatus(item);
+  const percentLabel = `${Math.round(progress.percent)}%`;
+  const detail = [
+    progress.total ? `${progress.processed}/${progress.total}` : "",
+    progress.currentDate,
+    progress.phase,
+    progress.finalizedCount ? `已总结 ${progress.finalizedCount} 天` : "",
+  ].filter(Boolean).join(" / ");
+  return (
+    <div className={`wiki-progress${compact ? " compact" : ""}${status === "failed" ? " failed" : ""}`}>
+      {!compact && (
+        <div className="wiki-progress-head">
+          <span>{detail || "等待任务进度"}</span>
+          <strong>{percentLabel}</strong>
+        </div>
+      )}
+      <div className="wiki-progress-track" aria-label={`任务进度 ${percentLabel}`}>
+        <span style={{ width: `${progress.percent}%` }} />
+      </div>
+      {compact && <small>{percentLabel}</small>}
+    </div>
+  );
+}
+
 function nearestPreviousDate(dates: string[], target: string) {
   for (let index = dates.length - 1; index >= 0; index -= 1) {
     if (dates[index] <= target) return dates[index];
@@ -672,6 +736,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [dateStatsLoading, setDateStatsLoading] = useState(false);
   const [openCalendar, setOpenCalendar] = useState<CalendarField | "">("");
   const [jobId, setJobId] = useState("");
+  const [activeJob, setActiveJob] = useState<WikiJob | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -695,6 +760,20 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     ));
   }, [docType, section]);
   const activeCategoryLabel = activeCategory?.label || SECTION_LABELS[section];
+  const mergeJob = useCallback((job: WikiJob) => {
+    setActiveJob(job);
+    setOverview(prev => {
+      if (!prev || prev.section !== "jobs") return prev;
+      const items = [...prev.items];
+      const index = items.findIndex(item => item.job_id === job.job_id);
+      if (index >= 0) {
+        items[index] = { ...items[index], ...job };
+      } else {
+        items.unshift(job as unknown as Record<string, any>);
+      }
+      return { ...prev, items };
+    });
+  }, []);
   const availableDates = useMemo(() => {
     return Object.entries(dynamicDateCounts)
       .filter(([, count]) => count > 0)
@@ -834,6 +913,26 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   }, [loadDynamicDateStats]);
 
   useEffect(() => {
+    if (!isAdmin || !jobId.trim()) return;
+    let stopped = false;
+    const encodedJobId = encodeURIComponent(jobId.trim());
+    const pollJob = async () => {
+      try {
+        const data = await api.get<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodedJobId}`);
+        if (!stopped && data?.job?.job_id) mergeJob(data.job);
+      } catch (e) {
+        if (!stopped) setError(e instanceof Error ? e.message : "任务状态刷新失败");
+      }
+    };
+    pollJob();
+    const timer = window.setInterval(pollJob, 3000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [isAdmin, jobId, mergeJob]);
+
+  useEffect(() => {
     setRawOpen(false);
   }, [section, selectedKey]);
 
@@ -902,6 +1001,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     });
     if (data?.job?.job_id) {
       setJobId(data.job.job_id);
+      mergeJob(data.job);
       setDocType("");
       setSection("jobs");
     }
@@ -910,7 +1010,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const runJobBatch = () => runAction("推进任务", async () => {
     if (!jobId.trim()) throw new Error("缺少 job_id");
     const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(jobId.trim())}/run`);
-    if (data?.job?.job_id) setJobId(data.job.job_id);
+    if (data?.job?.job_id) {
+      setJobId(data.job.job_id);
+      mergeJob(data.job);
+    }
     setDocType("");
     setSection("jobs");
   });
@@ -1052,6 +1155,15 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             <span>任务 ID</span>
             <input value={jobId} onChange={e => setJobId(e.target.value)} placeholder="wiki-init-..." />
           </label>
+          {activeJob && activeJob.job_id === jobId.trim() && (
+            <div className="wiki-active-job">
+              <div className="wiki-active-job-title">
+                <JobStatusIcon item={activeJob as unknown as Record<string, any>} />
+                <span>{jobStatusLabel(activeJob as unknown as Record<string, any>)}</span>
+              </div>
+              <JobProgress item={activeJob as unknown as Record<string, any>} />
+            </div>
+          )}
           <button className="wiki-action" type="button" disabled={Boolean(busy)} onClick={runJobBatch}>
             {busy === "推进任务" ? <LoaderCircle className="wiki-running-icon" size={17} /> : <Play size={17} />}
             <span>推进一批</span>
@@ -1136,6 +1248,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
                 </strong>
                 <span>{section === "jobs" ? `${jobStatusLabel(item)} / ${itemMeta(item, section)}` : itemMeta(item, section)}</span>
                 {compactSummary(item, section) && <small>{compactSummary(item, section)}</small>}
+                {section === "jobs" && <JobProgress item={item} compact />}
               </button>
             );
           }) : (
@@ -1159,6 +1272,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
                   </button>
                 </div>
               </div>
+              {section === "jobs" && <JobProgress item={selected} />}
               <div className="wiki-detail-body markdown-body" dangerouslySetInnerHTML={{ __html: selectedHtml }} />
             </>
           ) : (
