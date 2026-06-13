@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarDays,
   Database,
   FileText,
   ListRestart,
@@ -9,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { api } from "../api";
+import { Calendar, CalendarDayButton } from "../components/ui/calendar";
 import type { CurrentUser } from "../types";
 
 type WikiSection = "documents" | "daily" | "sources" | "events" | "entities" | "sectors" | "jobs";
@@ -32,6 +34,11 @@ interface WikiOverview {
   doc_type?: string;
   counts: Record<string, number>;
   items: Record<string, any>[];
+}
+
+interface DynamicDateStats {
+  dates: Array<{ date: string; count: number }>;
+  counts?: Record<string, number>;
 }
 
 const SECTION_LABELS: Record<WikiSection, string> = {
@@ -58,6 +65,12 @@ function formatDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function parseDate(value: string) {
+  if (!value) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function defaultEndDate() {
@@ -100,6 +113,21 @@ function compactSummary(item: Record<string, any>, section: WikiSection) {
   return JSON.stringify(value).slice(0, 180);
 }
 
+function nearestPreviousDate(dates: string[], target: string) {
+  for (let index = dates.length - 1; index >= 0; index -= 1) {
+    if (dates[index] <= target) return dates[index];
+  }
+  return dates[dates.length - 1] || target;
+}
+
+function nearestNextDate(dates: string[], target: string, maxDate: string) {
+  const next = dates.find(date => date >= target && date <= maxDate);
+  return next || maxDate;
+}
+
+type CalendarField = "start" | "end";
+type WikiCalendarDayButtonProps = ComponentProps<typeof CalendarDayButton>;
+
 export default function WikiPage({ user }: { user: CurrentUser }) {
   const isAdmin = user.is_admin === true || user.role === "admin";
   const [section, setSection] = useState<WikiSection>("documents");
@@ -109,16 +137,35 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [batchSize, setBatchSize] = useState(20);
+  const [dynamicDateCounts, setDynamicDateCounts] = useState<Record<string, number>>({});
+  const [dateStatsLoading, setDateStatsLoading] = useState(false);
+  const [openCalendar, setOpenCalendar] = useState<CalendarField | "">("");
   const [jobId, setJobId] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const items = overview?.items || [];
+  const availableDates = useMemo(() => {
+    return Object.entries(dynamicDateCounts)
+      .filter(([, count]) => count > 0)
+      .map(([date]) => date)
+      .sort();
+  }, [dynamicDateCounts]);
   const selected = useMemo(() => {
     return items.find((item, index) => itemKey(item, index) === selectedKey) || items[0] || null;
   }, [items, selectedKey]);
+  const batchForRange = useCallback((nextStartDate: string, nextEndDate: string) => {
+    const from = nextStartDate <= nextEndDate ? nextStartDate : nextEndDate;
+    const to = nextStartDate <= nextEndDate ? nextEndDate : nextStartDate;
+    const total = availableDates.reduce((sum, date) => {
+      if (date < from || date > to) return sum;
+      return sum + (dynamicDateCounts[date] || 0);
+    }, 0);
+    return Math.max(1, Math.min(total || 1, 100));
+  }, [availableDates, dynamicDateCounts]);
 
   const loadOverview = useCallback(async () => {
     if (!isAdmin) return;
@@ -135,9 +182,58 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     }
   }, [docType, isAdmin, section]);
 
+  const loadDynamicDateStats = useCallback(async () => {
+    if (!isAdmin) return;
+    setDateStatsLoading(true);
+    try {
+      const data = await api.get<DynamicDateStats>("/api/admin/wiki/dynamic-dates");
+      const counts = data?.counts || Object.fromEntries((data?.dates || []).map(item => [item.date, item.count]));
+      setDynamicDateCounts(counts);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "动态日期加载失败");
+    } finally {
+      setDateStatsLoading(false);
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  useEffect(() => {
+    loadDynamicDateStats();
+  }, [loadDynamicDateStats]);
+
+  useEffect(() => {
+    if (!openCalendar) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!calendarRef.current?.contains(event.target as Node)) {
+        setOpenCalendar("");
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenCalendar("");
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openCalendar]);
+
+  useEffect(() => {
+    if (!availableDates.length) return;
+    const alignedEnd = dynamicDateCounts[endDate] ? endDate : nearestPreviousDate(availableDates, endDate);
+    const alignedStart = dynamicDateCounts[startDate] && startDate <= alignedEnd
+      ? startDate
+      : nearestNextDate(availableDates, startDate, alignedEnd);
+    if (alignedStart !== startDate) setStartDate(alignedStart);
+    if (alignedEnd !== endDate) setEndDate(alignedEnd);
+    setBatchSize(batchForRange(alignedStart, alignedEnd));
+  }, [availableDates, batchForRange, dynamicDateCounts, endDate, startDate]);
 
   const runAction = useCallback(async (label: string, action: () => Promise<void>) => {
     setBusy(label);
@@ -191,6 +287,60 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     setJobId("");
   });
 
+  const handleDateSelect = useCallback((field: CalendarField, date?: Date) => {
+    if (!date) return;
+    const selectedDate = formatDate(date);
+    const nextStart = field === "start" ? selectedDate : startDate;
+    const nextEnd = field === "end" ? selectedDate : endDate;
+    const alignedStart = nextStart <= nextEnd ? nextStart : selectedDate;
+    const alignedEnd = nextStart <= nextEnd ? nextEnd : selectedDate;
+    setStartDate(alignedStart);
+    setEndDate(alignedEnd);
+    setBatchSize(batchForRange(alignedStart, alignedEnd));
+    setOpenCalendar("");
+  }, [batchForRange, endDate, startDate]);
+
+  const renderCalendarDayButton = useCallback((props: WikiCalendarDayButtonProps) => {
+    const day = formatDate(props.day.date);
+    const count = dynamicDateCounts[day] || 0;
+    const className = `${props.className || ""} wiki-calendar-day${count ? " has-dynamics" : " no-dynamics"}`;
+    return (
+      <CalendarDayButton {...props} className={className}>
+        <span className="wiki-calendar-date">{props.children}</span>
+        {count > 0 && <span className="wiki-calendar-count">{count}</span>}
+      </CalendarDayButton>
+    );
+  }, [dynamicDateCounts]);
+
+  const renderDatePicker = (field: CalendarField, label: string, value: string) => (
+    <div className="wiki-date-field">
+      <span>{label}</span>
+      <button
+        type="button"
+        className="wiki-date-trigger"
+        aria-expanded={openCalendar === field}
+        onClick={() => setOpenCalendar(open => open === field ? "" : field)}
+      >
+        <span>{value}</span>
+        <CalendarDays size={16} />
+      </button>
+      {openCalendar === field && (
+        <div className="wiki-calendar-popover">
+          <Calendar
+            key={field}
+            mode="single"
+            defaultMonth={parseDate(value)}
+            selected={parseDate(value)}
+            onSelect={date => handleDateSelect(field, date)}
+            disabled={date => !dynamicDateCounts[formatDate(date)]}
+            components={{ DayButton: renderCalendarDayButton }}
+          />
+          {dateStatsLoading && <div className="wiki-calendar-note">加载动态日期...</div>}
+        </div>
+      )}
+    </div>
+  );
+
   if (!isAdmin) {
     return (
       <section className="wiki-page">
@@ -212,14 +362,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
 
         <div className="wiki-panel">
           <div className="wiki-panel-title">初始化</div>
-          <label>
-            <span>开始</span>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          </label>
-          <label>
-            <span>结束</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          </label>
+          <div className="wiki-date-range" ref={calendarRef}>
+            {renderDatePicker("start", "开始", startDate)}
+            {renderDatePicker("end", "结束", endDate)}
+          </div>
           <label>
             <span>批次</span>
             <input type="number" min={1} max={100} value={batchSize} onChange={e => setBatchSize(Number(e.target.value || 20))} />
