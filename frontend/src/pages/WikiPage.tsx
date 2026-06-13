@@ -282,7 +282,254 @@ function markdownValue(value: unknown, level = 2): string {
   return formatScalar(value);
 }
 
+function markdownCell(value: unknown): string {
+  if (isEmptyValue(value)) return "原文未说明";
+  if (Array.isArray(value)) {
+    const text = value.map(entry => {
+      if (isRecord(entry)) return Object.values(entry).filter(v => !isEmptyValue(v)).map(formatScalar).join(" / ");
+      return formatScalar(entry);
+    }).filter(Boolean).join("、");
+    return markdownCell(text);
+  }
+  if (isRecord(value)) {
+    const text = Object.entries(value)
+      .filter(([, entry]) => !isEmptyValue(entry))
+      .map(([key, entry]) => `${fieldLabel(key)}：${formatScalarValue(entry)}`)
+      .join("；");
+    return markdownCell(text);
+  }
+  return formatScalar(value).replace(/\|/g, "｜").replace(/\r?\n/g, "；");
+}
+
+function formatScalarValue(value: unknown): string {
+  if (isEmptyValue(value)) return "";
+  if (Array.isArray(value)) return value.map(formatScalarValue).filter(Boolean).join("、");
+  if (isRecord(value)) {
+    return Object.entries(value)
+      .filter(([, entry]) => !isEmptyValue(entry))
+      .map(([key, entry]) => `${fieldLabel(key)}：${formatScalarValue(entry)}`)
+      .join("；");
+  }
+  return formatScalar(value);
+}
+
+function sectionHeading(lines: string[], title: string) {
+  lines.push("", `## ${title}`);
+}
+
+function addParagraph(lines: string[], title: string, value: unknown) {
+  if (isEmptyValue(value)) return;
+  sectionHeading(lines, title);
+  lines.push("", markdownCell(value));
+}
+
+function addKeyValueTable(lines: string[], title: string, value: unknown, label = "维度") {
+  if (!isRecord(value)) {
+    addParagraph(lines, title, value);
+    return;
+  }
+  const rows = Object.entries(value).filter(([, entry]) => !isEmptyValue(entry));
+  if (!rows.length) return;
+  sectionHeading(lines, title);
+  lines.push("", `| ${label} | 内容 |`, "| --- | --- |");
+  for (const [key, entry] of rows) {
+    lines.push(`| ${markdownCell(fieldLabel(key))} | ${markdownCell(entry)} |`);
+  }
+}
+
+function addRecordsTable(
+  lines: string[],
+  title: string,
+  value: unknown,
+  columns: Array<[string, string]>,
+) {
+  const rows = Array.isArray(value) ? value.filter(isRecord) : [];
+  if (!rows.length) return;
+  sectionHeading(lines, title);
+  lines.push("", `| ${columns.map(([, label]) => markdownCell(label)).join(" | ")} |`);
+  lines.push(`| ${columns.map(() => "---").join(" | ")} |`);
+  for (const row of rows) {
+    lines.push(`| ${columns.map(([key]) => markdownCell(row[key])).join(" | ")} |`);
+  }
+}
+
+function addStringList(lines: string[], title: string, value: unknown) {
+  if (!Array.isArray(value) || !value.length) return;
+  const entries = value.filter(entry => !isEmptyValue(entry));
+  if (!entries.length) return;
+  sectionHeading(lines, title);
+  for (const entry of entries) {
+    lines.push(`- ${markdownCell(entry)}`);
+  }
+}
+
+function documentPath(item: Record<string, any>) {
+  if (item.path) return item.path;
+  const docType = normalizedDocType(item.doc_type);
+  const docId = item.doc_id || "";
+  if (docType === "sector") return `sectors/${docId}.md`;
+  if (docType === "stock") return `stocks/${docId}.md`;
+  if (docType === "method") return `methods/${docId}.md`;
+  if (docType === "market") return `market/${docId}.md`;
+  if (docType === "rolling") return `rolling/${docId}.md`;
+  return docId ? `${docId}.md` : "";
+}
+
+function documentMetaMarkdown(item: Record<string, any>) {
+  const rows = [
+    ["路径", documentPath(item)],
+    ["状态", item.status],
+    ["更新时间", item.updated_at],
+    ["日期范围", item.date_range],
+    ["来源动态", item.source_dynamic_ids],
+  ].filter(([, value]) => !isEmptyValue(value));
+  if (!rows.length) return "";
+  return rows.map(([label, value]) => `> **${label}**：${markdownCell(value)}`).join("\n");
+}
+
+function documentMarkdown(item: Record<string, any>) {
+  const docType = normalizedDocType(item.doc_type);
+  const content = isRecord(item.content_json) ? item.content_json : null;
+  const lines: string[] = [`# ${itemTitle(item, "documents")}`];
+  const meta = documentMetaMarkdown(item);
+  if (meta) lines.push("", meta);
+  if (item.summary) addParagraph(lines, "摘要", item.summary);
+
+  if (!content) {
+    const fallback = item.content || item.result || item.error;
+    if (!isEmptyValue(fallback)) lines.push("", markdownValue(fallback, 2));
+    return lines.join("\n");
+  }
+
+  if (docType === "market") {
+    addKeyValueTable(lines, "当前状态", content.current);
+    addRecordsTable(lines, "时间线", content.timeline, [
+      ["date", "日期"],
+      ["judgment", "判断"],
+      ["change_type", "变化类型"],
+      ["reason", "关键理由"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "情绪与操作节奏", content.sentiment, [
+      ["date", "日期"],
+      ["stage", "情绪阶段"],
+      ["style", "风格"],
+      ["action", "操作建议"],
+      ["source", "来源"],
+    ]);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["current", "timeline", "sentiment"].includes(key))));
+    return lines.join("\n");
+  }
+
+  if (docType === "rolling") {
+    addRecordsTable(lines, "核心结论", content.core_conclusions, [
+      ["theme", "主题"],
+      ["current_judgment", "当前判断"],
+      ["change", "变化方向"],
+      ["source", "证据动态"],
+    ]);
+    addRecordsTable(lines, "市场主线", content.market_themes, [
+      ["theme", "主线"],
+      ["strength", "强度"],
+      ["catalyst", "催化"],
+      ["risk", "风险"],
+      ["stance", "清风态度"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "大盘与情绪", content.market_sentiment, [
+      ["date", "日期"],
+      ["market_status", "大盘状态"],
+      ["sentiment", "情绪状态"],
+      ["style", "量能/风格"],
+      ["position", "仓位建议"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "观点变化", content.view_changes, [
+      ["from", "起点"],
+      ["to", "终点"],
+      ["change", "变化"],
+      ["trigger", "触发原因"],
+      ["source", "来源"],
+    ]);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["core_conclusions", "market_themes", "market_sentiment", "view_changes"].includes(key))));
+    return lines.join("\n");
+  }
+
+  if (docType === "sector") {
+    addKeyValueTable(lines, "当前结论", content.current);
+    addRecordsTable(lines, "事件线", content.events, [
+      ["date", "日期"],
+      ["event", "事件/催化"],
+      ["view", "清风观点"],
+      ["impact", "影响"],
+      ["stocks", "相关个股"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "阶段总结", content.stage_summaries, [
+      ["period", "时间段"],
+      ["mainline_change", "主线变化"],
+      ["view_change", "观点变化"],
+      ["conclusion", "结论"],
+    ]);
+    addStringList(lines, "别名", content.aliases);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["current", "events", "stage_summaries", "aliases"].includes(key))));
+    return lines.join("\n");
+  }
+
+  if (docType === "stock") {
+    addKeyValueTable(lines, "当前结论", content.current);
+    addStringList(lines, "所属板块", content.sectors);
+    addRecordsTable(lines, "提及时间线", content.mentions, [
+      ["date", "日期"],
+      ["scene", "场景"],
+      ["view", "观点"],
+      ["sectors", "相关板块"],
+      ["source", "来源"],
+    ]);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["current", "sectors", "mentions"].includes(key))));
+    return lines.join("\n");
+  }
+
+  if (docType === "method") {
+    addRecordsTable(lines, "稳定原则", content.principles, [
+      ["principle", "原则"],
+      ["description", "说明"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "新增/修正记录", content.updates, [
+      ["date", "日期"],
+      ["new_view", "新观点"],
+      ["relation", "与旧观点关系"],
+      ["source", "来源"],
+    ]);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["principles", "updates"].includes(key))));
+    return lines.join("\n");
+  }
+
+  lines.push("", markdownValue(content, 2));
+  return lines.join("\n");
+}
+
+function dailyMarkdown(item: Record<string, any>) {
+  const lines: string[] = [`# ${itemTitle(item, "daily")}`];
+  const meta = itemMeta(item, "daily");
+  if (meta) lines.push("", `- **信息**：${meta}`);
+  addParagraph(lines, "日终总结", item.daily_summary);
+  addKeyValueTable(lines, "每日概览", item.daily_overview);
+  addRecordsTable(lines, "长期 Wiki 更新", item.long_term_updates, [
+    ["target", "目标"],
+    ["update_type", "更新类型"],
+    ["summary", "摘要"],
+    ["source", "来源"],
+  ]);
+  addStringList(lines, "来源动态", item.source_dynamic_ids);
+  return lines.join("\n");
+}
+
 function recordMarkdown(item: Record<string, any>, section: WikiSection) {
+  if (section === "documents") return documentMarkdown(item);
+  if (section === "daily") return dailyMarkdown(item);
+
   const meta = itemMeta(item, section);
   const orderedKeys = [
     ...PRIMARY_FIELDS[section],
