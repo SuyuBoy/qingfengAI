@@ -5,6 +5,7 @@ import {
   Database,
   FileText,
   ListRestart,
+  LoaderCircle,
   Play,
   RefreshCw,
   RotateCw,
@@ -161,6 +162,11 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const selected = useMemo(() => {
     return items.find((item, index) => itemKey(item, index) === selectedKey) || items[0] || null;
   }, [items, selectedKey]);
+  const isAdvancingJob = useCallback((item: Record<string, any> | null) => {
+    if (section !== "jobs" || !item) return false;
+    if (item.status === "running") return true;
+    return busy === "推进任务" && Boolean(item.job_id) && item.job_id === jobId.trim();
+  }, [busy, jobId, section]);
   const batchForRange = useCallback((nextStartDate: string, nextEndDate: string) => {
     const from = nextStartDate <= nextEndDate ? nextStartDate : nextEndDate;
     const to = nextStartDate <= nextEndDate ? nextEndDate : nextStartDate;
@@ -419,7 +425,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             <input value={jobId} onChange={e => setJobId(e.target.value)} placeholder="wiki-init-..." />
           </label>
           <button className="wiki-action" type="button" disabled={Boolean(busy)} onClick={runJobBatch}>
-            <Play size={17} />
+            {busy === "推进任务" ? <LoaderCircle className="wiki-running-icon" size={17} /> : <Play size={17} />}
             <span>推进一批</span>
           </button>
         </div>
@@ -474,9 +480,13 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
           {items.length ? items.map((item, index) => {
             const key = itemKey(item, index);
             const active = selected && itemKey(selected, items.indexOf(selected)) === key;
+            const advancing = isAdvancingJob(item);
             return (
-              <button className={`wiki-row${active ? " active" : ""}`} key={key} type="button" onClick={() => setSelectedKey(key)}>
-                <strong>{itemTitle(item, section)}</strong>
+              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={key} type="button" onClick={() => setSelectedKey(key)}>
+                <strong className="wiki-row-title">
+                  <span>{itemTitle(item, section)}</span>
+                  {advancing && <LoaderCircle className="wiki-running-icon" size={16} />}
+                </strong>
                 <span>{itemMeta(item, section)}</span>
                 {compactSummary(item, section) && <small>{compactSummary(item, section)}</small>}
               </button>
@@ -490,7 +500,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
           {selected ? (
             <>
               <div className="wiki-detail-head">
-                <h2>{itemTitle(selected, section)}</h2>
+                <h2>
+                  <span>{itemTitle(selected, section)}</span>
+                  {isAdvancingJob(selected) && <LoaderCircle className="wiki-running-icon" size={17} />}
+                </h2>
                 <span>{itemMeta(selected, section)}</span>
               </div>
               <pre>{JSON.stringify(selected, null, 2)}</pre>

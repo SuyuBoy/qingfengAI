@@ -331,31 +331,58 @@
 }
 
 .wiki-row:hover,
-.wiki-row.active {
+.wiki-row.active,
+.wiki-row.running {
   background: var(--surface);
 }
 
-.wiki-row strong,
-.wiki-row span,
-.wiki-row small {
+.wiki-row > strong,
+.wiki-row > span,
+.wiki-row > small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.wiki-row strong {
+.wiki-row > strong {
   font-size: 0.94rem;
 }
 
-.wiki-row span {
+.wiki-row > span {
   color: var(--muted);
   font-size: 0.78rem;
 }
 
-.wiki-row small {
+.wiki-row > small {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.wiki-row-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.wiki-row-title span,
+.wiki-detail-head h2 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-running-icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+  animation: wiki-spin 0.9s linear infinite;
+}
+
+@keyframes wiki-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .wiki-detail {
@@ -375,9 +402,9 @@
 
 .wiki-detail-head h2 {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 0;
   font-size: 1rem;
 }
