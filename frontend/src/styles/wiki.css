@@ -84,10 +84,6 @@
   gap: 0.55rem;
 }
 
-.wiki-date-field {
-  position: relative;
-}
-
 .wiki-date-trigger {
   display: inline-flex;
   align-items: center;
@@ -100,16 +96,11 @@
 }
 
 .wiki-calendar-popover {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  z-index: 45;
-  width: 306px;
-  max-width: min(306px, calc(100vw - 2rem));
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--background);
-  box-shadow: var(--shadow);
   overflow: hidden;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -155,14 +146,26 @@
 
 .wiki-calendar-popover [data-slot="calendar"] {
   width: 100%;
-  padding: 0.55rem;
-  --cell-size: 2.1rem;
+  max-width: 100%;
+  padding: 0.45rem;
+  --cell-size: 1.95rem;
 }
 
 .wiki-calendar-popover .rdp-months,
 .wiki-calendar-popover .rdp-month,
 .wiki-calendar-popover .rdp-month_grid {
   width: 100%;
+}
+
+.wiki-calendar-popover .rdp-months,
+.wiki-calendar-popover .rdp-month {
+  min-width: 0;
+}
+
+.wiki-calendar-popover .rdp-weekdays,
+.wiki-calendar-popover .rdp-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .wiki-calendar-day .wiki-calendar-date {

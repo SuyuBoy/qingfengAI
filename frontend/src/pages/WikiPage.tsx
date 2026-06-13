@@ -1,4 +1,4 @@
-import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Database,
@@ -145,7 +145,6 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const calendarRef = useRef<HTMLDivElement>(null);
 
   const items = overview?.items || [];
   const availableDates = useMemo(() => {
@@ -203,26 +202,6 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   useEffect(() => {
     loadDynamicDateStats();
   }, [loadDynamicDateStats]);
-
-  useEffect(() => {
-    if (!openCalendar) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!calendarRef.current?.contains(event.target as Node)) {
-        setOpenCalendar("");
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenCalendar("");
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [openCalendar]);
 
   useEffect(() => {
     if (!availableDates.length) return;
@@ -324,22 +303,27 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
         <span>{value}</span>
         <CalendarDays size={16} />
       </button>
-      {openCalendar === field && (
-        <div className="wiki-calendar-popover">
-          <Calendar
-            key={field}
-            mode="single"
-            defaultMonth={parseDate(value)}
-            selected={parseDate(value)}
-            onSelect={date => handleDateSelect(field, date)}
-            disabled={date => !dynamicDateCounts[formatDate(date)]}
-            components={{ DayButton: renderCalendarDayButton }}
-          />
-          {dateStatsLoading && <div className="wiki-calendar-note">加载动态日期...</div>}
-        </div>
-      )}
     </div>
   );
+
+  const renderCalendarPanel = () => {
+    if (!openCalendar) return null;
+    const value = openCalendar === "start" ? startDate : endDate;
+    return (
+      <div className="wiki-calendar-popover">
+        <Calendar
+          key={openCalendar}
+          mode="single"
+          defaultMonth={parseDate(value)}
+          selected={parseDate(value)}
+          onSelect={date => handleDateSelect(openCalendar, date)}
+          disabled={date => !dynamicDateCounts[formatDate(date)]}
+          components={{ DayButton: renderCalendarDayButton }}
+        />
+        {dateStatsLoading && <div className="wiki-calendar-note">加载动态日期...</div>}
+      </div>
+    );
+  };
 
   if (!isAdmin) {
     return (
@@ -362,9 +346,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
 
         <div className="wiki-panel">
           <div className="wiki-panel-title">初始化</div>
-          <div className="wiki-date-range" ref={calendarRef}>
+          <div className="wiki-date-range">
             {renderDatePicker("start", "开始", startDate)}
             {renderDatePicker("end", "结束", endDate)}
+            {renderCalendarPanel()}
           </div>
           <label>
             <span>批次</span>
