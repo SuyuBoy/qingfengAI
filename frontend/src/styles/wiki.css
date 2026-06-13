@@ -415,6 +415,10 @@
   color: var(--danger);
 }
 
+.wiki-job-status.pending {
+  color: var(--muted);
+}
+
 .wiki-job-status.running {
   color: var(--accent-2);
 }

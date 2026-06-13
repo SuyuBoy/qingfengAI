@@ -6,6 +6,7 @@ import {
   Database,
   Eye,
   FileText,
+  Hourglass,
   ListRestart,
   LoaderCircle,
   Play,
@@ -604,10 +605,13 @@ function recordMarkdown(item: Record<string, any>, section: WikiSection) {
   return lines.join("\n");
 }
 
-function jobDisplayStatus(item: Record<string, any>) {
+type JobDisplayStatus = "success" | "failed" | "pending" | "running";
+
+function jobDisplayStatus(item: Record<string, any>): JobDisplayStatus {
   const status = String(item.status || "").toLowerCase();
   if (["success", "succeeded", "complete", "completed", "done", "finished", "finalized"].includes(status)) return "success";
   if (["failed", "failure", "error", "errored", "cancelled", "canceled", "timeout"].includes(status)) return "failed";
+  if (["pending", "waiting", "queued", "ready", "idle"].includes(status)) return "pending";
   return "running";
 }
 
@@ -615,6 +619,7 @@ function jobStatusLabel(item: Record<string, any>) {
   const status = jobDisplayStatus(item);
   if (status === "success") return "成功";
   if (status === "failed") return "失败";
+  if (status === "pending") return "等待推进";
   return "正在运行";
 }
 
@@ -622,6 +627,7 @@ function JobStatusIcon({ item, size = 16 }: { item: Record<string, any>; size?: 
   const status = jobDisplayStatus(item);
   if (status === "success") return <CheckCircle2 className="wiki-job-status success" size={size} aria-label="成功" />;
   if (status === "failed") return <XCircle className="wiki-job-status failed" size={size} aria-label="失败" />;
+  if (status === "pending") return <Hourglass className="wiki-job-status pending" size={size} aria-label="等待推进" />;
   return <LoaderCircle className="wiki-job-status running wiki-running-icon" size={size} aria-label="正在运行" />;
 }
 
@@ -703,7 +709,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const selectedRaw = useMemo(() => selected ? JSON.stringify(selected, null, 2) : "", [selected]);
   const isAdvancingJob = useCallback((item: Record<string, any> | null) => {
     if (section !== "jobs" || !item) return false;
-    if (item.status === "running") return true;
+    if (jobDisplayStatus(item) === "running") return true;
     return busy === "推进任务" && Boolean(item.job_id) && item.job_id === jobId.trim();
   }, [busy, jobId, section]);
   const batchForRange = useCallback((nextStartDate: string, nextEndDate: string) => {
