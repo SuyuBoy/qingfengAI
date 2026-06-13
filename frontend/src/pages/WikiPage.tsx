@@ -2,7 +2,9 @@ import { type ComponentProps, type CSSProperties, useCallback, useEffect, useLay
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
+  CheckCircle2,
   Database,
+  Eye,
   FileText,
   ListRestart,
   LoaderCircle,
@@ -10,9 +12,11 @@ import {
   RefreshCw,
   RotateCw,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { api } from "../api";
 import { Calendar, CalendarDayButton } from "../components/ui/calendar";
+import { renderMarkdown } from "../markdown";
 import type { CurrentUser } from "../types";
 
 type WikiSection = "documents" | "daily" | "sources" | "events" | "entities" | "sectors" | "jobs";
@@ -61,6 +65,86 @@ const DOC_TYPES: Array<{ value: DocType; label: string }> = [
   { value: "stock", label: "个股" },
   { value: "method", label: "方法" },
 ];
+
+const FIELD_LABELS: Record<string, string> = {
+  board_type: "板块类型",
+  category: "分类",
+  code: "代码",
+  content: "内容",
+  content_json: "结构化内容",
+  created_at: "创建时间",
+  cursor: "游标",
+  daily_overview: "每日概览",
+  daily_summary: "每日总结",
+  date: "日期",
+  description: "说明",
+  doc_id: "文档 ID",
+  doc_type: "文档类型",
+  dynamic_id: "动态 ID",
+  entity_id: "实体 ID",
+  error: "错误",
+  event_id: "事件 ID",
+  failed: "失败数",
+  fetched_at: "抓取时间",
+  finalized: "已定稿",
+  job_id: "任务 ID",
+  job_type: "任务类型",
+  latest_date: "最新日期",
+  long_term_updates: "长期更新",
+  name: "名称",
+  processed: "处理数",
+  result: "结果",
+  sector_id: "板块 ID",
+  source: "来源",
+  status: "状态",
+  stance: "倾向",
+  summary: "摘要",
+  target: "目标",
+  time: "时间",
+  title: "标题",
+  type: "类型",
+  update_type: "更新类型",
+  updated_at: "更新时间",
+  value: "数值",
+};
+
+const PRIMARY_FIELDS: Record<WikiSection, string[]> = {
+  documents: ["summary", "content", "content_json", "result", "error"],
+  daily: ["daily_summary", "daily_overview", "long_term_updates", "summary", "result", "error"],
+  sources: ["summary", "content", "value", "result", "error"],
+  events: ["summary", "result", "error"],
+  entities: ["summary", "content_json", "result", "error"],
+  sectors: ["summary", "content_json", "result", "error"],
+  jobs: ["result", "error"],
+};
+
+const META_FIELDS = new Set([
+  "board_type",
+  "category",
+  "code",
+  "created_at",
+  "date",
+  "doc_id",
+  "doc_type",
+  "dynamic_id",
+  "entity_id",
+  "event_id",
+  "failed",
+  "fetched_at",
+  "finalized",
+  "job_id",
+  "job_type",
+  "latest_date",
+  "name",
+  "processed",
+  "sector_id",
+  "status",
+  "stance",
+  "time",
+  "title",
+  "type",
+  "updated_at",
+]);
 
 function formatDate(date: Date) {
   const year = date.getFullYear();
@@ -115,6 +199,118 @@ function compactSummary(item: Record<string, any>, section: WikiSection) {
   return JSON.stringify(value).slice(0, 180);
 }
 
+function fieldLabel(key: string) {
+  return FIELD_LABELS[key] || key.replace(/_/g, " ");
+}
+
+function isEmptyValue(value: unknown) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatScalar(value: unknown) {
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value.trim();
+  return String(value);
+}
+
+function markdownHeading(level: number, title: string) {
+  return `${"#".repeat(Math.min(Math.max(level, 2), 4))} ${title}`;
+}
+
+function markdownObject(value: Record<string, unknown>, level: number): string {
+  const lines: string[] = [];
+  for (const [key, entry] of Object.entries(value)) {
+    if (isEmptyValue(entry)) continue;
+    const label = fieldLabel(key);
+    if (isRecord(entry) || Array.isArray(entry)) {
+      lines.push(markdownHeading(level, label), "", markdownValue(entry, level + 1));
+      continue;
+    }
+    const text = formatScalar(entry);
+    if (text.length > 120 || text.includes("\n")) {
+      lines.push(markdownHeading(level, label), "", text);
+    } else {
+      lines.push(`- **${label}**：${text}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function markdownValue(value: unknown, level = 2): string {
+  if (isEmptyValue(value)) return "暂无内容";
+  if (Array.isArray(value)) {
+    return value.map((entry, index) => {
+      if (isRecord(entry)) {
+        return `${markdownHeading(level, `条目 ${index + 1}`)}\n\n${markdownObject(entry, level + 1)}`;
+      }
+      if (Array.isArray(entry)) {
+        return `${markdownHeading(level, `条目 ${index + 1}`)}\n\n${markdownValue(entry, level + 1)}`;
+      }
+      return `- ${formatScalar(entry)}`;
+    }).join("\n\n");
+  }
+  if (isRecord(value)) return markdownObject(value, level);
+  return formatScalar(value);
+}
+
+function recordMarkdown(item: Record<string, any>, section: WikiSection) {
+  const meta = itemMeta(item, section);
+  const orderedKeys = [
+    ...PRIMARY_FIELDS[section],
+    ...Object.keys(item).filter(key => !PRIMARY_FIELDS[section].includes(key) && !META_FIELDS.has(key)),
+  ];
+  const seen = new Set<string>();
+  const lines: string[] = [`# ${itemTitle(item, section)}`];
+
+  if (meta) lines.push("", `- **信息**：${meta}`);
+
+  for (const key of orderedKeys) {
+    if (seen.has(key) || isEmptyValue(item[key])) continue;
+    seen.add(key);
+    lines.push("", markdownHeading(2, fieldLabel(key)), "", markdownValue(item[key], 3));
+  }
+
+  if (lines.length <= 3) {
+    const fallbackKeys = Object.keys(item).filter(key => !META_FIELDS.has(key) && !isEmptyValue(item[key]));
+    for (const key of fallbackKeys) {
+      if (seen.has(key)) continue;
+      lines.push("", markdownHeading(2, fieldLabel(key)), "", markdownValue(item[key], 3));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function jobDisplayStatus(item: Record<string, any>) {
+  const status = String(item.status || "").toLowerCase();
+  if (["success", "succeeded", "complete", "completed", "done", "finished", "finalized"].includes(status)) return "success";
+  if (["failed", "failure", "error", "errored", "cancelled", "canceled", "timeout"].includes(status)) return "failed";
+  return "running";
+}
+
+function jobStatusLabel(item: Record<string, any>) {
+  const status = jobDisplayStatus(item);
+  if (status === "success") return "成功";
+  if (status === "failed") return "失败";
+  return "正在运行";
+}
+
+function JobStatusIcon({ item, size = 16 }: { item: Record<string, any>; size?: number }) {
+  const status = jobDisplayStatus(item);
+  if (status === "success") return <CheckCircle2 className="wiki-job-status success" size={size} aria-label="成功" />;
+  if (status === "failed") return <XCircle className="wiki-job-status failed" size={size} aria-label="失败" />;
+  return <LoaderCircle className="wiki-job-status running wiki-running-icon" size={size} aria-label="正在运行" />;
+}
+
 function nearestPreviousDate(dates: string[], target: string) {
   for (let index = dates.length - 1; index >= 0; index -= 1) {
     if (dates[index] <= target) return dates[index];
@@ -147,6 +343,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [rawOpen, setRawOpen] = useState(false);
   const startTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endTriggerRef = useRef<HTMLButtonElement | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +359,9 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const selected = useMemo(() => {
     return items.find((item, index) => itemKey(item, index) === selectedKey) || items[0] || null;
   }, [items, selectedKey]);
+  const selectedMarkdown = useMemo(() => selected ? recordMarkdown(selected, section) : "", [section, selected]);
+  const selectedHtml = useMemo(() => renderMarkdown(selectedMarkdown), [selectedMarkdown]);
+  const selectedRaw = useMemo(() => selected ? JSON.stringify(selected, null, 2) : "", [selected]);
   const isAdvancingJob = useCallback((item: Record<string, any> | null) => {
     if (section !== "jobs" || !item) return false;
     if (item.status === "running") return true;
@@ -232,6 +432,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   useEffect(() => {
     loadDynamicDateStats();
   }, [loadDynamicDateStats]);
+
+  useEffect(() => {
+    setRawOpen(false);
+  }, [section, selectedKey]);
 
   useLayoutEffect(() => {
     updateCalendarPosition();
@@ -386,6 +590,25 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     );
   };
 
+  const renderRawPanel = () => {
+    if (!rawOpen || !selected) return null;
+    return createPortal(
+      <div className="wiki-raw-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setRawOpen(false); }}>
+        <section className="wiki-raw-panel" role="dialog" aria-modal="true" aria-label="原始数据">
+          <div className="wiki-raw-head">
+            <div>
+              <h3>原始数据</h3>
+              <span>{itemTitle(selected, section)}</span>
+            </div>
+            <button className="wiki-action" type="button" onClick={() => setRawOpen(false)}>关闭</button>
+          </div>
+          <pre>{selectedRaw}</pre>
+        </section>
+      </div>,
+      document.body,
+    );
+  };
+
   if (!isAdmin) {
     return (
       <section className="wiki-page">
@@ -484,10 +707,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             return (
               <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={key} type="button" onClick={() => setSelectedKey(key)}>
                 <strong className="wiki-row-title">
+                  {section === "jobs" && <JobStatusIcon item={item} />}
                   <span>{itemTitle(item, section)}</span>
-                  {advancing && <LoaderCircle className="wiki-running-icon" size={16} />}
                 </strong>
-                <span>{itemMeta(item, section)}</span>
+                <span>{section === "jobs" ? `${jobStatusLabel(item)} / ${itemMeta(item, section)}` : itemMeta(item, section)}</span>
                 {compactSummary(item, section) && <small>{compactSummary(item, section)}</small>}
               </button>
             );
@@ -501,18 +724,25 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             <>
               <div className="wiki-detail-head">
                 <h2>
+                  {section === "jobs" && <JobStatusIcon item={selected} size={17} />}
                   <span>{itemTitle(selected, section)}</span>
-                  {isAdvancingJob(selected) && <LoaderCircle className="wiki-running-icon" size={17} />}
                 </h2>
-                <span>{itemMeta(selected, section)}</span>
+                <div className="wiki-detail-meta">
+                  <span>{section === "jobs" ? `${jobStatusLabel(selected)} / ${itemMeta(selected, section)}` : itemMeta(selected, section)}</span>
+                  <button className="wiki-action wiki-detail-raw" type="button" onClick={() => setRawOpen(true)}>
+                    <Eye size={16} />
+                    <span>原始数据</span>
+                  </button>
+                </div>
               </div>
-              <pre>{JSON.stringify(selected, null, 2)}</pre>
+              <div className="wiki-detail-body markdown-body" dangerouslySetInnerHTML={{ __html: selectedHtml }} />
             </>
           ) : (
             <div className="wiki-empty">选择一条记录查看详情</div>
           )}
         </div>
       </div>
+      {renderRawPanel()}
     </section>
   );
 }

@@ -1,7 +1,9 @@
 .wiki-page {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -290,24 +292,35 @@
 
 .wiki-main {
   min-width: 0;
+  min-height: 0;
+  height: 100vh;
   display: grid;
   grid-template-columns: minmax(340px, 0.42fr) minmax(0, 0.58fr);
-  min-height: 100vh;
+  overflow: hidden;
 }
 
 .wiki-list {
   min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border-right: 1px solid var(--border);
   background: var(--bg);
 }
 
 .wiki-list-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   height: 58px;
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0 1rem;
   border-bottom: 1px solid var(--border);
+  background: var(--bg);
   font-weight: 700;
 }
 
@@ -379,6 +392,22 @@
   animation: wiki-spin 0.9s linear infinite;
 }
 
+.wiki-job-status {
+  flex: 0 0 auto;
+}
+
+.wiki-job-status.success {
+  color: var(--accent);
+}
+
+.wiki-job-status.failed {
+  color: var(--danger);
+}
+
+.wiki-job-status.running {
+  color: var(--accent-2);
+}
+
 @keyframes wiki-spin {
   to {
     transform: rotate(360deg);
@@ -387,8 +416,11 @@
 
 .wiki-detail {
   min-width: 0;
+  min-height: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -409,16 +441,114 @@
   font-size: 1rem;
 }
 
-.wiki-detail-head span {
+.wiki-detail-head span,
+.wiki-detail-meta span {
   color: var(--muted);
   font-size: 0.82rem;
 }
 
-.wiki-detail pre {
+.wiki-detail-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wiki-detail-meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-detail-raw {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 0.7rem;
+}
+
+.wiki-detail-body {
   flex: 1;
   overflow: auto;
   margin: 0;
   padding: 1rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.wiki-detail-body.markdown-body {
+  max-width: 960px;
+}
+
+.wiki-detail-body.markdown-body h1 {
+  font-size: 1.35rem;
+}
+
+.wiki-detail-body.markdown-body h2 {
+  font-size: 1.08rem;
+}
+
+.wiki-detail-body.markdown-body h3,
+.wiki-detail-body.markdown-body h4 {
+  font-size: 0.98rem;
+}
+
+.wiki-raw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.wiki-raw-panel {
+  width: min(980px, 100%);
+  max-height: min(760px, calc(100vh - 3rem));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.wiki-raw-head {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wiki-raw-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.wiki-raw-head span {
+  display: block;
+  max-width: min(720px, 70vw);
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-raw-panel pre {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg);
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.82rem;
@@ -435,7 +565,10 @@
 
 @media (max-width: 980px) {
   .wiki-page {
+    height: auto;
+    min-height: 100vh;
     display: block;
+    overflow: visible;
   }
 
   .wiki-control {
@@ -448,14 +581,18 @@
 
   .wiki-main {
     display: block;
+    height: auto;
     min-height: auto;
+    overflow: visible;
   }
 
   .wiki-list {
+    height: min(560px, 70vh);
     border-right: 0;
   }
 
   .wiki-detail {
+    height: min(720px, 80vh);
     min-height: 420px;
     border-top: 1px solid var(--border);
   }
