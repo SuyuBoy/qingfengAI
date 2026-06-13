@@ -246,6 +246,17 @@
   gap: 0.45rem;
 }
 
+.wiki-section-group {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.wiki-section-group > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 .wiki-section-grid button {
   min-height: 44px;
   display: grid;

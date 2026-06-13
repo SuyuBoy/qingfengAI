@@ -20,7 +20,15 @@ import { renderMarkdown } from "../markdown";
 import type { CurrentUser } from "../types";
 
 type WikiSection = "documents" | "daily" | "sources" | "events" | "entities" | "sectors" | "jobs";
-type DocType = "" | "market" | "rolling" | "sector" | "stock" | "method";
+type DocType = "" | "root" | "market" | "rolling" | "sector" | "stock" | "method" | "sectors" | "stocks" | "methods";
+
+interface WikiCategory {
+  key: string;
+  label: string;
+  section: WikiSection;
+  docType?: DocType;
+  docTypeAliases?: DocType[];
+}
 
 interface WikiJob {
   job_id: string;
@@ -57,13 +65,22 @@ const SECTION_LABELS: Record<WikiSection, string> = {
   jobs: "任务",
 };
 
-const DOC_TYPES: Array<{ value: DocType; label: string }> = [
-  { value: "", label: "全部" },
-  { value: "market", label: "大盘" },
-  { value: "rolling", label: "滚动" },
-  { value: "sector", label: "板块" },
-  { value: "stock", label: "个股" },
-  { value: "method", label: "方法" },
+const WIKI_TREE_CATEGORIES: WikiCategory[] = [
+  { key: "root", label: "根目录", section: "documents", docType: "root" },
+  { key: "daily", label: "每日", section: "daily" },
+  { key: "market", label: "大盘", section: "documents", docType: "market" },
+  { key: "rolling", label: "滚动", section: "documents", docType: "rolling" },
+  { key: "sector", label: "板块", section: "documents", docType: "sector", docTypeAliases: ["sectors"] },
+  { key: "stock", label: "个股", section: "documents", docType: "stock", docTypeAliases: ["stocks"] },
+  { key: "method", label: "方法", section: "documents", docType: "method", docTypeAliases: ["methods"] },
+];
+
+const WIKI_INDEX_CATEGORIES: WikiCategory[] = [
+  { key: "sources", label: "动态", section: "sources" },
+  { key: "events", label: "事件", section: "events" },
+  { key: "entities", label: "实体", section: "entities" },
+  { key: "sector-catalog", label: "板块目录", section: "sectors" },
+  { key: "jobs", label: "任务", section: "jobs" },
 ];
 
 const FIELD_LABELS: Record<string, string> = {
@@ -92,6 +109,7 @@ const FIELD_LABELS: Record<string, string> = {
   latest_date: "最新日期",
   long_term_updates: "长期更新",
   name: "名称",
+  path: "路径",
   processed: "处理数",
   result: "结果",
   sector_id: "板块 ID",
@@ -136,6 +154,7 @@ const META_FIELDS = new Set([
   "job_type",
   "latest_date",
   "name",
+  "path",
   "processed",
   "sector_id",
   "status",
@@ -185,7 +204,7 @@ function itemTitle(item: Record<string, any>, section: WikiSection) {
 }
 
 function itemMeta(item: Record<string, any>, section: WikiSection) {
-  if (section === "documents") return [item.doc_type, item.status, item.updated_at].filter(Boolean).join(" / ");
+  if (section === "documents") return [item.path || item.doc_type, item.status, item.updated_at].filter(Boolean).join(" / ");
   if (section === "daily") return [item.finalized ? "finalized" : "pending", item.updated_at].filter(Boolean).join(" / ");
   if (section === "sources") return [item.dynamic_id, item.value, item.time].filter(Boolean).join(" / ");
   if (section === "events") return [item.category, item.stance, item.dynamic_id].filter(Boolean).join(" / ");
@@ -324,12 +343,23 @@ function nearestNextDate(dates: string[], target: string, maxDate: string) {
   return next || maxDate;
 }
 
+function normalizedDocType(value: unknown): DocType {
+  if (value === null || value === undefined) return "";
+  const docType = String(value);
+  if (!docType) return "";
+  if (docType === "sectors") return "sector";
+  if (docType === "stocks") return "stock";
+  if (docType === "methods") return "method";
+  if (["root", "market", "rolling", "sector", "stock", "method"].includes(docType)) return docType as DocType;
+  return "";
+}
+
 type CalendarField = "start" | "end";
 type WikiCalendarDayButtonProps = ComponentProps<typeof CalendarDayButton>;
 
 export default function WikiPage({ user }: { user: CurrentUser }) {
   const isAdmin = user.is_admin === true || user.role === "admin";
-  const [section, setSection] = useState<WikiSection>("documents");
+  const [section, setSection] = useState<WikiSection>("daily");
   const [docType, setDocType] = useState<DocType>("");
   const [overview, setOverview] = useState<WikiOverview | null>(null);
   const [selectedKey, setSelectedKey] = useState("");
@@ -337,6 +367,8 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [batchSize, setBatchSize] = useState(20);
   const [dynamicDateCounts, setDynamicDateCounts] = useState<Record<string, number>>({});
+  const [documentCounts, setDocumentCounts] = useState<Record<string, number>>({});
+  const [documentTypeCounts, setDocumentTypeCounts] = useState<Record<string, number>>({});
   const [dateStatsLoading, setDateStatsLoading] = useState(false);
   const [openCalendar, setOpenCalendar] = useState<CalendarField | "">("");
   const [jobId, setJobId] = useState("");
@@ -352,8 +384,17 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
   const [calendarStyle, setCalendarStyle] = useState<CSSProperties>({});
 
-  const overviewMatchesSelection = overview?.section === section && (section !== "documents" || (overview.doc_type || "") === docType);
+  const overviewMatchesSelection = overview?.section === section && (section !== "documents" || normalizedDocType(overview.doc_type || "") === normalizedDocType(docType));
   const items = overviewMatchesSelection ? overview.items : [];
+  const activeCategory = useMemo(() => {
+    return [...WIKI_TREE_CATEGORIES, ...WIKI_INDEX_CATEGORIES].find(category => (
+      category.section === section && (
+        category.section !== "documents"
+        || normalizedDocType(category.docType || "") === normalizedDocType(docType)
+      )
+    ));
+  }, [docType, section]);
+  const activeCategoryLabel = activeCategory?.label || SECTION_LABELS[section];
   const availableDates = useMemo(() => {
     return Object.entries(dynamicDateCounts)
       .filter(([, count]) => count > 0)
@@ -380,6 +421,21 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     }, 0);
     return Math.max(1, Math.min(total || 1, 100));
   }, [availableDates, dynamicDateCounts]);
+  const categoryCount = useCallback((category: WikiCategory) => {
+    if (category.section === "documents") {
+      const key = normalizedDocType(category.docType || "");
+      return key ? documentCounts[key] ?? 0 : overview?.counts?.documents ?? 0;
+    }
+    return overview?.counts?.[category.section] ?? 0;
+  }, [documentCounts, overview]);
+  const categoryDocType = useCallback((category: WikiCategory) => {
+    const docTypes = [category.docType, ...(category.docTypeAliases || [])].filter(Boolean) as DocType[];
+    return docTypes.find(key => documentTypeCounts[key]) || category.docType || "";
+  }, [documentTypeCounts]);
+  const selectCategory = useCallback((category: WikiCategory) => {
+    setSection(category.section);
+    setDocType(category.section === "documents" ? categoryDocType(category) : "");
+  }, [categoryDocType]);
 
   const loadOverview = useCallback(async () => {
     if (!isAdmin) return;
@@ -403,6 +459,26 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
       setLoading(false);
     }
   }, [docType, isAdmin, section]);
+
+  const loadDocumentCounts = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const data = await api.get<WikiOverview>("/api/admin/wiki", { section: "documents", doc_type: "", limit: 500 });
+      const counts: Record<string, number> = {};
+      const rawCounts: Record<string, number> = {};
+      for (const item of data?.items || []) {
+        const rawKey = String(item.doc_type || "root");
+        const key = normalizedDocType(rawKey);
+        if (!key) continue;
+        rawCounts[rawKey] = (rawCounts[rawKey] || 0) + 1;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      setDocumentTypeCounts(rawCounts);
+      setDocumentCounts(counts);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "文档层级统计加载失败");
+    }
+  }, [isAdmin]);
 
   const loadDynamicDateStats = useCallback(async () => {
     if (!isAdmin) return;
@@ -440,6 +516,18 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  useEffect(() => {
+    loadDocumentCounts();
+  }, [loadDocumentCounts]);
+
+  useEffect(() => {
+    if (section !== "documents" || !activeCategory) return;
+    const nextDocType = categoryDocType(activeCategory);
+    if (nextDocType && nextDocType !== docType && normalizedDocType(nextDocType) === normalizedDocType(docType)) {
+      setDocType(nextDocType);
+    }
+  }, [activeCategory, categoryDocType, docType, section]);
 
   useEffect(() => {
     loadDynamicDateStats();
@@ -497,12 +585,13 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
       await action();
       setMessage(`${label}完成`);
       await loadOverview();
+      await loadDocumentCounts();
     } catch (e) {
       setError(e instanceof Error ? e.message : `${label}失败`);
     } finally {
       setBusy("");
     }
-  }, [loadOverview]);
+  }, [loadDocumentCounts, loadOverview]);
 
   const createInitJob = () => runAction("创建初始化任务", async () => {
     const data = await api.post<{ job: WikiJob }>("/api/admin/wiki/init", {
@@ -513,6 +602,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     });
     if (data?.job?.job_id) {
       setJobId(data.job.job_id);
+      setDocType("");
       setSection("jobs");
     }
   });
@@ -521,11 +611,13 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     if (!jobId.trim()) throw new Error("缺少 job_id");
     const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(jobId.trim())}/run`);
     if (data?.job?.job_id) setJobId(data.job.job_id);
+    setDocType("");
     setSection("jobs");
   });
 
   const refreshSectors = () => runAction("刷新板块", async () => {
     await api.post("/api/admin/wiki/sectors/refresh");
+    setDocType("");
     setSection("sectors");
   });
 
@@ -537,7 +629,8 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
       include_jobs: true,
       include_sectors: false,
     });
-    setSection("documents");
+    setDocType("");
+    setSection("daily");
     setJobId("");
   });
 
@@ -679,19 +772,38 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
 
         <div className="wiki-panel">
           <div className="wiki-panel-title">数据</div>
-          <div className="wiki-section-grid">
-            {(Object.keys(SECTION_LABELS) as WikiSection[]).map(key => (
-              <button key={key} className={section === key ? "active" : ""} type="button" onClick={() => setSection(key)}>
-                <span>{SECTION_LABELS[key]}</span>
-                <strong>{overview?.counts?.[key] ?? 0}</strong>
-              </button>
-            ))}
+          <div className="wiki-section-group">
+            <span>Wiki 层级</span>
+            <div className="wiki-section-grid">
+              {WIKI_TREE_CATEGORIES.map(category => (
+                <button
+                  key={category.key}
+                  className={activeCategory?.key === category.key ? "active" : ""}
+                  type="button"
+                  onClick={() => selectCategory(category)}
+                >
+                  <span>{category.label}</span>
+                  <strong>{categoryCount(category)}</strong>
+                </button>
+              ))}
+            </div>
           </div>
-          {section === "documents" && (
-            <select value={docType} onChange={e => setDocType(e.target.value as DocType)}>
-              {DOC_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          )}
+          <div className="wiki-section-group">
+            <span>索引/运维</span>
+            <div className="wiki-section-grid">
+              {WIKI_INDEX_CATEGORIES.map(category => (
+                <button
+                  key={category.key}
+                  className={activeCategory?.key === category.key ? "active" : ""}
+                  type="button"
+                  onClick={() => selectCategory(category)}
+                >
+                  <span>{category.label}</span>
+                  <strong>{categoryCount(category)}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
           <button className="wiki-action" type="button" disabled={loading} onClick={loadOverview}>
             <RefreshCw size={17} />
             <span>刷新列表</span>
@@ -709,7 +821,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
         <div className="wiki-list" ref={listRef}>
           <div className="wiki-list-head">
             <FileText size={18} />
-            <span>{SECTION_LABELS[section]}</span>
+            <span>{activeCategoryLabel}</span>
             {loading && <small>加载中</small>}
           </div>
           {items.length ? items.map((item, index) => {
