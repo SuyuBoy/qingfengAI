@@ -322,6 +322,7 @@
 .wiki-progress {
   display: grid;
   gap: 0.35rem;
+  width: 100%;
   min-width: 0;
 }
 
@@ -348,6 +349,9 @@
 
 .wiki-progress-track {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 7px;
   overflow: hidden;
   border-radius: 999px;
@@ -514,6 +518,13 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
+}
+
+.wiki-detail > .wiki-progress {
+  flex: 0 0 auto;
+  max-width: 960px;
+  padding: 0.7rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .wiki-detail-head {
