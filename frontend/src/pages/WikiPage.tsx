@@ -239,7 +239,10 @@ function itemMeta(item: Record<string, any>, section: WikiSection) {
 }
 
 function compactSummary(item: Record<string, any>, section: WikiSection) {
-  const value = item.summary || item.daily_summary || item.content_json?.current || item.error || item.result || "";
+  const content = parsedRecord(item.content_json);
+  const contentSummary = content?.current || content?.current_status || content?.overview;
+  const summary = isJsonLikeText(item.summary) ? "" : item.summary;
+  const value = contentSummary || summary || item.daily_summary || item.error || item.result || "";
   if (typeof value === "string") return value.slice(0, 180);
   return JSON.stringify(value).slice(0, 180);
 }
@@ -323,9 +326,10 @@ function parsedRecord(value: unknown): Record<string, unknown> | null {
   return isRecord(parsed) ? parsed : null;
 }
 
-function isJsonLikeString(value: unknown) {
-  const parsed = parseJsonValue(value);
-  return typeof value === "string" && (isRecord(parsed) || Array.isArray(parsed));
+function isJsonLikeText(value: unknown) {
+  if (typeof value !== "string") return false;
+  const text = value.trim();
+  return Boolean(text) && ["{", "["].includes(text[0]);
 }
 
 function markdownCell(value: unknown): string {
@@ -465,7 +469,7 @@ function documentMarkdown(item: Record<string, any>) {
   const lines: string[] = [`# ${itemTitle(item, "documents")}`];
   const meta = documentMetaMarkdown(item);
   if (meta) lines.push("", meta);
-  if (item.summary && !isJsonLikeString(item.summary)) addParagraph(lines, "摘要", item.summary);
+  if (item.summary && !isJsonLikeText(item.summary)) addParagraph(lines, "摘要", item.summary);
 
   if (!content) {
     const fallback = item.content || item.result || item.error;
