@@ -6,7 +6,7 @@ type Tab = "google" | "email";
 type EmailStep = "login" | "register" | "verify";
 
 export default function LoginPage({ onLogin }: { onLogin: () => void }) {
-  const [tab, setTab] = useState<Tab>("google");
+  const [tab, setTab] = useState<Tab>("email");
   const [error, setError] = useState("");
   const [hasGoogle, setHasGoogle] = useState(Boolean(window.google?.accounts));
   const [loading, setLoading] = useState(false);
@@ -187,10 +187,6 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
       <h1>清风 AI</h1>
 
       <div className="login-tabs">
-        <button
-          className={`login-tab${tab === "google" ? " active" : ""}`}
-          onClick={() => { setTab("google"); setError(""); }}
-        >Google 登录</button>
         <button
           className={`login-tab${tab === "email" ? " active" : ""}`}
           onClick={() => { setTab("email"); setError(""); setStep("login"); }}
