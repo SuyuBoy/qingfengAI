@@ -1069,8 +1069,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   });
 
   const runJobBatch = () => runAction("推进任务", async () => {
-    if (!jobId.trim()) throw new Error("缺少 job_id");
-    const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(jobId.trim())}/run`);
+    const targetJobId = jobId.trim() || (section === "jobs" && selected?.job_id ? String(selected.job_id) : "");
+    if (!targetJobId) throw new Error("缺少 job_id");
+    if (targetJobId !== jobId.trim()) setJobId(targetJobId);
+    const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(targetJobId)}/run`);
     if (data?.job?.job_id) {
       setJobId(data.job.job_id);
       mergeJob(data.job);
@@ -1302,7 +1304,13 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             const active = selected && itemKey(selected, items.indexOf(selected)) === key;
             const advancing = isAdvancingJob(item);
             return (
-              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={`${section}:${docType}:${key}`} type="button" onClick={() => setSelectedKey(key)}>
+              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={`${section}:${docType}:${key}`} type="button" onClick={() => {
+                setSelectedKey(key);
+                if (section === "jobs" && item.job_id) {
+                  setJobId(String(item.job_id));
+                  mergeJob(item as unknown as WikiJob);
+                }
+              }}>
                 <strong className="wiki-row-title">
                   {section === "jobs" && <JobStatusIcon item={item} />}
                   <span>{itemTitle(item, section)}</span>
