@@ -1,4 +1,4 @@
-import { type ComponentProps, type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
@@ -78,6 +78,10 @@ const SECTION_LABELS: Record<WikiSection, string> = {
   sectors: "板块",
   jobs: "任务",
 };
+
+const WIKI_LIST_MIN_WIDTH = 280;
+const WIKI_DETAIL_MIN_WIDTH = 360;
+const WIKI_PANEL_RESIZER_WIDTH = 9;
 
 const WIKI_TREE_CATEGORIES: WikiCategory[] = [
   { key: "root", label: "根目录", section: "documents", docType: "root" },
@@ -235,7 +239,10 @@ function itemMeta(item: Record<string, any>, section: WikiSection) {
 }
 
 function compactSummary(item: Record<string, any>, section: WikiSection) {
-  const value = item.summary || item.daily_summary || item.content_json?.current || item.error || item.result || "";
+  const content = parsedRecord(item.content_json);
+  const contentSummary = content?.current || content?.current_status || content?.overview;
+  const summary = isJsonLikeText(item.summary) ? "" : item.summary;
+  const value = contentSummary || summary || item.daily_summary || item.error || item.result || "";
   if (typeof value === "string") return value.slice(0, 180);
   return JSON.stringify(value).slice(0, 180);
 }
@@ -319,9 +326,10 @@ function parsedRecord(value: unknown): Record<string, unknown> | null {
   return isRecord(parsed) ? parsed : null;
 }
 
-function isJsonLikeString(value: unknown) {
-  const parsed = parseJsonValue(value);
-  return typeof value === "string" && (isRecord(parsed) || Array.isArray(parsed));
+function isJsonLikeText(value: unknown) {
+  if (typeof value !== "string") return false;
+  const text = value.trim();
+  return Boolean(text) && ["{", "["].includes(text[0]);
 }
 
 function markdownCell(value: unknown): string {
@@ -461,7 +469,7 @@ function documentMarkdown(item: Record<string, any>) {
   const lines: string[] = [`# ${itemTitle(item, "documents")}`];
   const meta = documentMetaMarkdown(item);
   if (meta) lines.push("", meta);
-  if (item.summary && !isJsonLikeString(item.summary)) addParagraph(lines, "摘要", item.summary);
+  if (item.summary && !isJsonLikeText(item.summary)) addParagraph(lines, "摘要", item.summary);
 
   if (!content) {
     const fallback = item.content || item.result || item.error;
@@ -742,8 +750,12 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [rawOpen, setRawOpen] = useState(false);
+  const [wikiListWidth, setWikiListWidth] = useState(42);
+  const [resizingPanels, setResizingPanels] = useState(false);
   const overviewRequestRef = useRef(0);
+  const wikiMainRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const resizingPanelsRef = useRef(false);
   const startTriggerRef = useRef<HTMLButtonElement | null>(null);
   const endTriggerRef = useRef<HTMLButtonElement | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
@@ -815,6 +827,55 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
     setSection(category.section);
     setDocType(category.section === "documents" ? categoryDocType(category) : "");
   }, [categoryDocType]);
+
+  const updateWikiListWidth = useCallback((nextListWidth: number) => {
+    const main = wikiMainRef.current;
+    if (!main) return;
+    const { width } = main.getBoundingClientRect();
+    const maxListWidth = Math.max(WIKI_LIST_MIN_WIDTH, width - WIKI_DETAIL_MIN_WIDTH - WIKI_PANEL_RESIZER_WIDTH);
+    const clampedWidth = Math.min(Math.max(nextListWidth, WIKI_LIST_MIN_WIDTH), maxListWidth);
+    setWikiListWidth(clampedWidth * 100 / width);
+  }, []);
+
+  const updateWikiListWidthFromPointer = useCallback((clientX: number) => {
+    const main = wikiMainRef.current;
+    if (!main) return;
+    const { left } = main.getBoundingClientRect();
+    updateWikiListWidth(clientX - left);
+  }, [updateWikiListWidth]);
+
+  const startPanelResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    resizingPanelsRef.current = true;
+    setResizingPanels(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateWikiListWidthFromPointer(event.clientX);
+  }, [updateWikiListWidthFromPointer]);
+
+  const resizePanels = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizingPanelsRef.current) return;
+    event.preventDefault();
+    updateWikiListWidthFromPointer(event.clientX);
+  }, [updateWikiListWidthFromPointer]);
+
+  const stopPanelResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizingPanelsRef.current) return;
+    resizingPanelsRef.current = false;
+    setResizingPanels(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  const adjustPanelResize = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const main = wikiMainRef.current;
+    if (!main) return;
+    event.preventDefault();
+    const { width } = main.getBoundingClientRect();
+    const direction = event.key === "ArrowLeft" ? -1 : 1;
+    updateWikiListWidth(width * wikiListWidth / 100 + direction * 24);
+  }, [updateWikiListWidth, wikiListWidth]);
 
   const loadOverview = useCallback(async () => {
     if (!isAdmin) return;
@@ -1008,8 +1069,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   });
 
   const runJobBatch = () => runAction("推进任务", async () => {
-    if (!jobId.trim()) throw new Error("缺少 job_id");
-    const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(jobId.trim())}/run`);
+    const targetJobId = jobId.trim() || (section === "jobs" && selected?.job_id ? String(selected.job_id) : "");
+    if (!targetJobId) throw new Error("缺少 job_id");
+    if (targetJobId !== jobId.trim()) setJobId(targetJobId);
+    const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(targetJobId)}/run`);
     if (data?.job?.job_id) {
       setJobId(data.job.job_id);
       mergeJob(data.job);
@@ -1229,7 +1292,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
         )}
       </aside>
 
-      <div className="wiki-main">
+      <div className={`wiki-main${resizingPanels ? " resizing" : ""}`} ref={wikiMainRef} style={{ "--wiki-list-width": `${wikiListWidth}%` } as CSSProperties}>
         <div className="wiki-list" ref={listRef}>
           <div className="wiki-list-head">
             <FileText size={18} />
@@ -1241,7 +1304,13 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             const active = selected && itemKey(selected, items.indexOf(selected)) === key;
             const advancing = isAdvancingJob(item);
             return (
-              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={`${section}:${docType}:${key}`} type="button" onClick={() => setSelectedKey(key)}>
+              <button className={`wiki-row${active ? " active" : ""}${advancing ? " running" : ""}`} key={`${section}:${docType}:${key}`} type="button" onClick={() => {
+                setSelectedKey(key);
+                if (section === "jobs" && item.job_id) {
+                  setJobId(String(item.job_id));
+                  mergeJob(item as unknown as WikiJob);
+                }
+              }}>
                 <strong className="wiki-row-title">
                   {section === "jobs" && <JobStatusIcon item={item} />}
                   <span>{itemTitle(item, section)}</span>
@@ -1255,6 +1324,19 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
             <div className="wiki-empty">{loading ? "加载中..." : "暂无数据"}</div>
           )}
         </div>
+
+        <div
+          className="wiki-panel-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整内容列表宽度"
+          tabIndex={0}
+          onPointerDown={startPanelResize}
+          onPointerMove={resizePanels}
+          onPointerUp={stopPanelResize}
+          onPointerCancel={stopPanelResize}
+          onKeyDown={adjustPanelResize}
+        />
 
         <div className="wiki-detail">
           {selected ? (
