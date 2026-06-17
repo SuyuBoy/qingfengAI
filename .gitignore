@@ -18,3 +18,10 @@ frontend/dist/
 # tools
 .react-build/
 .external/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
