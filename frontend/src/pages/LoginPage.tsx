@@ -186,7 +186,10 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     <div className="login-box">
       <h1>清风 AI</h1>
 
-      <div className="login-tabs">
+      <p className="login-subtitle">
+        {step === "register" ? "创建你的账号" : step === "verify" ? "邮箱验证" : "登录你的账号"}
+      </p>
+      <div className="login-tabs" style={{ display: "none" }}>
         <button
           className={`login-tab${tab === "email" ? " active" : ""}`}
           onClick={() => { setTab("email"); setError(""); setStep("login"); }}
