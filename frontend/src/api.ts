@@ -19,6 +19,19 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function normalizeNetworkError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (
+    error instanceof TypeError
+    || message === "Load failed"
+    || message === "Failed to fetch"
+    || message === "NetworkError when attempting to fetch resource."
+  ) {
+    return new Error("无法连接服务器，请检查网络后重试");
+  }
+  return error instanceof Error ? error : new Error(message || "请求失败");
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T | null> {
   const headers = new Headers(options.headers);
   headers.set("Cache-Control", "no-cache");
@@ -30,7 +43,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T | 
     options = { ...options, body: JSON.stringify(body) };
   }
 
-  const res = await fetch(API_BASE + path, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, { ...options, headers });
+  } catch (error) {
+    throw normalizeNetworkError(error);
+  }
   if (res.status === 401) {
     clearToken();
     window.location.hash = "#/login";
