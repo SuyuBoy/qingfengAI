@@ -4,7 +4,7 @@ import { marked } from "marked";
 import { api, setToken } from "../api";
 
 type Tab = "google" | "email";
-type EmailStep = "login" | "register" | "verify";
+type EmailStep = "login" | "register" | "verify" | "resetRequest" | "resetConfirm";
 type Theme = "light" | "dark";
 
 type LoginPageProps = {
@@ -16,6 +16,7 @@ type LoginPageProps = {
 export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPageProps) {
   const [tab] = useState<Tab>("email");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [hasGoogle, setHasGoogle] = useState(Boolean(window.google?.accounts));
   const [loading, setLoading] = useState(false);
 
@@ -187,7 +188,57 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
   const handleResendCode = async () => {
     try {
       await api.post("/api/auth/resend", { email });
-      setError("验证码已重新发送");
+      setNotice("验证码已重新发送");
+    } catch (e) {
+      setError(`重发失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
+  };
+
+  const handleResetRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    setLoading(true);
+    try {
+      await api.post("/api/auth/password-reset/request", { email });
+      setCode("");
+      setPassword("");
+      setConfirmPassword("");
+      setStep("resetConfirm");
+      setNotice("如果该邮箱已注册，验证码将发送至该邮箱");
+    } catch (e) {
+      setError(`发送失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
+    setLoading(false);
+  };
+
+  const handleResetConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirmPassword) { setError("两次输入的密码不一致"); return; }
+    setError("");
+    setNotice("");
+    setLoading(true);
+    try {
+      const data = await api.post<{ token?: string }>("/api/auth/password-reset/confirm", { email, code, password });
+      if (data?.token) {
+        setToken(data.token);
+        window.location.hash = "#/dynamics";
+        onLogin();
+      } else {
+        setError("重置失败：验证码错误");
+      }
+    } catch (e) {
+      setError(`重置失败：${e instanceof Error ? e.message : "验证码错误"}`);
+    }
+    setLoading(false);
+  };
+
+  const handleResetResend = async () => {
+    setError("");
+    setNotice("");
+    try {
+      await api.post("/api/auth/password-reset/request", { email });
+      setNotice("验证码已重新发送");
     } catch (e) {
       setError(`重发失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
@@ -196,13 +247,17 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
   const switchStep = (next: EmailStep) => {
     setStep(next);
     setError("");
+    setNotice("");
     setConfirmPassword("");
     setShowPwd(false);
   };
 
-  const pwdMismatch = step === "register" && confirmPassword.length > 0 && password !== confirmPassword;
+  const needsConfirmPassword = step === "register" || step === "resetConfirm";
+  const pwdMismatch = needsConfirmPassword && confirmPassword.length > 0 && password !== confirmPassword;
   const subtitle = step === "register" ? "创建你的清风 AI 账号"
     : step === "verify" ? "验证你的邮箱"
+    : step === "resetRequest" ? "找回你的账号密码"
+    : step === "resetConfirm" ? "设置新的登录密码"
     : "欢迎回来，请登录账号";
 
   return (
@@ -222,7 +277,7 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
         <p className="login-subtitle">{subtitle}</p>
       </div>
 
-      <div className="error-msg">{error || " "}</div>
+      <div className={`error-msg${notice && !error ? " is-notice" : ""}`}>{error || notice || " "}</div>
 
       {tab === "google" ? (
         hasGoogle ? (
@@ -251,6 +306,74 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
           </button>
           <button type="button" className="email-link" onClick={() => switchStep("register")}>
             返回
+          </button>
+        </form>
+      ) : step === "resetRequest" ? (
+        <form className="email-form" onSubmit={handleResetRequest}>
+          <p className="form-note">输入注册邮箱，验证码会发送到该邮箱。</p>
+          <div className="login-field">
+            <Mail className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type="email" className="login-input" placeholder="邮箱" required
+              value={email} onChange={e => setEmail(e.target.value)}
+              autoComplete="email" autoFocus
+            />
+          </div>
+          <button type="submit" className="email-btn" disabled={loading}>
+            {loading ? "发送中..." : "发送验证码"}
+          </button>
+          <button type="button" className="email-link" onClick={() => switchStep("login")}>
+            返回登录
+          </button>
+        </form>
+      ) : step === "resetConfirm" ? (
+        <form className="email-form" onSubmit={handleResetConfirm}>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.25rem" }}>
+            验证码已发送至 <strong>{email}</strong>
+          </p>
+          <div className="login-field">
+            <ShieldCheck className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type="text" className="login-input" placeholder="6 位验证码" required
+              value={code} onChange={e => setCode(e.target.value)}
+              maxLength={6} inputMode="numeric" autoFocus
+            />
+          </div>
+          <div className="login-field has-eye">
+            <Lock className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type={showPwd ? "text" : "password"} className="login-input" placeholder="新密码（至少 6 位）" required
+              value={password} onChange={e => setPassword(e.target.value)}
+              autoComplete="new-password" minLength={6}
+            />
+            <button
+              type="button" className="field-eye"
+              onClick={() => setShowPwd(s => !s)}
+              aria-label={showPwd ? "隐藏密码" : "显示密码"}
+              tabIndex={-1}
+            >
+              {showPwd ? <EyeOff size={18} strokeWidth={1.8} /> : <Eye size={18} strokeWidth={1.8} />}
+            </button>
+          </div>
+          <div className={`login-field has-eye${pwdMismatch ? " is-invalid" : ""}`}>
+            <Lock className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type={showPwd ? "text" : "password"}
+              className={`login-input${pwdMismatch ? " is-invalid" : ""}`}
+              placeholder="再次输入新密码" required
+              value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+              autoComplete="new-password" minLength={6}
+            />
+          </div>
+          {pwdMismatch && <div className="field-hint error">两次输入的密码不一致</div>}
+          <button type="submit" className="email-btn" disabled={loading || pwdMismatch}>
+            {loading ? "重置中..." : "重置密码并登录"}
+          </button>
+          <button type="button" className="email-link" onClick={handleResetResend}>
+            重发验证码
+          </button>
+          <button type="button" className="email-link" onClick={() => switchStep("login")}>
+            返回登录
           </button>
         </form>
       ) : (
@@ -335,6 +458,14 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
           >
             {step === "login" ? "没有账号？注册" : "已有账号？登录"}
           </button>
+          {step === "login" && (
+            <button
+              type="button" className="email-link"
+              onClick={() => switchStep("resetRequest")}
+            >
+              忘记密码？
+            </button>
+          )}
         </form>
       )}
 
