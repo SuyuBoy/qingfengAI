@@ -27,6 +27,7 @@ import {
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
 import { cjk } from "@streamdown/cjk";
 import { API_BASE, api, getToken } from "../api";
+import { getRiskAttestation } from "../securityAttestation";
 import {
   Select,
   SelectContent,
@@ -615,13 +616,17 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
     const chatPath = user.is_admin && agentMode ? "/api/chat-deep" : "/api/chat";
 
     try {
+      const riskAttestation = await getRiskAttestation();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`,
+      };
+      if (riskAttestation) headers["X-Risk-Attestation"] = riskAttestation;
+
       const res = await fetch(`${API_BASE}${chatPath}`, {
         method: "POST",
         signal: abortController.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${getToken()}`,
-        },
+        headers,
         body: JSON.stringify({
           messages: stripRuntimeFields(outboundMessages),
           model,
