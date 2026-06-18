@@ -145,7 +145,8 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
         setError("登录失败：邮箱或密码错误");
       }
     } catch (e) {
-      setError(`登录失败：${e instanceof Error ? e.message : "邮箱或密码错误"}`);
+      const message = e instanceof Error ? e.message : "邮箱或密码错误";
+      setError(message.includes("忘记密码") ? message : `登录失败：${message}`);
     }
     setLoading(false);
   };
