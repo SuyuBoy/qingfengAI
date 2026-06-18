@@ -417,7 +417,7 @@ export default function App() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="关闭侧边栏" onClick={() => setSidebarOpen(false)} />}
       <main className="app-main" id="app">
         {route === "/profile" ? (
-          <ProfilePage user={user} onLogout={logout} />
+          <ProfilePage user={user} onLogout={logout} onRefresh={checkAuth} />
         ) : route === "/verify" ? (
           <VerifyPage onVerified={() => { checkAuth(); setRoute("/dynamics"); }} />
         ) : route === "/stocks" ? (

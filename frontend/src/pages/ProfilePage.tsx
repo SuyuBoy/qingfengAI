@@ -5,6 +5,7 @@ import { api } from "../api";
 interface ProfilePageProps {
   user: CurrentUser;
   onLogout: () => void;
+  onRefresh: () => void;
 }
 
 function formatQuota(n: number): string {
@@ -650,7 +651,7 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
               <button
                 className="email-btn"
                 style={{ background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)", padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
-                onClick={() => window.location.reload()}
+                onClick={onRefresh}
                 title="刷新余额"
               >刷新</button>
             </span>
