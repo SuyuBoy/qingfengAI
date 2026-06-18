@@ -816,9 +816,12 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [rawOpen, setRawOpen] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const [wikiListWidth, setWikiListWidth] = useState(42);
   const [resizingPanels, setResizingPanels] = useState(false);
   const overviewRequestRef = useRef(0);
+  const advancingRef = useRef(false);
+  const autoAdvanceRef = useRef(true);
   const wikiMainRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const resizingPanelsRef = useRef(false);
@@ -1040,13 +1043,41 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
   }, [loadDynamicDateStats]);
 
   useEffect(() => {
+    autoAdvanceRef.current = autoAdvance;
+  }, [autoAdvance]);
+
+  // 自动推进一批：复用轮询节奏，pending 即触发下一批，直到 done/failed。
+  // advancingRef 防止重叠（单批耗时通常远大于 3s 轮询间隔）。
+  const advanceJobBatch = useCallback(async (targetJobId: string) => {
+    if (advancingRef.current || !targetJobId) return;
+    advancingRef.current = true;
+    try {
+      const data = await api.post<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodeURIComponent(targetJobId)}/run`);
+      if (data?.job?.job_id) mergeJob(data.job);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "自动推进失败");
+      setAutoAdvance(false); // 出错即停，避免持续重试打满
+    } finally {
+      advancingRef.current = false;
+    }
+  }, [mergeJob]);
+
+  useEffect(() => {
     if (!isAdmin || !jobId.trim()) return;
     let stopped = false;
     const encodedJobId = encodeURIComponent(jobId.trim());
     const pollJob = async () => {
       try {
         const data = await api.get<{ job: WikiJob }>(`/api/admin/wiki/jobs/${encodedJobId}`);
-        if (!stopped && data?.job?.job_id) mergeJob(data.job);
+        if (stopped || !data?.job?.job_id) return;
+        mergeJob(data.job);
+        if (
+          autoAdvanceRef.current
+          && !advancingRef.current
+          && jobDisplayStatus(data.job as unknown as Record<string, any>) === "pending"
+        ) {
+          void advanceJobBatch(String(data.job.job_id));
+        }
       } catch (e) {
         if (!stopped) setError(e instanceof Error ? e.message : "任务状态刷新失败");
       }
@@ -1057,7 +1088,7 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
       stopped = true;
       window.clearInterval(timer);
     };
-  }, [isAdmin, jobId, mergeJob]);
+  }, [isAdmin, jobId, mergeJob, advanceJobBatch]);
 
   useEffect(() => {
     setRawOpen(false);
@@ -1293,6 +1324,10 @@ export default function WikiPage({ user }: { user: CurrentUser }) {
               <JobProgress item={activeJob as unknown as Record<string, any>} />
             </div>
           )}
+          <label className="wiki-auto-advance">
+            <input type="checkbox" checked={autoAdvance} onChange={e => setAutoAdvance(e.target.checked)} />
+            <span>自动续跑（保持本页打开，pending 自动推进至完成）</span>
+          </label>
           <button className="wiki-action" type="button" disabled={Boolean(busy)} onClick={runJobBatch}>
             {busy === "推进任务" ? <LoaderCircle className="wiki-running-icon" size={17} /> : <Play size={17} />}
             <span>推进一批</span>
