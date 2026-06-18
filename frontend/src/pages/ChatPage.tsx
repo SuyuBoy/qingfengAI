@@ -80,6 +80,8 @@ type UiChatMessage = ChatMessage & {
   stream?: AssistantDraft;
 };
 
+const VERIFY_GUIDANCE_CONTENT = "⚠️ 尚未完成内容验证\n\n您需要先完成内容验证才能使用 AI 对话。\n\n请前往个人中心进行验证。验证通过后即可正常使用 AI 对话。";
+
 function makeId() {
   return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -494,7 +496,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       const guidanceMsg: UiChatMessage = {
         id: makeId(),
         role: "assistant",
-        content: "⚠️ 尚未完成内容验证\n\n您需要先完成内容验证才能使用 AI 对话。\n\n请[前往个人中心](#/profile)进行验证。验证通过后即可正常使用 AI 对话。",
+        content: VERIFY_GUIDANCE_CONTENT,
       };
       const newMessages = [...previousMessages, userMessage, guidanceMsg];
       setPastedImages([]);
@@ -1129,7 +1131,9 @@ const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { on
       <div className="aui-message-body">
         {original?.stream && <StreamThoughts draft={original.stream} onOpenActivity={onOpenActivity} />}
         {!original?.stream && original?.reasoning_content && <CompletedThoughts onOpenActivity={onOpenActivity} />}
-        <MarkdownTextPart text={content} isRunning={Boolean(original?.stream?.typing)} />
+        {content.startsWith("⚠️ 尚未完成内容验证")
+          ? <VerificationGuidance />
+          : <MarkdownTextPart text={content} isRunning={Boolean(original?.stream?.typing)} />}
       </div>
     </MessagePrimitive.Root>
   );
@@ -1138,6 +1142,22 @@ const AssistantMessage = memo(function AssistantMessage({ onOpenActivity }: { on
 const PlainTextPart = memo(function PlainTextPart() {
   const part = useMessagePartText();
   return <span>{part.text}</span>;
+});
+
+const VerificationGuidance = memo(function VerificationGuidance() {
+  return (
+    <div className="verify-guidance markdown-body">
+      <p><strong>⚠️ 尚未完成内容验证</strong></p>
+      <p>您需要先完成内容验证才能使用 AI 对话。</p>
+      <p>
+        请
+        <button type="button" className="verify-guidance-link" onClick={() => { window.location.hash = "/profile"; }}>
+          前往个人中心
+        </button>
+        进行验证。验证通过后即可正常使用 AI 对话。
+      </p>
+    </div>
+  );
 });
 
 const MarkdownTextPart = memo(function MarkdownTextPart({ text, isRunning }: { text: string; isRunning: boolean }) {

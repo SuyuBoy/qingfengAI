@@ -199,6 +199,24 @@
   opacity: 0.85;
 }
 
+.verify-guidance-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.verify-guidance-link:hover {
+  text-decoration-thickness: 2px;
+  opacity: 0.85;
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
