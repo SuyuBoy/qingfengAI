@@ -4,7 +4,6 @@ export interface CurrentUser {
   email: string;
   role: UserRole;
   is_admin?: boolean;
-  total_tokens?: number;
   quota_balance?: number;
   quota_cap?: number;
   quota_updated_at?: string;
