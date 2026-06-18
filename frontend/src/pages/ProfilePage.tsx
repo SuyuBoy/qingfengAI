@@ -262,36 +262,29 @@ function AfdianSection({ user }: { user: CurrentUser }) {
         </div>
       ) : (
         <div>
-          <div style={{ display: "flex", gap: "0.4rem" }}>
+          <p style={{ fontSize: "0.8rem", color: "var(--muted)", lineHeight: 1.6, margin: "0 0 0.7rem" }}>
+            通过本页按钮赞助后自动绑定，无需手动输入。付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
+          </p>
+          <div style={{ display: "flex", gap: "0.4rem", alignItems: "stretch" }}>
             <input
+              className="email-input"
               placeholder="输入爱发电订单号"
               value={afdianUid}
               onChange={(e) => setAfdianUid(e.target.value)}
-              style={{
-                flex: 1,
-                padding: "0.4rem 0.6rem",
-                borderRadius: 4,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontSize: "0.85rem",
-              }}
+              style={{ flex: 1, height: 40, fontSize: "0.85rem" }}
             />
             <button
               className="email-btn"
-              style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+              style={{ height: 40, background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
               onClick={handleBind}
               disabled={binding}
             >
               {binding ? "..." : "绑定"}
             </button>
-            <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.6rem" }}>
-              通过本页按钮赞助后自动绑定，无需手动输入。付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
-            </div>
             {editing && (
               <button
                 className="email-btn"
-                style={{ background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", whiteSpace: "nowrap" }}
+                style={{ height: 40, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", whiteSpace: "nowrap" }}
                 onClick={() => setEditing(false)}
               >
                 取消
@@ -363,20 +356,17 @@ function MeowSection({ user }: { user: CurrentUser }) {
       border: "1px solid var(--border)", padding: "1rem 1.25rem", marginBottom: "1rem",
     }}>
       <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.6rem" }}>推送通知</h3>
-      <div style={{ display: "flex", gap: "0.4rem" }}>
+      <div style={{ display: "flex", gap: "0.4rem", alignItems: "stretch" }}>
         <input
+          className="email-input"
           placeholder="Meow ID（用于手机推送）"
           value={meow}
           onChange={(e) => setMeow(e.target.value)}
-          style={{
-            flex: 1, padding: "0.4rem 0.6rem", borderRadius: 4,
-            border: "1px solid var(--border)", background: "var(--bg)",
-            color: "var(--text)", fontSize: "0.85rem",
-          }}
+          style={{ flex: 1, height: 40, fontSize: "0.85rem" }}
         />
         <button
           className="email-btn"
-          style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+          style={{ height: 40, background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
           onClick={handleSave} disabled={saving}
         >
           {saving ? "..." : "保存"}
@@ -384,7 +374,7 @@ function MeowSection({ user }: { user: CurrentUser }) {
         {user.meow && (
           <button
             className="email-btn"
-            style={{ background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)", whiteSpace: "nowrap" }}
+            style={{ height: 40, background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)", whiteSpace: "nowrap" }}
             onClick={handleTest} disabled={testing}
           >
             {testing ? "..." : "测试"}
@@ -446,24 +436,17 @@ function RedeemSection() {
       <h3 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 0.6rem" }}>
         兑换码
       </h3>
-      <div style={{ display: "flex", gap: "0.4rem" }}>
+      <div style={{ display: "flex", gap: "0.4rem", alignItems: "stretch" }}>
         <input
+          className="email-input"
           placeholder="输入兑换码"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          style={{
-            flex: 1,
-            padding: "0.4rem 0.6rem",
-            borderRadius: 4,
-            border: "1px solid var(--border)",
-            background: "var(--bg)",
-            color: "var(--text)",
-            fontSize: "0.85rem",
-          }}
+          style={{ flex: 1, height: 40, fontSize: "0.85rem" }}
         />
         <button
           className="email-btn"
-          style={{ background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
+          style={{ height: 40, background: "var(--accent)", color: "#fff", border: "none", whiteSpace: "nowrap" }}
           onClick={handleRedeem}
           disabled={loading}
         >
