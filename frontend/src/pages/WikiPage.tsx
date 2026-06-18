@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { Calendar, CalendarDayButton } from "../components/ui/calendar";
+import { formatBeijingDateTime } from "../lib/time";
 import { renderMarkdown } from "../markdown";
 import type { CurrentUser } from "../types";
 
@@ -250,15 +251,31 @@ function itemTitle(item: Record<string, any>, section: WikiSection) {
   return item.job_id || "任务";
 }
 
+function isTimeField(key: string) {
+  return key === "time"
+    || key === "fetched_at"
+    || key.endsWith("_at")
+    || key.endsWith("_time")
+    || key.endsWith("_until");
+}
+
+function formatMetaValue(key: string, value: unknown) {
+  if (isEmptyValue(value)) return "";
+  if (isTimeField(key) && (typeof value === "string" || typeof value === "number")) {
+    return formatBeijingDateTime(value);
+  }
+  return formatScalar(value);
+}
+
 function itemMeta(item: Record<string, any>, section: WikiSection) {
-  if (section === "documents") return [item.path || item.doc_type, item.status, item.updated_at].filter(Boolean).join(" / ");
-  if (section === "daily") return [item.finalized ? "finalized" : "pending", item.updated_at].filter(Boolean).join(" / ");
-  if (section === "sources") return [item.dynamic_id, item.value, item.time].filter(Boolean).join(" / ");
+  if (section === "documents") return [item.path || item.doc_type, item.status, formatMetaValue("updated_at", item.updated_at)].filter(Boolean).join(" / ");
+  if (section === "daily") return [item.finalized ? "finalized" : "pending", formatMetaValue("updated_at", item.updated_at)].filter(Boolean).join(" / ");
+  if (section === "sources") return [item.dynamic_id, item.value, formatMetaValue("time", item.time)].filter(Boolean).join(" / ");
   if (section === "events") return [item.category, item.stance, item.dynamic_id].filter(Boolean).join(" / ");
   if (section === "entities") return [item.type, item.status, item.latest_date].filter(Boolean).join(" / ");
-  if (section === "sectors") return [item.board_type, item.code, item.fetched_at].filter(Boolean).join(" / ");
+  if (section === "sectors") return [item.board_type, item.code, formatMetaValue("fetched_at", item.fetched_at)].filter(Boolean).join(" / ");
   const progress = jobProgress(item);
-  return [item.job_type, item.status, item.phase, `${progress.processed}/${progress.total}`, item.updated_at].filter(Boolean).join(" / ");
+  return [item.job_type, item.status, item.phase, `${progress.processed}/${progress.total}`, formatMetaValue("updated_at", item.updated_at)].filter(Boolean).join(" / ");
 }
 
 function compactSummary(item: Record<string, any>, section: WikiSection) {
@@ -286,10 +303,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function formatScalar(value: unknown) {
+function formatScalar(value: unknown, key = "") {
   if (typeof value === "boolean") return value ? "是" : "否";
   if (typeof value === "number") return String(value);
-  if (typeof value === "string") return value.trim();
+  if (typeof value === "string") return key && isTimeField(key) ? formatBeijingDateTime(value) : value.trim();
   return String(value);
 }
 
@@ -306,7 +323,7 @@ function markdownObject(value: Record<string, unknown>, level: number): string {
       lines.push(markdownHeading(level, label), "", markdownValue(entry, level + 1));
       continue;
     }
-    const text = formatScalar(entry);
+    const text = formatScalar(entry, key);
     if (text.length > 120 || text.includes("\n")) {
       lines.push(markdownHeading(level, label), "", text);
     } else {
@@ -355,37 +372,37 @@ function isJsonLikeText(value: unknown) {
   return Boolean(text) && ["{", "["].includes(text[0]);
 }
 
-function markdownCell(value: unknown): string {
+function markdownCell(value: unknown, key = ""): string {
   value = parseJsonValue(value);
   if (isEmptyValue(value)) return "原文未说明";
   if (Array.isArray(value)) {
     const text = value.map(entry => {
-      if (isRecord(entry)) return Object.values(entry).filter(v => !isEmptyValue(v)).map(formatScalar).join(" / ");
-      return formatScalar(entry);
+      if (isRecord(entry)) return Object.entries(entry).filter(([, v]) => !isEmptyValue(v)).map(([entryKey, entryValue]) => formatScalar(entryValue, entryKey)).join(" / ");
+      return formatScalar(entry, key);
     }).filter(Boolean).join("、");
     return markdownCell(text);
   }
   if (isRecord(value)) {
     const text = Object.entries(value)
       .filter(([, entry]) => !isEmptyValue(entry))
-      .map(([key, entry]) => `${fieldLabel(key)}：${formatScalarValue(entry)}`)
+      .map(([entryKey, entry]) => `${fieldLabel(entryKey)}：${formatScalarValue(entry, entryKey)}`)
       .join("；");
     return markdownCell(text);
   }
-  return formatScalar(value).replace(/\|/g, "｜").replace(/\r?\n/g, "；");
+  return formatScalar(value, key).replace(/\|/g, "｜").replace(/\r?\n/g, "；");
 }
 
-function formatScalarValue(value: unknown): string {
+function formatScalarValue(value: unknown, key = ""): string {
   value = parseJsonValue(value);
   if (isEmptyValue(value)) return "";
-  if (Array.isArray(value)) return value.map(formatScalarValue).filter(Boolean).join("、");
+  if (Array.isArray(value)) return value.map(entry => formatScalarValue(entry, key)).filter(Boolean).join("、");
   if (isRecord(value)) {
     return Object.entries(value)
       .filter(([, entry]) => !isEmptyValue(entry))
-      .map(([key, entry]) => `${fieldLabel(key)}：${formatScalarValue(entry)}`)
+      .map(([entryKey, entry]) => `${fieldLabel(entryKey)}：${formatScalarValue(entry, entryKey)}`)
       .join("；");
   }
-  return formatScalar(value);
+  return formatScalar(value, key);
 }
 
 function sectionHeading(lines: string[], title: string) {

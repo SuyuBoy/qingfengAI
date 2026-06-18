@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, RefreshCw, Search, X } from "lucide-react";
 import { API_BASE, api } from "../api";
 import { Calendar } from "../components/ui/calendar";
+import { formatBeijingDateTime } from "../lib/time";
 import type { DynamicItem, DynamicsResponse } from "../types";
 
 function fixImages(content: string, dynamicId: string) {
@@ -335,16 +336,7 @@ const DynamicCard = memo(function DynamicCard({ item, expanded, onExpand }: {
     [content, item.dynamic_id],
   );
 
-  const dateStr = useMemo(
-    () => new Date(item.date).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    [item.date],
-  );
+  const dateStr = useMemo(() => formatBeijingDateTime(item.date), [item.date]);
 
   const handleExpand = useCallback(() => onExpand(item.dynamic_id), [onExpand, item.dynamic_id]);
 

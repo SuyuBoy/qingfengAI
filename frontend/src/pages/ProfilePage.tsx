@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CurrentUser } from "../types";
 import { api } from "../api";
+import { formatBeijingDate, formatBeijingDateTime } from "../lib/time";
 
 interface ProfilePageProps {
   user: CurrentUser;
@@ -490,8 +491,7 @@ export default function ProfilePage({ user, onLogout, onRefresh }: ProfilePagePr
     ? Math.min(100, (balance / cap) * 100)
     : 0;
 
-  const formatDate = (dateStr: string) => dateStr.slice(0, 10);
-  const expireDate = user.role_expire_at ? formatDate(user.role_expire_at) : null;
+  const expireDate = user.role_expire_at ? formatBeijingDate(user.role_expire_at) : null;
 
   const cardStyle: React.CSSProperties = {
     background: "var(--card-bg)",
@@ -591,7 +591,7 @@ export default function ProfilePage({ user, onLogout, onRefresh }: ProfilePagePr
         ) : isVerifyValid ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ ...badgeBase, background: "#22c55e", color: "#fff" }}>
-              已验证至 {formatDate(verifyUntilStr!)}
+              已验证至 {formatBeijingDate(verifyUntilStr)}
             </span>
             <button
               className="email-link"
@@ -604,7 +604,7 @@ export default function ProfilePage({ user, onLogout, onRefresh }: ProfilePagePr
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ ...badgeBase, background: "#eab308", color: "#fff" }}>
-              验证已过期 (至 {formatDate(verifyUntilStr!)})
+              验证已过期 (至 {formatBeijingDate(verifyUntilStr)})
             </span>
             <button
               className="email-link"
@@ -657,7 +657,7 @@ export default function ProfilePage({ user, onLogout, onRefresh }: ProfilePagePr
           </div>
           {user.quota_updated_at && (
             <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.3rem" }}>
-              上次更新: {new Date(user.quota_updated_at).toLocaleString()}
+              上次更新: {formatBeijingDateTime(user.quota_updated_at)}
             </div>
           )}
         </div>
