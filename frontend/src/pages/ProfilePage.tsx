@@ -486,7 +486,7 @@ function RedeemSection() {
   );
 }
 
-export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
+export default function ProfilePage({ user, onLogout, onRefresh }: ProfilePageProps) {
   const roleLabel = getRoleLabel(user.role);
   const roleBadgeStyle = getRoleBadgeStyle(user.role);
 
