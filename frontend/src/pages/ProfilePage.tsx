@@ -670,6 +670,11 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
               transition: "width 0.3s ease",
             }} />
           </div>
+          {user.quota_updated_at && (
+            <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.3rem" }}>
+              上次更新: {new Date(user.quota_updated_at).toLocaleString()}
+            </div>
+          )}
         </div>
       )}
 

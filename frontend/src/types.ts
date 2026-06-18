@@ -6,6 +6,7 @@ export interface CurrentUser {
   is_admin?: boolean;
   quota_balance?: number;
   quota_cap?: number;
+  quota_updated_at?: string;
   quota_refill_rate?: number;
   verify_until?: string;
   is_verified?: boolean;
