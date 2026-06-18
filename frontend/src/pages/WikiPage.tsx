@@ -21,7 +21,7 @@ import { renderMarkdown } from "../markdown";
 import type { CurrentUser } from "../types";
 
 type WikiSection = "documents" | "daily" | "sources" | "events" | "entities" | "sectors" | "jobs";
-type DocType = "" | "root" | "market" | "rolling" | "sector" | "stock" | "method" | "sectors" | "stocks" | "methods";
+type DocType = "" | "root" | "market" | "rolling" | "weekly" | "sector" | "stock" | "method" | "sectors" | "stocks" | "methods";
 
 interface WikiCategory {
   key: string;
@@ -88,6 +88,7 @@ const WIKI_TREE_CATEGORIES: WikiCategory[] = [
   { key: "daily", label: "每日", section: "daily" },
   { key: "market", label: "大盘", section: "documents", docType: "market" },
   { key: "rolling", label: "滚动", section: "documents", docType: "rolling" },
+  { key: "weekly", label: "周报", section: "documents", docType: "weekly" },
   { key: "sector", label: "板块", section: "documents", docType: "sector", docTypeAliases: ["sectors"] },
   { key: "stock", label: "个股", section: "documents", docType: "stock", docTypeAliases: ["stocks"] },
   { key: "method", label: "方法", section: "documents", docType: "method", docTypeAliases: ["methods"] },
@@ -148,6 +149,28 @@ const FIELD_LABELS: Record<string, string> = {
   total: "总数",
   current_date: "当前日期",
   current_dynamic_id: "当前动态",
+  weekly_overview: "周度概览",
+  weekly_summary: "周度总结",
+  market_review: "大盘复盘",
+  sector_review: "板块复盘",
+  stock_review: "个股复盘",
+  view_changes: "观点变化",
+  next_week_watch: "下周关注",
+  week_view: "本周观点",
+  change_from_last_week: "较上周变化",
+  week_trend: "本周走势",
+  sentiment_path: "情绪路径",
+  position_advice: "仓位建议",
+  key_levels: "关键点位",
+  catalyst: "催化",
+  risk: "风险",
+  focus: "关注点",
+  reason: "理由",
+  trigger: "触发原因",
+  change: "变化",
+  from: "起点",
+  to: "终点",
+  finalized_weeks: "已总结周",
 };
 
 const PRIMARY_FIELDS: Record<WikiSection, string[]> = {
@@ -448,6 +471,7 @@ function documentPath(item: Record<string, any>) {
   if (docType === "method") return `methods/${docId}.md`;
   if (docType === "market") return `market/${docId}.md`;
   if (docType === "rolling") return `rolling/${docId}.md`;
+  if (docType === "weekly") return `weekly/${docId}.md`;
   return docId ? `${docId}.md` : "";
 }
 
@@ -494,6 +518,48 @@ function documentMarkdown(item: Record<string, any>) {
       ["source", "来源"],
     ]);
     addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["current", "timeline", "sentiment"].includes(key))));
+    return lines.join("\n");
+  }
+
+  if (docType === "weekly") {
+    addParagraph(lines, "周度总结", content.weekly_summary);
+    addKeyValueTable(lines, "周度概览", content.weekly_overview);
+    addFlexibleSection(lines, "大盘复盘", content.market_review, [
+      ["week_trend", "本周走势"],
+      ["sentiment_path", "情绪路径"],
+      ["position_advice", "仓位建议"],
+      ["key_levels", "关键点位"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "板块复盘", content.sector_review, [
+      ["name", "板块"],
+      ["status", "状态"],
+      ["week_view", "本周观点"],
+      ["change_from_last_week", "较上周变化"],
+      ["catalyst", "催化"],
+      ["risk", "风险"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "个股复盘", content.stock_review, [
+      ["name", "个股"],
+      ["code", "代码"],
+      ["status", "状态"],
+      ["week_view", "本周观点"],
+      ["change", "变化"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "观点变化", content.view_changes, [
+      ["from", "起点"],
+      ["to", "终点"],
+      ["trigger", "触发原因"],
+      ["source", "来源"],
+    ]);
+    addRecordsTable(lines, "下周关注", content.next_week_watch, [
+      ["focus", "关注点"],
+      ["reason", "理由"],
+      ["source", "来源"],
+    ]);
+    addKeyValueTable(lines, "其他内容", Object.fromEntries(Object.entries(content).filter(([key]) => !["weekly_summary", "weekly_overview", "market_review", "sector_review", "stock_review", "view_changes", "next_week_watch"].includes(key))));
     return lines.join("\n");
   }
 
@@ -722,7 +788,7 @@ function normalizedDocType(value: unknown): DocType {
   if (docType === "sectors") return "sector";
   if (docType === "stocks") return "stock";
   if (docType === "methods") return "method";
-  if (["root", "market", "rolling", "sector", "stock", "method"].includes(docType)) return docType as DocType;
+  if (["root", "market", "rolling", "weekly", "sector", "stock", "method"].includes(docType)) return docType as DocType;
   return "";
 }
 
