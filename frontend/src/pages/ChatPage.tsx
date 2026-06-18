@@ -494,7 +494,7 @@ export default function ChatPage({ user }: { user: CurrentUser }) {
       const guidanceMsg: UiChatMessage = {
         id: makeId(),
         role: "assistant",
-        content: "⚠️ 尚未完成内容验证\n\n您需要先完成内容验证才能使用 AI 对话。\n\n请[前往个人中心](/#/profile)进行验证。验证通过后即可正常使用 AI 对话。",
+        content: "⚠️ 尚未完成内容验证\n\n您需要先完成内容验证才能使用 AI 对话。\n\n请[前往个人中心](#/profile)进行验证。验证通过后即可正常使用 AI 对话。",
       };
       const newMessages = [...previousMessages, userMessage, guidanceMsg];
       setPastedImages([]);
