@@ -263,7 +263,8 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       ) : (
         <div>
           <p style={{ fontSize: "0.8rem", color: "var(--muted)", lineHeight: 1.6, margin: "0 0 0.7rem" }}>
-            通过本页按钮赞助后自动绑定，无需手动输入。付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
+            通过本页按钮赞助后自动绑定，无需手动输入。<br />
+            付完款未自动激活？在爱发电找到订单号，输入下方即可绑定并同步。
           </p>
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "stretch" }}>
             <input
