@@ -391,10 +391,11 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
           <div className="login-field has-eye">
             <Lock className="field-icon" size={18} strokeWidth={1.8} />
             <input
-              type={showPwd ? "text" : "password"} className="login-input" placeholder="密码（至少 6 位）" required
+              type={showPwd ? "text" : "password"} className="login-input"
+              placeholder={step === "login" ? "密码" : "密码（至少 6 位）"} required
               value={password} onChange={e => setPassword(e.target.value)}
               autoComplete={step === "login" ? "current-password" : "new-password"}
-              minLength={6}
+              minLength={step === "login" ? undefined : 6}
             />
             <button
               type="button" className="field-eye"
