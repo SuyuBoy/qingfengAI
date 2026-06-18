@@ -638,12 +638,21 @@ export default function ProfilePage({ user, onLogout }: ProfilePageProps) {
           <div style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             marginBottom: "0.5rem",
             fontSize: "0.9rem",
           }}>
             <span>Token 配额</span>
-            <span style={{ color: "var(--muted)" }}>
-              {formatQuota(balance)} / {formatQuota(cap)}
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ color: "var(--muted)" }}>
+                {formatQuota(balance)} / {formatQuota(cap)}
+              </span>
+              <button
+                className="email-btn"
+                style={{ background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)", padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                onClick={() => window.location.reload()}
+                title="刷新余额"
+              >刷新</button>
             </span>
           </div>
           <div style={{
