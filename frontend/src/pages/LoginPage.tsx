@@ -218,7 +218,6 @@ export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPagePr
       </button>
 
       <div className="login-brand">
-        <div className="login-logo" aria-hidden="true">清风</div>
         <h1>清风 AI</h1>
         <p className="login-subtitle">{subtitle}</p>
       </div>
