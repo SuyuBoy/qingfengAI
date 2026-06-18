@@ -1,15 +1,81 @@
 .login-box {
-  max-width: 380px; margin: clamp(3rem, 14vh, 7rem) auto; padding: 2.75rem 2.25rem;
-  background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 4px); text-align: center;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  position: relative;
+  width: min(100%, 400px);
+  max-width: 400px;
+  margin: clamp(2rem, 10vh, 5.75rem) auto;
+  padding: 2.5rem 2.25rem 2.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  text-align: center;
+  box-shadow: var(--shadow);
 }
-.login-box h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: 0.5px; }
+.login-box h1 {
+  font-size: 1.55rem;
+  font-weight: 750;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: 0;
+}
 .login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
-.login-subtitle { font-size: 0.92rem !important; margin-bottom: 1.75rem !important; }
+.login-subtitle {
+  font-size: 0.92rem !important;
+  line-height: 1.45;
+  margin: 0.4rem 0 1.6rem !important;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+.theme-toggle:hover {
+  background: var(--surface-2);
+  border-color: var(--muted-2);
+  color: var(--text);
+}
+.theme-toggle:active {
+  transform: translateY(1px);
+}
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-logo {
+  width: 54px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
 
 .login-box .error-msg {
-  color: var(--danger); font-size: 0.8rem; margin-bottom: 0.5rem; min-height: 1.2em;
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-bottom: 0.6rem;
+  min-height: 1.2em;
 }
 
 #g_id_signin { display: inline-block; }
@@ -29,18 +95,94 @@
 .email-form {
   display: flex; flex-direction: column; gap: 0.75rem;
 }
+.login-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.login-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
+}
+.login-field.has-eye .login-input {
+  padding-right: 2.8rem;
+}
+.field-icon {
+  flex: 0 0 auto;
+  margin-left: 0.85rem;
+  color: var(--muted);
+}
+.login-input,
 .email-input {
   width: 100%; height: 46px; padding: 0 0.85rem;
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface); color: var(--text); font-size: 0.92rem;
   outline: none; box-sizing: border-box; transition: border-color .15s, box-shadow .15s;
 }
+.login-input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding-left: 0.65rem;
+}
+.login-input::placeholder,
+.email-input::placeholder {
+  color: var(--muted-2);
+  opacity: 1;
+}
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--surface) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
 .email-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
 }
+.login-input.is-invalid {
+  color: var(--danger);
+}
+.login-field.is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.14);
+}
+.field-eye {
+  position: absolute;
+  right: 0.45rem;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.field-eye:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.field-hint {
+  margin-top: -0.4rem;
+  text-align: left;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.field-hint.error {
+  color: var(--danger);
+}
 .email-btn {
-  height: 46px; border: 0; border-radius: var(--radius);
+  min-height: 46px; border: 0; border-radius: var(--radius);
   background: var(--text); color: var(--bg); font-size: 0.92rem;
   font-weight: 600; cursor: pointer; padding: 0 1.25rem;
   margin-top: 0.35rem; transition: opacity .15s;
@@ -57,11 +199,37 @@
   display: flex; align-items: center; gap: 0.5rem;
 }
 .captcha-img {
-  height: 42px; border: 1px solid var(--border); border-radius: var(--radius);
+  width: 92px;
+  height: 46px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
   cursor: pointer;
 }
 .captcha-input {
   flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding-left: 0.85rem;
+}
+
+.agree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.agree-row input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  cursor: pointer;
 }
 
 .verify-box {
@@ -144,3 +312,27 @@
   border-color: #454545;
 }
 
+@media (max-width: 480px) {
+  .login-box {
+    width: 100%;
+    margin: 0 auto;
+    padding: 2.35rem 1.1rem 1.4rem;
+    border-radius: var(--radius);
+  }
+
+  .auth-screen {
+    align-items: stretch;
+    place-items: stretch;
+    padding: 0.75rem;
+  }
+
+  .theme-toggle {
+    top: 0.8rem;
+    right: 0.8rem;
+  }
+
+  .login-logo {
+    width: 50px;
+    height: 50px;
+  }
+}

@@ -277,7 +277,7 @@ export default function App() {
   }, [searchQuery, sessions]);
 
   if (loading) return <main className="auth-screen"><div className="loading">加载中...</div></main>;
-  if (!user) return <main className="auth-screen"><LoginPage onLogin={onLogin} /></main>;
+  if (!user) return <main className="auth-screen"><LoginPage onLogin={onLogin} theme={theme} onToggleTheme={toggleTheme} /></main>;
 
   return (
     <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>

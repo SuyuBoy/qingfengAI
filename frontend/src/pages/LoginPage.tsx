@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { Eye, EyeOff, Lock, Mail, Moon, ShieldCheck, Sun } from "lucide-react";
 import { marked } from "marked";
-import { API_BASE, api, setToken } from "../api";
+import { api, setToken } from "../api";
 
 type Tab = "google" | "email";
 type EmailStep = "login" | "register" | "verify";
+type Theme = "light" | "dark";
 
-export default function LoginPage({ onLogin }: { onLogin: () => void }) {
-  const [tab, setTab] = useState<Tab>("email");
+type LoginPageProps = {
+  onLogin: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
+};
+
+export default function LoginPage({ onLogin, theme, onToggleTheme }: LoginPageProps) {
+  const [tab] = useState<Tab>("email");
   const [error, setError] = useState("");
   const [hasGoogle, setHasGoogle] = useState(Boolean(window.google?.accounts));
   const [loading, setLoading] = useState(false);
@@ -14,6 +22,8 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   // email form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [code, setCode] = useState("");
   const [step, setStep] = useState<EmailStep>("login");
 
@@ -141,6 +151,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) { setError("两次输入的密码不一致"); return; }
     if (!agreed) { setError("请阅读并同意用户协议"); return; }
     setError("");
     setLoading(true);
@@ -182,21 +193,37 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     }
   };
 
+  const switchStep = (next: EmailStep) => {
+    setStep(next);
+    setError("");
+    setConfirmPassword("");
+    setShowPwd(false);
+  };
+
+  const pwdMismatch = step === "register" && confirmPassword.length > 0 && password !== confirmPassword;
+  const subtitle = step === "register" ? "创建你的清风 AI 账号"
+    : step === "verify" ? "验证你的邮箱"
+    : "欢迎回来，请登录账号";
+
   return (
     <div className="login-box">
-      <h1>清风 AI</h1>
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={onToggleTheme}
+        aria-label="切换日间 / 夜间模式"
+        title="切换日间 / 夜间模式"
+      >
+        {theme === "dark" ? <Sun size={18} strokeWidth={1.8} /> : <Moon size={18} strokeWidth={1.8} />}
+      </button>
 
-      <p className="login-subtitle">
-        {step === "register" ? "创建你的账号" : step === "verify" ? "邮箱验证" : "登录你的账号"}
-      </p>
-      <div className="login-tabs" style={{ display: "none" }}>
-        <button
-          className={`login-tab${tab === "email" ? " active" : ""}`}
-          onClick={() => { setTab("email"); setError(""); setStep("login"); }}
-        >邮箱登录</button>
+      <div className="login-brand">
+        <div className="login-logo" aria-hidden="true">清风</div>
+        <h1>清风 AI</h1>
+        <p className="login-subtitle">{subtitle}</p>
       </div>
 
-      <div className={`error-msg`}>{error || " "}</div>
+      <div className="error-msg">{error || " "}</div>
 
       {tab === "google" ? (
         hasGoogle ? (
@@ -206,66 +233,106 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
         )
       ) : step === "verify" ? (
         <form className="email-form" onSubmit={handleVerify}>
-          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.25rem" }}>
             验证码已发送至 <strong>{email}</strong>
           </p>
-          <input
-            type="text" className="email-input" placeholder="6 位验证码" required
-            value={code} onChange={e => setCode(e.target.value)}
-            maxLength={6} autoFocus
-          />
+          <div className="login-field">
+            <ShieldCheck className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type="text" className="login-input" placeholder="6 位验证码" required
+              value={code} onChange={e => setCode(e.target.value)}
+              maxLength={6} inputMode="numeric" autoFocus
+            />
+          </div>
           <button type="submit" className="email-btn" disabled={loading}>
             {loading ? "验证中..." : "验证"}
           </button>
           <button type="button" className="email-link" onClick={handleResendCode}>
             重发验证码
           </button>
-          <button type="button" className="email-link" onClick={() => setStep("register")}>
+          <button type="button" className="email-link" onClick={() => switchStep("register")}>
             返回
           </button>
         </form>
       ) : (
         <form className="email-form" onSubmit={step === "login" ? handleEmailLogin : handleRegister}>
-          <input
-            type="email" className="email-input" placeholder="邮箱" required
-            value={email} onChange={e => setEmail(e.target.value)}
-            autoComplete="email" autoFocus
-          />
-          <input
-            type="password" className="email-input" placeholder="密码（至少 6 位）" required
-            value={password} onChange={e => setPassword(e.target.value)}
-            autoComplete={step === "login" ? "current-password" : "new-password"}
-            minLength={6}
-          />
+          <div className="login-field">
+            <Mail className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type="email" className="login-input" placeholder="邮箱" required
+              value={email} onChange={e => setEmail(e.target.value)}
+              autoComplete="email" autoFocus
+            />
+          </div>
+
+          <div className="login-field has-eye">
+            <Lock className="field-icon" size={18} strokeWidth={1.8} />
+            <input
+              type={showPwd ? "text" : "password"} className="login-input" placeholder="密码（至少 6 位）" required
+              value={password} onChange={e => setPassword(e.target.value)}
+              autoComplete={step === "login" ? "current-password" : "new-password"}
+              minLength={6}
+            />
+            <button
+              type="button" className="field-eye"
+              onClick={() => setShowPwd(s => !s)}
+              aria-label={showPwd ? "隐藏密码" : "显示密码"}
+              tabIndex={-1}
+            >
+              {showPwd ? <EyeOff size={18} strokeWidth={1.8} /> : <Eye size={18} strokeWidth={1.8} />}
+            </button>
+          </div>
+
+          {step === "register" && (
+            <>
+              <div className={`login-field has-eye${pwdMismatch ? " is-invalid" : ""}`}>
+                <Lock className="field-icon" size={18} strokeWidth={1.8} />
+                <input
+                  type={showPwd ? "text" : "password"}
+                  className={`login-input${pwdMismatch ? " is-invalid" : ""}`}
+                  placeholder="再次输入密码" required
+                  value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password" minLength={6}
+                />
+              </div>
+              {pwdMismatch && <div className="field-hint error">两次输入的密码不一致</div>}
+            </>
+          )}
+
           {step === "register" && captchaImg && (
             <div className="captcha-row">
               <img src={captchaImg} alt="验证码" className="captcha-img" onClick={fetchCaptcha} title="点击刷新" />
               <input
-                type="text" className="email-input captcha-input" placeholder="验证码" required
+                type="text" className="login-input captcha-input" placeholder="验证码" required
                 value={captchaAnswer} onChange={e => setCaptchaAnswer(e.target.value)}
                 maxLength={2}
               />
             </div>
           )}
+
           {step === "register" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.82rem", color: "var(--muted)", cursor: "pointer" }}>
-              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ cursor: "pointer" }} />
+            <label className="agree-row">
+              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
               已阅读并同意
               <span
                 className="email-link"
-                style={{ textDecoration: "underline", cursor: "pointer" }}
+                style={{ padding: 0, fontSize: "inherit" }}
                 onClick={(e) => { e.preventDefault(); loadAgreement(); setShowAgreement(true); }}
               >
                 用户协议
               </span>
             </label>
           )}
-          <button type="submit" className="email-btn" disabled={loading || (step === "register" && !agreed)}>
+
+          <button
+            type="submit" className="email-btn"
+            disabled={loading || pwdMismatch || (step === "register" && !agreed)}
+          >
             {loading ? "请稍候..." : step === "login" ? "登录" : "注册"}
           </button>
           <button
             type="button" className="email-link"
-            onClick={() => { setStep(step === "login" ? "register" : "login"); setError(""); }}
+            onClick={() => switchStep(step === "login" ? "register" : "login")}
           >
             {step === "login" ? "没有账号？注册" : "已有账号？登录"}
           </button>
@@ -308,7 +375,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             <div style={{ padding: "0.75rem clamp(0.75rem, 3vw, 1.5rem)", borderTop: "1px solid var(--border)", textAlign: "right", flexShrink: 0 }}>
               <button
                 className="email-btn"
-                style={{ background: "var(--accent)", color: "#fff", border: "none" }}
+                style={{ width: "auto", padding: "0 1.5rem", height: 40 }}
                 onClick={() => { setAgreed(true); setShowAgreement(false); }}
               >
                 同意
