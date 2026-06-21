@@ -10,6 +10,7 @@ interface Challenge {
   blank_context: string;
   expires_at: string;
   attempt: number;
+  dynamic_date?: string;
 }
 
 function formatCountdown(seconds: number) {
@@ -103,6 +104,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
           blank_context: body.blank_context,
           expires_at: body.expires_at,
           attempt: body.attempt,
+          dynamic_date: body.dynamic_date,
         };
         setChallenge(newChallenge);
         setDynamicIdInput("");
@@ -148,6 +150,12 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                   : "⏱ 已超时"}
                 {" · "}第 {challenge.attempt}/5 次
               </div>
+
+              {challenge.dynamic_date && (
+                <p style={{ color: "var(--muted, #888)", fontSize: "0.8rem", marginTop: "-0.25rem" }}>
+                  文章发布日期：{challenge.dynamic_date}
+                </p>
+              )}
 
               <label className="verify-label">
                 动态 ID
