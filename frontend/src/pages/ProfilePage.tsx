@@ -223,14 +223,14 @@ function AfdianSection({ user }: { user: CurrentUser }) {
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
         <button
           className="email-btn"
-          style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none", padding: "0 1.5rem" }}
+          style={{ flex: 1, background: "#f59e0b", color: "#fff", border: "none", padding: "0.45rem 1.25rem" }}
           onClick={() => handleUpgrade("plus")}
         >
           开通 Plus
         </button>
         <button
           className="email-btn"
-          style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none", padding: "0 1.5rem" }}
+          style={{ flex: 1, background: "#8b5cf6", color: "#fff", border: "none", padding: "0.45rem 1.25rem" }}
           onClick={() => handleUpgrade("pro")}
         >
           开通 Pro
