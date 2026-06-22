@@ -69,7 +69,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T | 
     (err as any).body = body;
     throw err;
   }
-  if (!res.ok) throw new Error(res.statusText);
+  if (res.status === 429) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "请求过于频繁，请稍后再试");
+  }
+  if (res.status >= 500) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "服务器繁忙，请稍后重试");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "请求失败，请稍后重试");
+  }
   return res.json() as Promise<T>;
 }
 

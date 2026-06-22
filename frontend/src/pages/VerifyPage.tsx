@@ -29,6 +29,11 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
   const [countdown, setCountdown] = useState(0);
   const timerRef = useRef<number | undefined>(undefined);
 
+  const dynamicIdError = dynamicIdInput.trim() && !/^\d+$/.test(dynamicIdInput.trim())
+    ? "动态 ID 应为纯数字"
+    : "";
+  const canSubmit = !loading && countdown > 0 && dynamicIdInput.trim() && textInput.trim() && !dynamicIdError;
+
   const startTimer = useCallback((expiresAt: string) => {
     clearInterval(timerRef.current);
     const tick = () => {
@@ -76,7 +81,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dynamicIdInput.trim() || !textInput.trim()) return;
+    if (!canSubmit) return;
     setError("");
     setLoading(true);
     try {
@@ -161,10 +166,13 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 动态 ID
               </label>
               <input
-                type="text" className="email-input" placeholder="动态 ID" required
+                type="text" className={`email-input${dynamicIdError ? " is-invalid" : ""}`} placeholder="动态 ID" required
                 value={dynamicIdInput} onChange={e => setDynamicIdInput(e.target.value)}
                 autoFocus
               />
+              {dynamicIdError && (
+                <span style={{ color: "var(--danger, #d92d20)", fontSize: "0.76rem", marginTop: "-0.5rem" }}>{dynamicIdError}</span>
+              )}
 
               <label className="verify-label">
                 填空
@@ -180,7 +188,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 </p>
               )}
 
-              <button type="submit" className="email-btn" disabled={loading || countdown === 0} style={{ marginTop: "1rem" }}>
+              <button type="submit" className="email-btn" disabled={!canSubmit} style={{ marginTop: "1rem" }}>
                 {loading ? "验证中..." : "提交验证"}
               </button>
 
