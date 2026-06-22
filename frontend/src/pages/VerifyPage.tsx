@@ -129,14 +129,17 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
 
   if (loading && !challenge) {
     return (
-      <div className="login-box">
-        <h1>内容验证</h1>
-        <div className="error-msg">加载中...</div>
+      <div className="verify-page">
+        <div className="login-box">
+          <h1>内容验证</h1>
+          <div className="error-msg">加载中...</div>
+        </div>
       </div>
     );
   }
 
   return (
+    <div className="verify-page">
     <div className="login-box verify-box">
       <h1>内容验证</h1>
 
@@ -206,18 +209,19 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
           )}
 
           {!challenge && !error && (
-            <button type="button" className="email-btn" onClick={fetchChallenge}>
+            <button type="button" className="email-btn" onClick={fetchChallenge} style={{ marginTop: "0.6rem" }}>
               获取题目
             </button>
           )}
 
           {!challenge && error && (
-            <button type="button" className="email-btn" onClick={fetchChallenge}>
+            <button type="button" className="email-btn" onClick={fetchChallenge} style={{ marginTop: "0.6rem" }}>
               重试
             </button>
           )}
         </>
       )}
+    </div>
     </div>
   );
 }
