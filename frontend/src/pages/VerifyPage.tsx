@@ -154,38 +154,36 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 请在 B站最新动态中找到对应内容，完成填空验证。
               </p>
 
-              <div className={`verify-meta${countdown <= 60 ? " is-urgent" : ""}`}>
-                {countdown > 0
-                  ? `⏱ 剩余 ${formatCountdown(countdown)}`
-                  : "⏱ 已超时"}
-                {" · "}第 {challenge.attempt}/5 次
+              <div className="verify-meta-row">
+                <span className={`verify-countdown${countdown <= 60 ? " is-urgent" : ""}`}>
+                  {countdown > 0
+                    ? `⏱ 剩余 ${formatCountdown(countdown)}`
+                    : "⏱ 已超时"}
+                </span>
+                <span className="verify-attempt">· 第 {challenge.attempt}/5 次</span>
+                {challenge.dynamic_date && (
+                  <span className="verify-date">· {challenge.dynamic_date}</span>
+                )}
               </div>
 
-              {challenge.dynamic_date && (
-                <p style={{ color: "var(--muted, #888)", fontSize: "0.8rem", marginTop: "-0.25rem" }}>
-                  文章发布日期：{challenge.dynamic_date}
-                </p>
-              )}
+              <div className="verify-field">
+                <label className="verify-label">动态 ID</label>
+                <input
+                  type="text" className={`email-input${dynamicIdError ? " is-invalid" : ""}`}
+                  placeholder="动态 ID" required
+                  value={dynamicIdInput} onChange={e => setDynamicIdInput(e.target.value)}
+                  autoFocus
+                />
+                {dynamicIdError && <span className="verify-field-error">{dynamicIdError}</span>}
+              </div>
 
-              <label className="verify-label">
-                动态 ID
-              </label>
-              <input
-                type="text" className={`email-input${dynamicIdError ? " is-invalid" : ""}`} placeholder="动态 ID" required
-                value={dynamicIdInput} onChange={e => setDynamicIdInput(e.target.value)}
-                autoFocus
-              />
-              {dynamicIdError && (
-                <span style={{ color: "var(--danger, #d92d20)", fontSize: "0.76rem", marginTop: "-0.5rem" }}>{dynamicIdError}</span>
-              )}
-
-              <label className="verify-label">
-                填空
-              </label>
-              <input
-                type="text" className="email-input" placeholder="填空内容" required
-                value={textInput} onChange={e => setTextInput(e.target.value)}
-              />
+              <div className="verify-field">
+                <label className="verify-label">填空</label>
+                <input
+                  type="text" className="email-input" placeholder="填空内容" required
+                  value={textInput} onChange={e => setTextInput(e.target.value)}
+                />
+              </div>
 
               {challenge.blank_context && (
                 <p className="verify-context">
@@ -193,7 +191,7 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
                 </p>
               )}
 
-              <button type="submit" className="email-btn" disabled={!canSubmit} style={{ marginTop: "1rem" }}>
+              <button type="submit" className="email-btn" disabled={!canSubmit}>
                 {loading ? "验证中..." : "提交验证"}
               </button>
 
