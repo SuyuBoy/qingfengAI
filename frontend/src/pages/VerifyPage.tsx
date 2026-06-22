@@ -64,10 +64,10 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("503") || msg.includes("无可用于验证")) {
-        setError("今日无动态，暂不可验证");
-      } else if (msg.includes("次数已用完")) {
+      if (msg.includes("次数已用完")) {
         setError("今日尝试次数已用完，请明天再试");
+      } else if (msg.includes("无可用于验证")) {
+        setError("近期无可用于验证的动态，请稍后再试");
       } else {
         setError(msg || "获取验证内容失败");
       }
@@ -102,7 +102,6 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
         setChallenge(null);
         clearInterval(timerRef.current);
       } else if (body?.dynamic_id) {
-        // 答错，后端给了新题
         setError("答案错误，已换新题");
         const newChallenge: Challenge = {
           dynamic_id: body.dynamic_id,
@@ -115,6 +114,12 @@ export default function VerifyPage({ onVerified }: VerifyPageProps) {
         setDynamicIdInput("");
         setTextInput("");
         startTimer(body.expires_at);
+      } else if (msg.includes("次数已用完")) {
+        setError("今日尝试次数已用完，请明天再试");
+        setChallenge(null);
+        clearInterval(timerRef.current);
+      } else if (msg.includes("不足")) {
+        setError("填入内容过短，至少需要 2 个字");
       } else {
         setError(msg);
       }
